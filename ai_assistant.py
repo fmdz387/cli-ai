@@ -16,7 +16,6 @@ if api_key is None:
     sys.exit(1)
 
 os.environ["ANTHROPIC_API_KEY"] = api_key
-SKIP_CONFIRM_ENV_VAR = "AI_ASSISTANT_SKIP_CONFIRM"
 
 client = anthropic.Anthropic()
 

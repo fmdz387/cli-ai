@@ -89,6 +89,9 @@ EOF
 
 # Step 4: Configure CLI
 echo -e "${YELLOW}Step 4: Configuring CLI${NC}"
+
+echo "AI_ASSISTANT_SKIP_CONFIRM=true" >~/.cli_ai_assistant/config
+
 if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "cygwin" ]]; then
     # Windows (Git Bash or Cygwin)
     if ! grep -q "alias s='python ~/.cli_ai_assistant/ai_assistant.py'" ~/.bashrc; then
@@ -100,7 +103,8 @@ else
         echo "alias s='python3 ~/.cli_ai_assistant/ai_assistant.py'" >>~/.bashrc
     fi
 fi
-echo "export AI_ASSISTANT_SKIP_CONFIRM=true" >~/.cli_ai_assistant/config
+
+# Apply the changes made in .bashrc
 source ~/.bashrc
 
 # Print setup completion message
