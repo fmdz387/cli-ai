@@ -78,7 +78,7 @@ if ! command -v pip3 &> /dev/null; then
     fi
 fi
 
-pip install anthropic pyreadline3 keyring
+pip install anthropic pyreadline3 keyring keyring.alt
 
 # Step 3: Secure API key
 echo -e "${YELLOW}Step 3: Securing API key${NC}"
