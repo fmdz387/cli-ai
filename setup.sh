@@ -30,7 +30,7 @@ NC='\033[0m' # No Color
 # Step 1: Set up environment
 echo -e "${YELLOW}Step 1: Setting up environment${NC}"
 mkdir -p ~/.cli_ai_assistant
-curl -sSL https://raw.githubusercontent.com/fmdz387/cli-ai/refs/heads/master/setup.sh -o ~/.cli_ai_assistant/ai_assistant.py
+curl -sSL https://raw.githubusercontent.com/fmdz387/cli-ai/refs/heads/master/ai_assistant.py -o ~/.cli_ai_assistant/ai_assistant.py
 # Make the script executable
 chmod +x ~/.cli_ai_assistant/ai_assistant.py
 
