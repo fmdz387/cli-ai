@@ -2,17 +2,14 @@
 security_note="\n\e[33mNOTE: \e[0mYour API key is stored securely in your system's keyring and is not shared outside of this machine."
 
 # ASCII art as a multi-line string
-cli_ai_art = '''
+cat << "EOF"
  ██████╗██╗     ██╗     █████╗ ██╗
 ██╔════╝██║     ██║    ██╔══██╗██║
 ██║     ██║     ██║    ███████║██║
 ██║     ██║     ██║    ██╔══██║██║
 ╚██████╗███████╗██║    ██║  ██║██║
  ╚═════╝╚══════╝╚═╝    ╚═╝  ╚═╝╚═╝
-'''
-
-print(cli_ai_art)
-EOL
+EOF
 
 echo -e "\nWelcome to CLI AI Assistant!\n"
 
