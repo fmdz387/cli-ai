@@ -3,6 +3,8 @@ security_note="\n\e[33mNOTE: \e[0mYour API key is stored securely in your system
 
 # ASCII art as a multi-line string
 cat << "EOF"
+
+
  ██████╗██╗     ██╗     █████╗ ██╗
 ██╔════╝██║     ██║    ██╔══██╗██║
 ██║     ██║     ██║    ███████║██║
