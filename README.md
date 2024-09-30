@@ -2,7 +2,7 @@
 
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
-A simple command-line AI assistant for Linux that translates natural language into shell commands.
+A simple Unix-based command-line AI assistant that translates natural language into shell commands.
 
 ## Note
 - API key is stored securely in your system's keyring and is not shared outside of this machine.
@@ -12,7 +12,7 @@ A simple command-line AI assistant for Linux that translates natural language in
 ## Installation
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/username/repo/main/setup.sh | bash -s <your_anthropic_api_key>
+curl -sSL https://raw.githubusercontent.com/fmdz387/cli-ai/refs/heads/master/setup.sh | bash -s <your_anthropic_api_key>
 ```
 
 ## Usage

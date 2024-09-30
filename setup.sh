@@ -1,5 +1,5 @@
 #!/bin/bash
-security_note="\e[33mNOTE: \e[0mYour API key is stored securely in your system's keyring and is not shared outside of this machine."
+security_note="\n\e[33mNOTE: \e[0mYour API key is stored securely in your system's keyring and is not shared outside of this machine."
 # ASCII art for "CLI AI"
 cat <<"EOF"
  ██████╗██╗     ██╗     █████╗ ██╗
@@ -14,7 +14,8 @@ echo -e "\nWelcome to CLI AI Assistant!\n"
 
 # Check if the API key is provided
 if [ -z "$1" ]; then
-    echo "Usage: curl -sSL https://raw.githubusercontent.com/username/repo/main/setup.sh | bash -s <your_anthropic_api_key>"
+    echo -e "\e[31mWARNING: API key not provided!\e[0m"
+    echo -e "\e[33mUsage: curl -sSL https://raw.githubusercontent.com/username/repo/main/setup.sh | bash -s <your_anthropic_api_key>\e[0m"
     echo -e "$security_note"
     exit 1
 fi
