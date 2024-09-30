@@ -33,6 +33,39 @@ curl -sSL https://raw.githubusercontent.com/fmdz387/cli-ai/refs/heads/master/set
 
 # Step 2: Install dependencies
 echo -e "${YELLOW}Step 2: Installing dependencies${NC}"
+# Check if Python is installed
+if ! command -v python3 &> /dev/null; then
+    echo -e "${YELLOW}Python not found. Installing Python...${NC}"
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        # macOS
+        brew install python
+    elif [[ -f /etc/debian_version || -f /etc/lsb-release ]]; then
+        # Debian or Ubuntu
+        sudo apt-get update
+        sudo apt-get install -y python3
+    else
+        echo -e "${RED}Unsupported OS. Please install Python manually.${NC}"
+        exit 1
+    fi
+fi
+
+# Check if pip is installed
+if ! command -v pip3 &> /dev/null; then
+    echo -e "${YELLOW}pip not found. Installing pip...${NC}"
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        # macOS
+        curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
+        python3 get-pip.py
+        rm get-pip.py
+    elif [[ -f /etc/debian_version || -f /etc/lsb-release ]]; then
+        # Debian or Ubuntu
+        sudo apt-get install -y python3-pip
+    else
+        echo -e "${RED}Unsupported OS. Please install pip manually.${NC}"
+        exit 1
+    fi
+fi
+
 pip install anthropic pyreadline3 keyring
 
 # Step 3: Secure API key
