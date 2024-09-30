@@ -1,14 +1,18 @@
 #!/bin/bash
 security_note="\n\e[33mNOTE: \e[0mYour API key is stored securely in your system's keyring and is not shared outside of this machine."
-# ASCII art for "CLI AI"
-cat <<"EOF"
+
+# ASCII art as a multi-line string
+cli_ai_art = '''
  ██████╗██╗     ██╗     █████╗ ██╗
 ██╔════╝██║     ██║    ██╔══██╗██║
 ██║     ██║     ██║    ███████║██║
 ██║     ██║     ██║    ██╔══██║██║
 ╚██████╗███████╗██║    ██║  ██║██║
  ╚═════╝╚══════╝╚═╝    ╚═╝  ╚═╝╚═╝
-EOF
+'''
+
+print(cli_ai_art)
+EOL
 
 echo -e "\nWelcome to CLI AI Assistant!\n"
 
@@ -30,6 +34,8 @@ NC='\033[0m' # No Color
 echo -e "${YELLOW}Step 1: Setting up environment${NC}"
 mkdir -p ~/.cli_ai_assistant
 curl -sSL https://raw.githubusercontent.com/fmdz387/cli-ai/refs/heads/master/setup.sh -o ~/.cli_ai_assistant/ai_assistant.py
+# Make the script executable
+chmod +x ~/.cli_ai_assistant/ai_assistant.py
 
 # Step 2: Install dependencies
 echo -e "${YELLOW}Step 2: Installing dependencies${NC}"
