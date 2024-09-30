@@ -9,8 +9,7 @@ A simple Unix-based command-line AI assistant that translates natural language i
 ## Note
 - API key is stored securely in your system's keyring and is not shared outside of this machine.
 - This is a lightweight CLI AI assistant for personal use.
-- Currently, ass![Uploading image.png…]()
-istant uses Anthropic as an AI provider.
+- Currently, assistant uses Anthropic as an AI provider.
 
 ## Installation
 
