@@ -9,6 +9,10 @@ import keyring
 # Retrieve the API key
 api_key = keyring.get_password("cli_ai_assistant", "anthropic_api_key")
 
+if api_key is None:
+    print("\033[91mError: API key not found. Please run the setup script first.\033[0m")
+    sys.exit(1)
+
 os.environ["ANTHROPIC_API_KEY"] = api_key
 SKIP_CONFIRM_ENV_VAR = "AI_ASSISTANT_SKIP_CONFIRM"
 

@@ -27,6 +27,15 @@ YELLOW='\033[1;33m'
 CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
+# Define a function to execute Python commands
+run_python() {
+    if command -v python3 &> /dev/null; then
+        python3 - "$@"
+    else
+        python - "$@"
+    fi
+}
+
 # Step 1: Set up environment
 echo -e "${YELLOW}Step 1: Setting up environment${NC}"
 mkdir -p ~/.cli_ai_assistant
@@ -73,7 +82,7 @@ pip install anthropic pyreadline3 keyring
 
 # Step 3: Secure API key
 echo -e "${YELLOW}Step 3: Securing API key${NC}"
-python - <<EOF
+run_python <<EOF
 import keyring
 keyring.set_password("cli_ai_assistant", "anthropic_api_key", "$1")
 EOF
