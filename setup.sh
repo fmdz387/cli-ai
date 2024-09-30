@@ -15,7 +15,7 @@ echo -e "\nWelcome to CLI AI Assistant!\n"
 # Check if the API key is provided
 if [ -z "$1" ]; then
     echo -e "\e[31mWARNING: API key not provided!\e[0m"
-    echo -e "\e[33mUsage: curl -sSL https://raw.githubusercontent.com/username/repo/main/setup.sh | bash -s <your_anthropic_api_key>\e[0m"
+    echo -e "\e[33mUsage: curl -sSL https://raw.githubusercontent.com/fmdz387/cli-ai/refs/heads/master/setup.sh | bash -s <your_anthropic_api_key>\e[0m"
     echo -e "$security_note"
     exit 1
 fi
@@ -29,7 +29,7 @@ NC='\033[0m' # No Color
 # Step 1: Set up environment
 echo -e "${YELLOW}Step 1: Setting up environment${NC}"
 mkdir -p ~/.cli_ai_assistant
-curl -sSL https://raw.githubusercontent.com/username/repo/main/cli_ai_assistant.py -o ~/.cli_ai_assistant/ai_assistant.py
+curl -sSL https://raw.githubusercontent.com/fmdz387/cli-ai/refs/heads/master/setup.sh -o ~/.cli_ai_assistant/ai_assistant.py
 
 # Step 2: Install dependencies
 echo -e "${YELLOW}Step 2: Installing dependencies${NC}"
