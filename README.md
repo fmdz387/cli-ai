@@ -2,12 +2,15 @@
 
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
+![image](https://github.com/user-attachments/assets/46837c45-ad5a-48f3-92f0-a1cf9872c918)
+
 A simple Unix-based command-line AI assistant that translates natural language into shell commands.
 
 ## Note
 - API key is stored securely in your system's keyring and is not shared outside of this machine.
 - This is a lightweight CLI AI assistant for personal use.
-- Currently, assistant uses Anthropic as an AI provider.
+- Currently, ass![Uploading image.png…]()
+istant uses Anthropic as an AI provider.
 
 ## Installation
 
