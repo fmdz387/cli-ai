@@ -9,3 +9,44 @@ A simple command-line AI assistant for Linux that translates natural language in
 - This is a lightweight CLI AI assistant for personal use.
 - Currently, assistant uses Anthropic as an AI provider.
 
+## Installation
+
+```bash
+curl -sSL https://raw.githubusercontent.com/username/repo/main/setup.sh | bash -s <your_anthropic_api_key>
+```
+
+## Usage
+
+After installation, you can use the CLI AI Assistant by typing `s` followed by your natural language command. Here are some examples:
+
+1. Basic usage:
+   ```
+   s list all files in the current directory
+   ```
+   This will translate to: `ls -la`
+
+2. Complex commands:
+   ```
+   s find all python files modified in the last 7 days
+   ```
+   This might translate to: `find . -name "*.py" -mtime -7`
+
+3. System information:
+   ```
+   s show system memory usage
+   ```
+   This could translate to: `free -h`
+
+4. Package management:
+   ```
+   s update all installed packages
+   ```
+   On Ubuntu/Debian, this might translate to: `sudo apt update && sudo apt upgrade -y`
+
+
+## Edge Cases and Notes:
+
+- If the AI doesn't understand your request, it will try to provide the closest matching command or ask for clarification.
+- Keep requests focused on a single task for optimal results.
+- Remember that the generated commands are executed in your current shell environment. Be cautious with commands that might affect your system globally.
+- By default, the assistant will regularly wait for your interaction before executing commands.
