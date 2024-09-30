@@ -28,15 +28,15 @@ def loader_animation(stop_event):
 
 # Function to get the AI suggestion
 def get_ai_suggestion(user_input):
-    prompt = f"""Your Role: You are an AI assistant for command line, translating natural language into commands.
+    prompt = f"""Your Role: You are an AI assistant for Linux command line, translating natural language into commands.
     
     Your Task: Translate the following natural language input into an appropriate working command:
     <natural language input>
     {user_input}
     </natural language input>
     
-    Respond with only the command, without any explanation or additional text, as the command will be executed immediately in the terminal.
-    Review the command and ensure it is correct and will work as intended, if not, modify it to make it work."""
+    Respond with only the command, without any explanation or additional text, as the command will be executed immediately in Linux terminal.
+    Review the command and ensure it is correct and will work as intended for Linux environment, if not, modify it to make it work."""
     message = client.messages.create(
         model="claude-3-5-sonnet-20240620",
         max_tokens=100,
