@@ -8,6 +8,8 @@ import keyring
 
 # Retrieve the API key
 api_key = keyring.get_password("cli_ai_assistant", "anthropic_api_key")
+config_path = os.path.expanduser('~/.cli_ai_assistant/config')
+skip_confirm = os.path.exists(config_path) and 'AI_ASSISTANT_SKIP_CONFIRM=true' in open(config_path).read()
 
 if api_key is None:
     print("\033[91mError: API key not found. Please run the setup script first.\033[0m")
@@ -82,8 +84,6 @@ def main():
         stop_event.set()
         loader_thread.join()
 
-    skip_confirm = os.getenv(SKIP_CONFIRM_ENV_VAR, "").lower() in ('true', '1', 'yes')
-    
     if skip_confirm:
         sys.stdout.write(f"{suggested_command}")
         next_input = input()
