@@ -45,6 +45,22 @@ After installation, you can use the CLI AI Assistant by typing `s` followed by y
    ```
    On Ubuntu/Debian, this might translate to: `sudo apt update && sudo apt upgrade -y`
 
+5. Help command:
+   ```
+   s help
+   ```
+   This will display the help message.
+
+6. Config command:
+   ```
+   s config-set AI_ASSISTANT_SKIP_CONFIRM=true
+   ```
+   This will update the configuration with the specified key-value pair.
+
+## Default Configuration
+
+- `AI_ASSISTANT_SKIP_CONFIRM`: Default to `true`. If set to `false`, the assistant will ask for confirmation before executing commands.
+- `AI_DIRECTORY_TREE_CONTEXT`: Default to `true`. If set to `true`, the assistant will provide directory tree as a context for AI command generation. NOTE: Disable this if you don't want to share your directory structure with the AI provider.
 
 ## Edge Cases and Notes:
 

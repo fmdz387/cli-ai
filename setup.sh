@@ -93,6 +93,7 @@ EOF
 echo -e "${YELLOW}Step 4: Configuring CLI${NC}"
 
 echo "AI_ASSISTANT_SKIP_CONFIRM=true" >~/.cli_ai_assistant/config
+echo "AI_DIRECTORY_TREE_CONTEXT=true" >>~/.cli_ai_assistant/config
 
 if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "cygwin" ]]; then
     # Windows (Git Bash or Cygwin)

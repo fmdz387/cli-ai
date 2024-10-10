@@ -1,47 +1,45 @@
 import os
 import sys
-import subprocess
 import anthropic
 import threading
-import time
-import keyring
+from utils import (
+    get_config,
+    update_config,
+    loader_animation,
+    display_help,
+    execute_command,
+    get_api_key,
+    get_current_directory_tree
+)
 
 # Retrieve the API key
-api_key = keyring.get_password("cli_ai_assistant", "anthropic_api_key")
-config_path = os.path.expanduser('~/.cli_ai_assistant/config')
-skip_confirm = os.path.exists(config_path) and 'AI_ASSISTANT_SKIP_CONFIRM=true' in open(config_path).read()
-
-if api_key is None:
-    print("\033[91mError: API key not found. Please run the setup script first.\033[0m")
-    sys.exit(1)
-
+api_key = get_api_key()
+config = get_config()
 os.environ["ANTHROPIC_API_KEY"] = api_key
 
 client = anthropic.Anthropic()
 
-# Loader animation
-def loader_animation(stop_event):
-    chars = "/—\\|"
-    while not stop_event.is_set():
-        for char in chars:
-            if stop_event.is_set():
-                break
-            sys.stdout.write('\r' + 'Thinking... ' + char)
-            time.sleep(0.1)
-            sys.stdout.flush()
-    sys.stdout.write('\r' + ' ' * 20 + '\r')  # Clear the loading line
-
 # Function to get the AI suggestion
 def get_ai_suggestion(user_input):
     prompt = f"""Your Role: You are an AI assistant for Linux command line, translating natural language into commands.
-    
     Your Task: Translate the following natural language input into an appropriate working command:
-    <natural language input>
+    <natural_language_input>
     {user_input}
-    </natural language input>
+    </natural_language_input>
     
     Respond with only the command, without any explanation or additional text, as the command will be executed immediately in Linux terminal.
     Review the command and ensure it is correct and will work as intended for Linux environment, if not, modify it to make it work."""
+    
+    directory_tree_context_enabled = config.get('AI_DIRECTORY_TREE_CONTEXT', 'false') == 'true'
+    if directory_tree_context_enabled:
+        directory_tree = get_current_directory_tree()
+        prompt += f"""
+        While translating the natural language input into command, consider the following directory structure of the current directory:
+        <current_directory_tree>
+        {directory_tree}
+        </current_directory_tree>
+        """
+        
     message = client.messages.create(
         model="claude-3-5-sonnet-20240620",
         max_tokens=100,
@@ -62,46 +60,66 @@ def get_ai_suggestion(user_input):
 
 # Main function
 def main():
-    if len(sys.argv) < 2:
-        print("Usage: s <natural language command>")
-        sys.exit(1)
-
-    user_input = " ".join(sys.argv[1:])
-    
-    # Show loader animation while waiting for AI response
-    stop_event = threading.Event()
-    loader_thread = threading.Thread(target=loader_animation, args=(stop_event,))
-    loader_thread.start()
-
     try:
-        suggested_command = get_ai_suggestion(user_input)
-    except Exception as e:
-        print(f"Error: Failed to get AI suggestion. {e}")
-        sys.exit(1)
-    finally:
-        # Stop loader animation
-        stop_event.set()
-        loader_thread.join()
+        if len(sys.argv) < 2:
+            print("Usage: s <natural language command>")
+            sys.exit(1)
+        
+        # Check if the command is for displaying help
+        if sys.argv[1] == "help":
+            display_help()
+            sys.exit(0)
 
-    if skip_confirm:
-        sys.stdout.write(f"{suggested_command}")
-        next_input = input()
+        # Check if the command is for updating config
+        if sys.argv[1] == "config-set" and len(sys.argv) == 3:
+            key_value = sys.argv[2]
+            if '=' in key_value:
+                key, value = key_value.split('=', 1)  # Split only on the first '='
+                update_config(key, value)
+                print(f"Configuration updated: {key}={value}")
+            else:
+                print("Error: Invalid format. Use 'key=value'.")
+            sys.exit(0)
 
-        if next_input.strip() == "":
-            # Execute the command
-            subprocess.run(suggested_command, shell=True)
+        user_input = " ".join(sys.argv[1:])
+        
+        # Show loader animation while waiting for AI response
+        stop_event = threading.Event()
+        loader_thread = threading.Thread(target=loader_animation, args=(stop_event,))
+        loader_thread.start()
+
+        try:
+            suggested_command = get_ai_suggestion(user_input)
+        except Exception as e:
+            print(f"Error: Failed to get AI suggestion. {e}")
+            sys.exit(1)
+        finally:
+            # Stop loader animation
+            stop_event.set()
+            loader_thread.join()
+
+        # Reload configuration to get the latest values
+        config = get_config()
+        skip_confirm = config.get('AI_ASSISTANT_SKIP_CONFIRM', 'false') == 'true'
+
+        if skip_confirm:
+            sys.stdout.write(f"{suggested_command}")
+            next_input = input()
+
+            if next_input.strip() == "":
+                # Execute the command
+                execute_command(suggested_command)
+            else:
+                # If something else is entered, we ignore it or handle as needed
+                sys.stdout.write(f"Execution skipped: {next_input}\n")
         else:
-            # If something else is entered, we ignore it or handle as needed
-            sys.stdout.write(f"Execution skipped: {next_input}\n")
-    else:
-        confirm = input("Do you want to execute this command? (y/n): ")
-        if confirm.lower() == 'y':
-            try:
-                result = subprocess.run(suggested_command, shell=True, check=True, text=True, capture_output=True)
-                print(result.stdout)
-            except subprocess.CalledProcessError as e:
-                print(f"Error executing command: {e}")
-                print(e.stderr)
+            confirm = input("Do you want to execute this command? (y/n): ")
+            if confirm.lower() == 'y':
+                execute_command(suggested_command)
+        pass
+    except KeyboardInterrupt:
+        print("\nExiting...")
+        sys.exit(0)
 
 if __name__ == "__main__":
     main()
