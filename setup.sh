@@ -35,10 +35,10 @@ NC='\033[0m' # No Color
 
 # Define a function to execute Python commands
 run_python() {
-    if command -v python3 &> /dev/null; then
-        python3 - "$@"
-    else
+    if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "win32" ]]; then
         python - "$@"
+    else
+        python3 - "$@"
     fi
 }
 
