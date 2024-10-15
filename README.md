@@ -77,3 +77,7 @@ After installation, you can use the CLI AI Assistant by typing `s` followed by y
 - Keep requests focused on a single task for optimal results.
 - Remember that the generated commands are executed in your current shell environment. Be cautious with commands that might affect your system globally.
 - By default, the assistant will regularly wait for your interaction before executing commands.
+
+## License
+
+This project is licensed under the Apache License 2.0. See the [LICENSE](LICENSE) file for details.
