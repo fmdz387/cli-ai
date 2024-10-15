@@ -9,7 +9,9 @@ from utils import (
     display_help,
     execute_command,
     get_api_key,
-    get_current_directory_tree
+    get_current_directory_tree,
+    determine_shell_environment,
+    execute_command
 )
 
 # Retrieve the API key
@@ -21,15 +23,18 @@ client = anthropic.Anthropic()
 
 # Function to get the AI suggestion
 def get_ai_suggestion(user_input):
-    prompt = f"""Your Role: You are an AI assistant for Linux command line, translating natural language into commands.
-    Your Task: Translate the following natural language input into an appropriate working command:
+    # Determine the shell environment
+    shell_environment = determine_shell_environment()
+
+    prompt = f"""Your Role: You are an AI assistant for {shell_environment}, translating natural language into commands.
+    Your Task: Translate the following natural language input into an appropriate working command for a {shell_environment}:
     <natural_language_input>
     {user_input}
     </natural_language_input>
     
-    Respond with only the command, without any explanation or additional text, as the command will be executed immediately in Linux terminal.
-    Review the command and ensure it is correct and will work as intended for Linux environment, if not, modify it to make it work."""
-    
+    Respond with only the command, without any explanation or additional text, as the command will be executed immediately in the {shell_environment}.
+    Review the command and ensure it is correct and will work as intended for the {shell_environment} environment, if not, modify it to make it work."""
+
     directory_tree_context_enabled = config.get('AI_DIRECTORY_TREE_CONTEXT', 'false') == 'true'
     if directory_tree_context_enabled:
         directory_tree = get_current_directory_tree()
