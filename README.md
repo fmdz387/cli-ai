@@ -17,14 +17,13 @@ Supports all Windows and Unix-based systems (Linux, MacOS).
 ### Windows
 
 ```powershell
-powershell -Command "Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/fmdz387/cli-ai/refs/heads/master/setup.ps1' -OutFile 'setup.ps1'; .\setup.ps1 <your_anthropic_api_key>"
+powershell -Command "Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/fmdz387/cli-ai/refs/heads/master/setup.ps1' -OutFile 'setup.ps1'; .\setup.ps1"
 ```
 
 ### Unix-based systems (Linux, MacOS)
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/fmdz387/cli-ai/refs/heads/master/setup.sh | bash -s <your_anthropic_api_key>
-```
+curl -sSL https://raw.githubusercontent.com/fmdz387/cli-ai/refs/heads/master/setup.sh -o setup.sh && bash setup.sh
 
 ## Usage
 
