@@ -10,15 +10,9 @@ Write-Host -ForegroundColor DarkYellow "  \____|_____|___/_/   \_|___|"
 
 Write-Host "`nWelcome to CLI AI Assistant!`n" -ForegroundColor Cyan
 
-# Check if the API key is provided
-if ($args.Count -eq 0) {
-    Write-Host "WARNING: API key not provided!" -ForegroundColor Red
-    Write-Host "Usage: .\setup.ps1 `<your_anthropic_api_key`>" -ForegroundColor Yellow
-    Write-Host "NOTE: Your API key is stored securely in your system's keyring and is not shared outside of this machine." -ForegroundColor Yellow
-    exit 1
-}
-
-$apiKey = $args[0]
+# Securely prompt for API key
+$apiKey = Read-Host -Prompt "Enter your Anthropic API key" -AsSecureString
+$apiKeyPlain = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto([System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($apiKey))
 
 # Step 1: Set up environment
 Write-Host "Step 1: Setting up environment" -ForegroundColor Yellow
@@ -27,8 +21,14 @@ if (-Not (Test-Path -Path $cliDir)) {
     New-Item -ItemType Directory -Path $cliDir | Out-Null
 }
 
-Invoke-WebRequest -Uri "https://raw.githubusercontent.com/fmdz387/cli-ai/refs/heads/master/ai_assistant.py" -OutFile "$cliDir\ai_assistant.py"
-Invoke-WebRequest -Uri "https://raw.githubusercontent.com/fmdz387/cli-ai/refs/heads/master/utils.py" -OutFile "$cliDir\utils.py"
+# Secure download with error handling
+try {
+    Invoke-WebRequest -Uri "https://raw.githubusercontent.com/fmdz387/cli-ai/refs/heads/master/ai_assistant.py" -OutFile "$cliDir\ai_assistant.py"
+    Invoke-WebRequest -Uri "https://raw.githubusercontent.com/fmdz387/cli-ai/refs/heads/master/utils.py" -OutFile "$cliDir\utils.py"
+} catch {
+    Write-Host "Error downloading files: $_" -ForegroundColor Red
+    exit 1
+}
 
 # Step 2: Install dependencies
 Write-Host "Step 2: Installing dependencies" -ForegroundColor Yellow
@@ -50,7 +50,7 @@ pip install anthropic pyreadline3 keyring keyrings.alt
 Write-Host "Step 3: Securing API key" -ForegroundColor Yellow
 $pythonScript = @"
 import keyring
-keyring.set_password('cli_ai_assistant', 'anthropic_api_key', '$apiKey')
+keyring.set_password('cli_ai_assistant', 'anthropic_api_key', '$apiKeyPlain')
 "@
 python -c $pythonScript
 

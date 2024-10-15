@@ -15,8 +15,12 @@ EOF
 
 echo -e "\nWelcome to CLI AI Assistant!\n"
 
+# Prompt for API key instead of passing as an argument
+read -sp "Enter your API key: " api_key
+echo
+
 # Check if the API key is provided
-if [ -z "$1" ]; then
+if [ -z "$api_key" ]; then
     echo -e "\e[31mWARNING: API key not provided!\e[0m"
     echo -e "\e[33mUsage: curl -sSL https://raw.githubusercontent.com/fmdz387/cli-ai/refs/heads/master/setup.sh | bash -s <your_anthropic_api_key>\e[0m"
     echo -e "$security_note"
@@ -88,7 +92,7 @@ pip install anthropic pyreadline3 keyring keyrings.alt
 echo -e "${YELLOW}Step 3: Securing API key${NC}"
 run_python <<EOF
 import keyring
-keyring.set_password("cli_ai_assistant", "anthropic_api_key", "$1")
+keyring.set_password("cli_ai_assistant", "anthropic_api_key", "$api_key")
 EOF
 
 # Step 4: Configure CLI
