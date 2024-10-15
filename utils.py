@@ -132,12 +132,9 @@ def execute_command(command):
     """Execute the given command and return the output."""
     shell_environment = determine_shell_environment()
     try:
-        if shell_environment == "Windows CMD":
+        if shell_environment == "Windows CMD" or shell_environment == "PowerShell":
             # Use CMD to execute the command
             result = subprocess.run(command, shell=True, check=True, text=True, capture_output=True)
-        elif shell_environment == "PowerShell":
-            # Use PowerShell to execute the command
-            result = subprocess.run(f'powershell -Command "{command}"', shell=True, check=True, text=True, capture_output=True)
         elif shell_environment.startswith("WSL"):
             # Use WSL to execute the command
             result = subprocess.run(f'wsl {command}', shell=True, check=True, text=True, capture_output=True)
