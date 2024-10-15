@@ -113,14 +113,16 @@ def main():
 
             if next_input.strip() == "":
                 # Execute the command
-                execute_command(suggested_command)
+                result = execute_command(suggested_command)
+                sys.stdout.write(result)
             else:
                 # If something else is entered, we ignore it or handle as needed
                 sys.stdout.write(f"Execution skipped: {next_input}\n")
         else:
             confirm = input("Do you want to execute this command? (y/n): ")
             if confirm.lower() == 'y':
-                execute_command(suggested_command)
+                result = execute_command(suggested_command)
+                sys.stdout.write(result)
         pass
     except KeyboardInterrupt:
         print("\nExiting...")
