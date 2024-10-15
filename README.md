@@ -24,6 +24,7 @@ powershell -Command "Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/f
 
 ```bash
 curl -sSL https://raw.githubusercontent.com/fmdz387/cli-ai/refs/heads/master/setup.sh -o setup.sh && bash setup.sh
+```
 
 ## Usage
 
