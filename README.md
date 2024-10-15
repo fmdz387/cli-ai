@@ -4,7 +4,8 @@
 
 ![image](https://github.com/user-attachments/assets/46837c45-ad5a-48f3-92f0-a1cf9872c918)
 
-A simple Unix-based command-line AI assistant that translates natural language into shell commands.
+A simple command-line AI assistant that translates natural language into shell commands.
+Supports all Windows and Unix-based systems (Linux, MacOS).
 
 ## Note
 - API key is stored securely in your system's keyring and is not shared outside of this machine.
@@ -12,6 +13,14 @@ A simple Unix-based command-line AI assistant that translates natural language i
 - Currently, assistant uses Anthropic as an AI provider.
 
 ## Installation
+
+### Windows
+
+```powershell
+powershell -Command "Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/fmdz387/cli-ai/refs/heads/master/setup.ps1' -OutFile 'setup.ps1'; .\setup.ps1 <your_anthropic_api_key>"
+```
+
+### Unix-based systems (Linux, MacOS)
 
 ```bash
 curl -sSL https://raw.githubusercontent.com/fmdz387/cli-ai/refs/heads/master/setup.sh | bash -s <your_anthropic_api_key>
