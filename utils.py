@@ -184,9 +184,9 @@ def get_current_directory_tree():
         elif shell_env == "PowerShell":
             command = 'Get-ChildItem -Force'
         elif shell_env.startswith("WSL") or shell_env.startswith("MSYS2") or shell_env == "Cygwin" or shell_env.startswith("Linux") or shell_env == "Unix Shell":
-            command = 'ls -R'
+            command = 'ls -l'
         else:
-            command = 'ls -R'  # Default to Unix-like command
+            command = 'ls -l'  # Default to Unix-like command
 
         result = execute_command(command)
         return result
