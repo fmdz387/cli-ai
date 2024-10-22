@@ -46,7 +46,7 @@ def get_ai_suggestion(user_input):
         """
         
     message = client.messages.create(
-        model="claude-3-5-sonnet-20240620",
+        model="claude-3-5-sonnet-20241022",
         max_tokens=100,
         temperature=0,
         system="You are an Expert AI assistant that translates natural language into commands.",
