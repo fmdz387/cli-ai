@@ -51,11 +51,6 @@ mkdir -p ~/.cli_ai_assistant
 
 # Secure download with error handling
 echo -e "${CYAN}Downloading core files...${NC}"
-if ! curl -sSL https://raw.githubusercontent.com/fmdz387/cli-ai/refs/heads/master/ai_assistant.py -o ~/.cli_ai_assistant/ai_assistant.py; then
-    echo -e "${RED}Error downloading ai_assistant.py${NC}"
-    exit 1
-fi
-
 if ! curl -sSL https://raw.githubusercontent.com/fmdz387/cli-ai/refs/heads/master/utils.py -o ~/.cli_ai_assistant/utils.py; then
     echo -e "${RED}Error downloading utils.py${NC}"
     exit 1
@@ -83,7 +78,6 @@ if ! curl -sSL https://raw.githubusercontent.com/fmdz387/cli-ai/refs/heads/maste
 fi
 
 # Make the scripts executable
-chmod +x ~/.cli_ai_assistant/ai_assistant.py
 chmod +x ~/.cli_ai_assistant/launcher.py
 
 # Step 2: Install dependencies
