@@ -105,7 +105,7 @@ def display_help():
       s config AI_ASSISTANT_SKIP_CONFIRM=true
       s help
 
-    For more information, visit our documentation at: https://example.com/docs
+    For more information, visit CLI AI Assistant GitHub repository at: https://github.com/fmdz387/cli-ai
     """
     print(textwrap.dedent(help_text))
 
