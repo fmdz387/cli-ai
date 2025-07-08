@@ -54,23 +54,6 @@ def print_colored(text: str, color_code: str = "", capabilities: dict = None) ->
     else:
         print(text)
 
-def test_ui_availability() -> bool:
-    """Test if UI components are available and working"""
-    try:
-        # Try importing essential components
-        from ui import InteractiveCommandInterface, TerminalCapabilities
-        from cross_platform_utils import CrossPlatformUtils
-        from assistant import AIAssistant
-        
-        # Quick capability test
-        caps = TerminalCapabilities()
-        utils_test = CrossPlatformUtils.get_platform_info()
-        
-        return True
-    except ImportError as e:
-        return False
-    except Exception as e:
-        return False
 
 def show_version_info(capabilities: dict) -> None:
     """Show version and capability information"""
@@ -83,7 +66,7 @@ def show_version_info(capabilities: dict) -> None:
         print("• Basic terminal mode")
 
 def main():
-    """Main launcher function with detection and fallback"""
+    """Main launcher function that directly uses assistant.py"""
     capabilities = detect_terminal_capabilities()
     
     # Handle version/info requests
@@ -91,38 +74,17 @@ def main():
         show_version_info(capabilities)
         sys.exit(0)
     
-    # Test UI availability
-    ui_available = test_ui_availability()
-    
-    if ui_available and capabilities['is_interactive']:
-        try:
-            # Use assistant for interactive sessions
-            from assistant import main as main
-            main()
-        except Exception as e:
-            print_colored(f"UI error: {e}", "33", capabilities)
-            print_colored("Falling back to original assistant...", "90", capabilities)
-            try:
-                from ai_assistant import main as original_main
-                original_main()
-            except Exception as e2:
-                print_colored(f"Fallback error: {e2}", "31", capabilities)
-                sys.exit(1)
-    else:
-        # Use original assistant for non-interactive or when UI unavailable
-        if not ui_available:
-            print_colored("UI not available, using original assistant", "33", capabilities)
-        
-        try:
-            from ai_assistant import main as original_main
-            original_main()
-        except ImportError as e:
-            print_colored(f"Error: Could not load any assistant: {e}", "31", capabilities)
-            print_colored("Please run the setup script again.", "33", capabilities)
-            sys.exit(1)
-        except Exception as e:
-            print_colored(f"Error in assistant: {e}", "31", capabilities)
-            sys.exit(1)
+    # Directly use assistant.py
+    try:
+        from assistant import main as assistant_main
+        assistant_main()
+    except ImportError as e:
+        print_colored(f"Error: Could not load assistant: {e}", "31", capabilities)
+        print_colored("Please ensure assistant.py is available.", "33", capabilities)
+        sys.exit(1)
+    except Exception as e:
+        print_colored(f"Error in assistant: {e}", "31", capabilities)
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()

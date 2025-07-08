@@ -38,7 +38,6 @@ if (-Not (Test-Path -Path $cliDir)) {
 # Secure download with error handling
 try {
     Write-Host "Downloading core files..." -ForegroundColor Cyan
-    Invoke-WebRequest -Uri "https://raw.githubusercontent.com/fmdz387/cli-ai/refs/heads/master/ai_assistant.py" -OutFile "$cliDir\ai_assistant.py"
     Invoke-WebRequest -Uri "https://raw.githubusercontent.com/fmdz387/cli-ai/refs/heads/master/utils.py" -OutFile "$cliDir\utils.py"
     
     Write-Host "Downloading enhanced UI components..." -ForegroundColor Cyan
