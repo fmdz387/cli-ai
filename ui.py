@@ -858,19 +858,12 @@ class InteractiveCommandInterface:
         help_content = [
             "Gesture Commands:",
             "",
-            "Enter / Tab       - Execute command immediately",
-            "Shift + Tab       - Copy command to clipboard",
-            "Ctrl + E          - Edit command before execution",
+            "Enter       - Execute command immediately",
+            "Tab       - Accept command and paste to CLI if focused",
             "Ctrl + A          - Show alternative commands",
-            "Ctrl + C / Esc    - Cancel and exit",
-            "?                 - Show this help",
+            "Esc    - Cancel and exit",
+            "?                 - Show help",
             "",
-            "Command Editor:",
-            "Arrow Keys        - Navigate cursor",
-            "Home / End        - Jump to start/end",
-            "Ctrl + U          - Clear to beginning",
-            "Ctrl + K          - Clear to end",
-            "Up / Down         - Command history",
         ]
         
         self._draw_box(help_content, "Help")
