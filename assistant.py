@@ -7,6 +7,7 @@ from typing import List, Optional, Dict, Any
 from utils import (
     get_config,
     update_config,
+    show_config,
     loader_animation,
     display_help,
     execute_command,
@@ -31,9 +32,10 @@ class AIAssistant:
         os.environ["ANTHROPIC_API_KEY"] = self.api_key
         self.client = anthropic.Anthropic()
         
-        # Initialize UI components
+        # Initialize UI components with cross-platform color detection
         self.terminal_caps = TerminalCapabilities()
-        self.colors = ColorScheme(self.terminal_caps.supports_color)
+        color_support = self._detect_color_support()
+        self.colors = ColorScheme(color_support)
         self.ui = InteractiveCommandInterface()
         
         # Context management
@@ -64,6 +66,56 @@ class AIAssistant:
                     prefs[key] = self.config[config_key]
                     
         return prefs
+        
+    def _detect_color_support(self) -> bool:
+        """Detect color support across platforms"""
+        try:
+            import platform
+            import os
+            
+            # Check environment variables first
+            if os.environ.get('NO_COLOR'):
+                return False
+            if os.environ.get('FORCE_COLOR'):
+                return True
+                
+            # Platform-specific detection
+            system = platform.system()
+            
+            if system == 'Windows':
+                # Windows Terminal, VS Code, or ConEmu
+                if (os.environ.get('WT_SESSION') or 
+                    os.environ.get('TERM_PROGRAM') == 'vscode' or
+                    os.environ.get('ConEmuPID') or
+                    os.environ.get('ANSICON')):
+                    return True
+                    
+                # Windows 10+ supports ANSI colors
+                try:
+                    import sys
+                    if sys.version_info >= (3, 6):
+                        return True
+                except:
+                    pass
+                    
+                return False
+            else:
+                # Unix-like systems
+                if not sys.stdout.isatty():
+                    return False
+                    
+                term = os.environ.get('TERM', '').lower()
+                if 'color' in term or term in ['xterm', 'xterm-256color', 'screen', 'tmux']:
+                    return True
+                    
+                if os.environ.get('COLORTERM'):
+                    return True
+                    
+                return False
+                
+        except Exception:
+            # Safe fallback
+            return False
         
     def _build_prompt(self, user_input: str) -> str:
         """Build prompt with context and preferences"""
@@ -323,7 +375,7 @@ Keep it under 3 sentences and use bullet points for multiple aspects."""
         
     def process_command(self, user_input: str) -> bool:
         """Process user command with UI"""
-        # Show loader animation
+ # Show loader animation
         stop_event = threading.Event()
         loader_thread = threading.Thread(target=self._loader_animation, args=(stop_event,))
         loader_thread.start()
@@ -402,20 +454,58 @@ Keep it under 3 sentences and use bullet points for multiple aspects."""
         """Handle configuration update commands"""
         if '=' not in key_value:
             print(f"{self.colors.error('Error:')} Invalid format. Use 'key=value'")
+            print(f"{self.colors.muted('Example:')} s config-set AI_ASSISTANT_SAFETY_LEVEL=high")
             return False
             
         key, value = key_value.split('=', 1)
+        key = key.strip()
+        value = value.strip()
+        
         try:
             update_config(key, value)
-            print(f"{self.colors.success('Configuration updated:')} {key}={value}")
+            
+            # Safe color methods with fallbacks
+            success_msg = self.colors.success('✓ Configuration updated:')
+            key_colored = self.colors.cyan(key) if hasattr(self.colors, 'cyan') else key
+            value_colored = self.colors.green(value) if hasattr(self.colors, 'green') else value
+            msg = f"{success_msg} {key_colored}={value_colored}"
+            print(msg)
+            
+            # Show the updated setting details
+            from utils import get_config_schema
+            schema = get_config_schema()
+            if key in schema:
+                desc_msg = self.colors.muted('Description:')
+                desc_full = f"{desc_msg} {schema[key]['description']}"
+                print(desc_full)
             
             # Reload preferences if they changed
             if key.startswith('AI_ASSISTANT_'):
                 self.user_preferences = self._load_user_preferences()
+                reload_msg = self.colors.muted('✓ Preferences reloaded')
+                print(reload_msg)
                 
             return True
+        except ValueError as e:
+            # Validation error - show helpful message
+            error_msg = self.colors.error('✗ Invalid configuration:')
+            use_msg = self.colors.muted('Use:')
+            see_msg = self.colors.muted('to see valid values')
+            print(f"{error_msg} {e}")
+            print(f"{use_msg} s config-show {key} {see_msg}")
+            return False
         except Exception as e:
-            print(f"{self.colors.error('Error:')} Failed to update configuration: {e}")
+            error_msg = self.colors.error('Error:')
+            print(f"{error_msg} Failed to update configuration: {e}")
+            return False
+            
+    def handle_config_show_command(self, key: str = None) -> bool:
+        """Handle configuration display commands"""
+        try:
+            show_config(key)
+            return True
+        except Exception as e:
+            print(f"{self.colors.error('Error:')} Failed to display configuration: {e}")
             return False
             
     def show_help(self):
@@ -425,6 +515,7 @@ Keep it under 3 sentences and use bullet points for multiple aspects."""
             "Basic Usage:",
             "  s <natural language command>",
             "  s config-set <key=value>",
+            "  s config-show [key]",
             "  s help",
             "",
             "Interactive Controls:",
@@ -433,15 +524,16 @@ Keep it under 3 sentences and use bullet points for multiple aspects."""
             "  Ctrl+A    - Show alternatives",
             "  Esc       - Cancel",
             "",
-            "Configuration Options:",
-            "  AI_ASSISTANT_SKIP_CONFIRM=true/false",
-            "  AI_ASSISTANT_SAFETY_LEVEL=low/medium/high",
-            "  AI_ASSISTANT_SHOW_EXPLANATIONS=true/false",
-            "  AI_ASSISTANT_MAX_ALTERNATIVES=0-5",
+            "Configuration Commands:",
+            "  config-show           - Display all configuration settings",
+            "  config-show <key>     - Display specific configuration",
+            "  config-set <key>=<val> - Update configuration setting",
             "",
             "Examples:",
             "  s show directory tree with permissions",
-            "  s show docker containers",
+            "  s config-show",
+            "  s config-show AI_ASSISTANT_SAFETY_LEVEL",
+            "  s config-set AI_ASSISTANT_MAX_ALTERNATIVES=5",
         ]
         
         self.ui._draw_box(help_content, "CLI AI Assistant - Help")
@@ -460,9 +552,15 @@ def main():
             assistant.show_help()
             sys.exit(0)
             
-        # Handle config command
+        # Handle config-set command
         if sys.argv[1] == "config-set" and len(sys.argv) == 3:
             success = assistant.handle_config_command(sys.argv[2])
+            sys.exit(0 if success else 1)
+            
+        # Handle config-show command
+        if sys.argv[1] == "config-show":
+            key = sys.argv[2] if len(sys.argv) == 3 else None
+            success = assistant.handle_config_show_command(key)
             sys.exit(0 if success else 1)
             
         # Process natural language command

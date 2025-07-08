@@ -150,6 +150,12 @@ class ColorScheme:
         
     def info(self, text: str) -> str:
         return self._colorize(text, "94")  # Bright Blue
+        
+    def cyan(self, text: str) -> str:
+        return self._colorize(text, "36")  # Cyan
+        
+    def green(self, text: str) -> str:
+        return self._colorize(text, "32")  # Green
 
 class KeyboardInput:
     """Advanced keyboard input handling with gesture support"""
@@ -336,11 +342,14 @@ class CommandEditor:
     def _draw_command_line(self, command: str, cursor_pos: int):
         """Draw the command line with cursor"""
         # Clear current line
-        sys.stdout.write('\r\033[K')
+        print('\r\033[K')
         
-        # Draw prompt
-        prompt = self.colors.primary("❯ ")
-        sys.stdout.write(prompt)
+        # Draw prompt with safe Unicode fallback
+        if self._can_display_unicode():
+            prompt = self.colors.primary("❯ ")
+        else:
+            prompt = self.colors.primary("> ")
+        print(prompt)
         
         # For cursor positioning, we need to work with the raw command text
         # but display the highlighted version
@@ -355,18 +364,23 @@ class CommandEditor:
             highlighted_at = self.colors.highlight(at_cursor)
             highlighted_after = self._syntax_highlight(after_cursor)
             
-            sys.stdout.write(highlighted_before + highlighted_at + highlighted_after)
+            print(highlighted_before + highlighted_at + highlighted_after)
         else:
             # Cursor is at the end
             highlighted = self._syntax_highlight(command)
-            sys.stdout.write(highlighted)
+            print(highlighted)
             # Show cursor at end - different styles for insert/overwrite
             if self.insert_mode:
-                sys.stdout.write(self.colors.muted('█'))  # Block cursor for insert
+                if self._can_display_unicode():
+                    cursor = self.colors.muted('█')  # Block cursor for insert
+                else:
+                    cursor = self.colors.muted('|')  # Fallback cursor
             else:
-                sys.stdout.write(self.colors.warning('▄'))  # Underscore cursor for overwrite
-        
-        sys.stdout.flush()
+                if self._can_display_unicode():
+                    cursor = self.colors.warning('▄')  # Underscore cursor for overwrite
+                else:
+                    cursor = self.colors.warning('_')  # Fallback cursor
+            print(cursor)
         
     def edit_command(self, initial_command: str) -> Optional[str]:
         """Interactive command editing"""
@@ -383,16 +397,16 @@ class CommandEditor:
                     
                 # Handle different key inputs
                 if key == KeyCode.ENTER.value or key == KeyCode.NEWLINE.value:
-                    sys.stdout.write('\n')
+                    print('\n')
                     return self.command
                     
                 elif key == KeyCode.CTRL_C.value:
-                    sys.stdout.write('\n')
+                    print('\n')
                     return None
                     
                 elif key == KeyCode.CTRL_D.value:
                     if not self.command:
-                        sys.stdout.write('\n')
+                        print('\n')
                         return None
                     
                 elif key == KeyCode.BACKSPACE.value or key == '\x08' or (len(key) == 1 and ord(key) == 127):
@@ -528,13 +542,34 @@ class InteractiveCommandInterface:
         self.editor = CommandEditor(self.terminal_caps, self.colors)
         self.command_history = []
         
+    def _can_display_unicode(self) -> bool:
+        """Test if terminal can display Unicode characters safely"""
+        try:
+            # Test with a common Unicode character
+            test_char = "─"
+            encoding = sys.stdout.encoding or 'utf-8'
+            test_char.encode(encoding)
+            return encoding not in ['ascii', 'latin1']
+        except (UnicodeEncodeError, LookupError):
+            return False
+        except Exception:
+            # Conservative fallback for any other encoding issues
+            return False
+        
+    def _safe_unicode_print(self, text: str) -> None:
+        """Safely print text with Unicode fallback"""
+        print(text)
+    
     def _draw_box(self, content: List[str], title: str = "", width: Optional[int] = None, style: str = "normal") -> None:
         """Draw a decorative box around content with different styles"""
         if width is None:
             width = min(self.terminal_caps.width - 4, 80)
             
+        # Detect if we can safely use Unicode
+        can_use_unicode = self.terminal_caps.supports_unicode and self._can_display_unicode()
+        
         # Box drawing characters based on style
-        if self.terminal_caps.supports_unicode:
+        if can_use_unicode:
             if style == "rounded":
                 top_left, top_right = "╭", "╮"
                 bottom_left, bottom_right = "╰", "╯"
@@ -563,7 +598,7 @@ class InteractiveCommandInterface:
         else:
             top_line = f"{top_left}{horizontal * (width - 2)}{top_right}"
             
-        print(self.colors.primary(top_line))
+        self._safe_unicode_print(self.colors.primary(top_line))
         
         # Content lines
         for line in content:
@@ -582,11 +617,11 @@ class InteractiveCommandInterface:
             clean_display = ansi_escape.sub('', display_line)
             padding = width - len(clean_display) - 4
             content_line = f"{vertical} {display_line}{' ' * padding} {vertical}"
-            print(self.colors.primary(content_line))
+            self._safe_unicode_print(self.colors.primary(content_line))
             
         # Bottom border
         bottom_line = f"{bottom_left}{horizontal * (width - 2)}{bottom_right}"
-        print(self.colors.primary(bottom_line))
+        self._safe_unicode_print(self.colors.primary(bottom_line))
         
     def _assess_command_risk(self, command: str) -> Tuple[str, bool]:
         """Assess the risk level of a command"""
@@ -654,7 +689,14 @@ class InteractiveCommandInterface:
         if '-h' in command:
             explanations.append("• Shows human-readable format")
             
-        return explanations if explanations else ["• Command will be executed as specified"]
+        if self._can_display_unicode():
+            return explanations if explanations else ["• Command will be executed as specified"]
+        else:
+            # ASCII fallback for bullet points
+            if explanations:
+                return [explanation.replace("•", "*") for explanation in explanations]
+            else:
+                return ["* Command will be executed as specified"]
         
     def display_command_preview(self, suggestion: CommandSuggestion) -> None:
         """Display interactive command preview"""
@@ -673,41 +715,73 @@ class InteractiveCommandInterface:
         
         # Add risk assessment
         risk_level, is_destructive = self._assess_command_risk(suggestion.command)
+        # Risk warnings with safe Unicode fallbacks
         if risk_level == "HIGH":
             content.append("")
-            content.append(self.colors.danger("⚠️  HIGH RISK - This command may cause data loss"))
+            if self._can_display_unicode():
+                content.append(self.colors.danger("⚠️  HIGH RISK - This command may cause data loss"))
+            else:
+                content.append(self.colors.danger("WARNING: HIGH RISK - This command may cause data loss"))
         elif risk_level == "MEDIUM":
             content.append("")
-            content.append(self.colors.warning("⚠️  MEDIUM RISK - Use with caution"))
+            if self._can_display_unicode():
+                content.append(self.colors.warning("⚠️  MEDIUM RISK - Use with caution"))
+            else:
+                content.append(self.colors.warning("WARNING: MEDIUM RISK - Use with caution"))
             
         # Add context hints
         if suggestion.context_hints:
             content.append("")
-            content.extend(f"💡 {hint}" for hint in suggestion.context_hints)
+            if self._can_display_unicode():
+                content.extend(f"💡 {hint}" for hint in suggestion.context_hints)
+            else:
+                content.extend(f"TIP: {hint}" for hint in suggestion.context_hints)
             
         self._draw_box(content, "AI Command Suggestion")
         
         # Controls menu with better spacing and organization
         print()  # Add space before controls
         
-        # Primary actions
-        primary_actions = [
-            (self.colors.success('↵ Enter'), 'Execute'),
-            (self.colors.primary('⇥ Tab'), 'Accept (paste to CLI)'),
-            (self.colors.secondary('📋 Ctrl+C'), 'Copy to Clipboard'),
-        ]
+        # Primary actions with safe Unicode fallbacks
+        can_use_unicode = self._can_display_unicode()
         
-        # Secondary actions
-        secondary_actions = []
-        
-        if suggestion.alternatives:
-            secondary_actions.append((self.colors.primary('⚡ Ctrl+A'), 'Show Alternatives'))
+        if can_use_unicode:
+            primary_actions = [
+                (self.colors.success('↵ Enter'), 'Execute'),
+                (self.colors.primary('⇥ Tab'), 'Accept (paste to CLI)'),
+                (self.colors.secondary('📋 Ctrl+C'), 'Copy to Clipboard'),
+            ]
             
-        # Exit actions
-        exit_actions = [
-            (self.colors.muted('✗ Esc'), 'Cancel'),
-            (self.colors.info('? Help'), 'Show Help'),
-        ]
+            # Secondary actions
+            secondary_actions = []
+            
+            if suggestion.alternatives:
+                secondary_actions.append((self.colors.primary('⚡ Ctrl+A'), 'Show Alternatives'))
+                
+            # Exit actions
+            exit_actions = [
+                (self.colors.muted('✗ Esc'), 'Cancel'),
+                (self.colors.info('? Help'), 'Show Help'),
+            ]
+        else:
+            # ASCII fallback versions
+            primary_actions = [
+                (self.colors.success('Enter'), 'Execute'),
+                (self.colors.primary('Tab'), 'Accept (paste to CLI)'),
+                (self.colors.secondary('Ctrl+C'), 'Copy to Clipboard'),
+            ]
+            
+            # Secondary actions
+            secondary_actions = []
+            
+            if suggestion.alternatives:
+                secondary_actions.append((self.colors.primary('Ctrl+A'), 'Show Alternatives'))
+                
+            # Exit actions
+            exit_actions = [
+                (self.colors.muted('Esc'), 'Cancel'),
+                (self.colors.info('? Help'), 'Show Help'),
+            ]
         
         # Create formatted menu sections
         term_width = self.terminal_caps.width
@@ -852,22 +926,23 @@ class InteractiveCommandInterface:
                 # Clear screen and redraw
                 print("\033[2J\033[H")
                 continue
-                
+            
     def _show_help(self):
         """Display help information"""
         help_content = [
             "Gesture Commands:",
             "",
             "Enter       - Execute command immediately",
-            "Tab       - Accept command and paste to CLI if focused",
-            "Ctrl + A          - Show alternative commands",
-            "Esc    - Cancel and exit",
-            "?                 - Show help",
+            "Tab         - Accept command and paste to CLI if focused",
+            "Ctrl + A    - Show alternative commands",
+            "Esc         - Cancel and exit",
+            "?           - Show help",
             "",
         ]
         
         self._draw_box(help_content, "Help")
-        print(f"\n{self.colors.muted('Press any key to continue...')}")
+        msg = f"\n{self.colors.muted('Press any key to continue...')}"
+        print(msg)
         
         with KeyboardInput() as kbd:
             kbd.read_key()

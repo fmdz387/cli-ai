@@ -115,12 +115,32 @@ AI_ASSISTANT_ENABLE_SYNTAX_HIGHLIGHTING=true
 AI_ASSISTANT_ENABLE_COMMAND_HISTORY=true
 ```
 
-### Quick Configuration
+### Configuration Management
+
+**View Configuration:**
+```bash
+# Display all configuration settings
+s config-show
+
+# Display specific setting with details
+s config-show AI_ASSISTANT_SAFETY_LEVEL
+s config-show AI_ASSISTANT_MAX_ALTERNATIVES
+```
+
+**Update Configuration:**
 ```bash
 s config-set AI_ASSISTANT_SAFETY_LEVEL=high
 s config-set AI_ASSISTANT_MAX_ALTERNATIVES=5
 s config-set AI_ASSISTANT_SHOW_EXPLANATIONS=false
 ```
+
+### Configuration Commands
+
+| Command | Description |
+|---------|-------------|
+| `s config-show` | Display all configuration settings with descriptions |
+| `s config-show <key>` | Display detailed information about a specific setting |
+| `s config-set <key>=<value>` | Update a configuration setting |
 
 ### Configuration Options
 
@@ -250,6 +270,15 @@ pip list | grep anthropic  # Verify dependencies
 ```
 
 ### Performance Optimization
+
+**View current configuration:**
+```bash
+# See all settings with their current values
+s config-show
+
+# Check specific settings
+s config-show AI_ASSISTANT_SAFETY_LEVEL
+```
 
 **Disable context features for faster responses:**
 ```bash

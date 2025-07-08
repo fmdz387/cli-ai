@@ -24,23 +24,104 @@ def get_config():
     config_path = os.path.join(os.path.expanduser('~'), '.cli_ai_assistant', 'config')
     config = {}
     if os.path.exists(config_path):
-        with open(config_path, 'r') as file:
-            for line in file:
-                key, value = line.strip().split('=', 1)
-                config[key] = value
+        try:
+            with open(config_path, 'r', encoding='utf-8') as file:
+                for line in file:
+                    line = line.strip()
+                    if line and '=' in line:
+                        key, value = line.split('=', 1)
+                        config[key] = value
+        except Exception as e:
+            print(f"Warning: Could not read config file: {e}")
     return config
+
+def get_config_schema():
+    """Get the configuration schema with validation rules."""
+    return {
+        'AI_ASSISTANT_SKIP_CONFIRM': {
+            'description': 'Skip command confirmation prompts',
+            'type': 'boolean',
+            'default': 'true',
+            'values': ['true', 'false']
+        },
+        'AI_DIRECTORY_TREE_CONTEXT': {
+            'description': 'Include directory structure in AI context',
+            'type': 'boolean',
+            'default': 'true',
+            'values': ['true', 'false']
+        },
+        'AI_ASSISTANT_SAFETY_LEVEL': {
+            'description': 'Command risk assessment level',
+            'type': 'enum',
+            'default': 'medium',
+            'values': ['low', 'medium', 'high']
+        },
+        'AI_ASSISTANT_SHOW_EXPLANATIONS': {
+            'description': 'Display command explanations',
+            'type': 'boolean',
+            'default': 'true',
+            'values': ['true', 'false']
+        },
+        'AI_ASSISTANT_MAX_ALTERNATIVES': {
+            'description': 'Number of alternative commands to generate',
+            'type': 'integer',
+            'default': '3',
+            'values': ['0', '1', '2', '3', '4', '5']
+        },
+        'AI_ASSISTANT_ENABLE_SYNTAX_HIGHLIGHTING': {
+            'description': 'Enable command syntax highlighting',
+            'type': 'boolean',
+            'default': 'true',
+            'values': ['true', 'false']
+        },
+        'AI_ASSISTANT_ENABLE_COMMAND_HISTORY': {
+            'description': 'Enable command history navigation',
+            'type': 'boolean',
+            'default': 'true',
+            'values': ['true', 'false']
+        }
+    }
+
+def validate_config(key, value):
+    """Validate configuration key and value."""
+    schema = get_config_schema()
+    
+    # Check if key exists
+    if key not in schema:
+        available_keys = ', '.join(sorted(schema.keys()))
+        return False, f"Unknown configuration key '{key}'. Available keys: {available_keys}"
+    
+    config_def = schema[key]
+    
+    # Validate value
+    if value not in config_def['values']:
+        valid_values = ' | '.join(config_def['values'])
+        return False, f"Invalid value '{value}' for {key}. Valid values: {valid_values}"
+    
+    return True, "Valid configuration"
 
 def update_config(key, value):
     """
     Update the configuration file with the given key-value pair.
-    Handles edge cases where the value might contain '='.
+    Validates key and value before updating.
     """
+    # Validate the configuration
+    is_valid, message = validate_config(key, value)
+    if not is_valid:
+        raise ValueError(message)
+    
     config_path = os.path.join(os.path.expanduser('~'), '.cli_ai_assistant', 'config')
+    
+    # Ensure directory exists
+    os.makedirs(os.path.dirname(config_path), exist_ok=True)
     
     # Read the current config
     if os.path.exists(config_path):
-        with open(config_path, 'r') as file:
-            lines = file.readlines()
+        try:
+            with open(config_path, 'r', encoding='utf-8') as file:
+                lines = file.readlines()
+        except Exception as e:
+            raise ValueError(f"Failed to read configuration file: {e}")
     else:
         lines = []
 
@@ -60,8 +141,11 @@ def update_config(key, value):
         lines.append(new_line)
 
     # Write the updated config back to the file
-    with open(config_path, 'w') as file:
-        file.writelines(lines)
+    try:
+        with open(config_path, 'w', encoding='utf-8') as file:
+            file.writelines(lines)
+    except Exception as e:
+        raise ValueError(f"Failed to write configuration file: {e}")
 
 def loader_animation(stop_event):
     """Display a loader animation while waiting for AI response."""
@@ -83,26 +167,26 @@ def display_help():
     Usage:
       s <natural language command>
       s config-set <key=value>
+      s config-show [key]
       s help
     
     Commands:
       <natural language command>  Translate natural language into a command and execute it.
                                   Supports both Unix-based shell and Windows PowerShell commands.
       config-set <key=value>      Update the configuration with the specified key-value pair.
+      config-show [key]           Display configuration settings. Show all if no key specified.
       help                        Display this help message.
 
-    Options:
-      key=value                   Specify the configuration key and value to update. 
-                                  Example: AI_ASSISTANT_SKIP_CONFIRM=true
-
-    Description:
-      The CLI AI Assistant is designed to help you translate natural language instructions into 
-      executable commands. It uses AI to interpret your input and suggest the most appropriate 
-      command for your operating system, whether it's Unix-based or Windows.
+    Configuration Commands:
+      config-show                 Display all configuration settings with descriptions
+      config-show <key>           Display specific configuration setting details
+      config-set <key>=<value>    Update configuration setting
 
     Examples:
       s "list all files in the current directory"
-      s config AI_ASSISTANT_SKIP_CONFIRM=true
+      s config-show
+      s config-show AI_ASSISTANT_SAFETY_LEVEL
+      s config-set AI_ASSISTANT_SKIP_CONFIRM=true
       s help
 
     For more information, visit CLI AI Assistant GitHub repository at: https://github.com/fmdz387/cli-ai
@@ -174,6 +258,159 @@ def get_api_key():
         print("\033[91mError: API key not found. Please run the setup script first.\033[0m")
         sys.exit(1)
     return api_key
+
+def show_config(key=None):
+    """Display configuration settings with beautiful formatting."""
+    config = get_config()
+    config_schema = get_config_schema()
+    
+    # Convert schema format for display
+    display_schema = {}
+    for k, v in config_schema.items():
+        display_schema[k] = {
+            'description': v['description'],
+            'type': v['type'],
+            'default': v['default'],
+            'values': '|'.join(v['values']) if v['type'] in ['boolean', 'enum'] else '0-5' if k.endswith('ALTERNATIVES') else '|'.join(v['values'])
+        }
+    config_schema = display_schema
+    
+    # Colors for different terminal types
+    def get_colors():
+        """Get color codes based on terminal support"""
+        try:
+            import os
+            if os.name == 'nt' and not ('ANSICON' in os.environ or 'WT_SESSION' in os.environ):
+                return {'reset': '', 'bold': '', 'dim': '', 'cyan': '', 'green': '', 'yellow': '', 'red': '', 'blue': ''}
+            else:
+                return {
+                    'reset': '\033[0m',
+                    'bold': '\033[1m',
+                    'dim': '\033[2m',
+                    'cyan': '\033[36m',
+                    'green': '\033[32m',
+                    'yellow': '\033[33m',
+                    'red': '\033[31m',
+                    'blue': '\033[34m'
+                }
+        except:
+            return {'reset': '', 'bold': '', 'dim': '', 'cyan': '', 'green': '', 'yellow': '', 'red': '', 'blue': ''}
+    
+    colors = get_colors()
+    
+    # Terminal width detection
+    try:
+        import shutil
+        terminal_width = shutil.get_terminal_size().columns
+    except:
+        terminal_width = 80
+    
+    def print_separator(char='─', width=None):
+        """Print a separator line"""
+        if width is None:
+            width = min(terminal_width, 80)
+        print(colors['dim'] + char * width + colors['reset'])
+    
+    def format_table_row(key, value, status, description, max_key_len=30, max_value_len=15):
+        """Format a table row with proper alignment"""
+        # Truncate if needed
+        key_display = key[:max_key_len] if len(key) > max_key_len else key
+        value_display = str(value)[:max_value_len] if len(str(value)) > max_value_len else str(value)
+        
+        # Color based on status
+        if status == 'default':
+            value_color = colors['dim']
+        elif status == 'set':
+            value_color = colors['green']
+        else:
+            value_color = colors['yellow']
+        
+        # Align columns
+        key_padded = key_display.ljust(max_key_len)
+        value_padded = value_display.ljust(max_value_len)
+        
+        return f"{colors['cyan']}{key_padded}{colors['reset']} │ {value_color}{value_padded}{colors['reset']} │ {colors['dim']}{description}{colors['reset']}"
+    
+    if key:
+        # Show single configuration
+        key_upper = key.upper()
+        if key_upper in config_schema:
+            current_value = config.get(key_upper, config_schema[key_upper]['default'])
+            schema_info = config_schema[key_upper]
+            status = 'set' if key_upper in config else 'default'
+            
+            print(f"\n{colors['bold']}Configuration: {key_upper}{colors['reset']}")
+            print_separator()
+            print(f"{colors['cyan']}Description:{colors['reset']} {schema_info['description']}")
+            print(f"{colors['cyan']}Current Value:{colors['reset']} {colors['green'] if status == 'set' else colors['dim']}{current_value}{colors['reset']}")
+            print(f"{colors['cyan']}Default Value:{colors['reset']} {colors['dim']}{schema_info['default']}{colors['reset']}")
+            print(f"{colors['cyan']}Valid Values:{colors['reset']} {colors['yellow']}{schema_info['values']}{colors['reset']}")
+            print(f"{colors['cyan']}Type:{colors['reset']} {schema_info['type']}")
+            print(f"{colors['cyan']}Status:{colors['reset']} {colors['green'] if status == 'set' else colors['dim']}{status}{colors['reset']}")
+            print_separator()
+            print(f"\n{colors['dim']}Update with: s config-set {key_upper}=<value>{colors['reset']}")
+            
+            # Show example values from original schema
+            original_schema = get_config_schema()
+            if key_upper in original_schema:
+                valid_values = original_schema[key_upper]['values']
+                if len(valid_values) <= 3:
+                    examples = valid_values
+                else:
+                    examples = valid_values[:2] + ['...']
+                example_str = ' | '.join(examples)
+                print(f"{colors['dim']}Examples: {example_str}{colors['reset']}")
+        else:
+            print(f"{colors['red']}Error: Unknown configuration key '{key}'{colors['reset']}")
+            print(f"{colors['dim']}Use 's config-show' to see all available options{colors['reset']}")
+            
+            # Show similar keys as suggestions
+            available_keys = list(config_schema.keys())
+            suggestions = [k for k in available_keys if key.upper() in k or k.split('_')[-1].upper() == key.upper()]
+            if suggestions:
+                print(f"{colors['yellow']}Did you mean:{colors['reset']} {' | '.join(suggestions[:3])}")
+    else:
+        # Show all configurations
+        print(f"\n{colors['bold']}CLI AI Assistant Configuration{colors['reset']}")
+        print_separator('═')
+        
+        # Header
+        header = format_table_row("Setting", "Value", "", "Description")
+        print(header)
+        print_separator()
+        
+        # Configuration rows
+        for config_key, schema_info in config_schema.items():
+            current_value = config.get(config_key, schema_info['default'])
+            status = 'set' if config_key in config else 'default'
+            
+            row = format_table_row(
+                config_key,
+                current_value,
+                status,
+                schema_info['description']
+            )
+            print(row)
+        
+        print_separator()
+        
+        # Summary
+        total_configs = len(config_schema)
+        set_configs = len([k for k in config_schema.keys() if k in config])
+        default_configs = total_configs - set_configs
+        
+        print(f"\n{colors['bold']}Summary:{colors['reset']}")
+        print(f"  Total settings: {colors['cyan']}{total_configs}{colors['reset']}")
+        print(f"  Customized: {colors['green']}{set_configs}{colors['reset']}")
+        print(f"  Using defaults: {colors['dim']}{default_configs}{colors['reset']}")
+        
+        # Usage examples
+        print(f"\n{colors['bold']}Usage:{colors['reset']}")
+        print(f"  {colors['dim']}Show all configs:{colors['reset']} s config-show")
+        print(f"  {colors['dim']}Show single config:{colors['reset']} s config-show <key>")
+        print(f"  {colors['dim']}Update config:{colors['reset']} s config-set <key>=<value>")
+        
+        print(f"\n{colors['dim']}Config file: ~/.cli_ai_assistant/config{colors['reset']}")
 
 def get_current_directory_tree():
     """Return the current directory tree as a formatted string."""
