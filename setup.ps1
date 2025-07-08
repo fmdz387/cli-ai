@@ -24,20 +24,57 @@ Write-Host -ForegroundColor DarkYellow "  \____|_____|___ /_/   \_|___|"
 
 Write-Host "`nWelcome to CLI AI Assistant!`n" -ForegroundColor Cyan
 
-# Securely prompt for API key
-$apiKey = Read-Host -Prompt "Enter your Anthropic API key" -AsSecureString
-$apiKeyPlain = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto([System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($apiKey))
+# Check if this is an update or fresh install
+$cliDir = "$HOME\.cli_ai_assistant"
+if (Test-Path -Path $cliDir) {
+    Write-Host "Detected existing CLI AI Assistant installation." -ForegroundColor Cyan
+    Write-Host "This will update your installation with the latest files from GitHub." -ForegroundColor Yellow
+    $confirmUpdate = Read-Host "Continue with update? (y/N)"
+    if ($confirmUpdate -notmatch "^[Yy]$") {
+        Write-Host "Update cancelled." -ForegroundColor Red
+        exit 0
+    }
+    $isUpdate = $true
+    Write-Host "Proceeding with update..." -ForegroundColor Green
+} else {
+    $isUpdate = $false
+    Write-Host "Proceeding with fresh installation..." -ForegroundColor Green
+}
+
+# Securely prompt for API key for fresh installs or if keyring fails
+$apiKeyPlain = ""
+if (-not $isUpdate) {
+    $apiKey = Read-Host -Prompt "Enter your Anthropic API key" -AsSecureString
+    $apiKeyPlain = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto([System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($apiKey))
+} else {
+    # For updates, try to preserve existing API key
+    Write-Host "Preserving existing API key..." -ForegroundColor Cyan
+    # We'll handle this in the API key step
+}
 
 # Step 1: Set up environment
 Write-Host "Step 1: Setting up environment" -ForegroundColor Yellow
-$cliDir = "$HOME\.cli_ai_assistant"
-if (-Not (Test-Path -Path $cliDir)) {
-    New-Item -ItemType Directory -Path $cliDir | Out-Null
+
+if ($isUpdate) {
+    Write-Host "Backing up existing configuration..." -ForegroundColor Cyan
+    # Backup config if it exists
+    if (Test-Path -Path "$cliDir\config") {
+        Copy-Item -Path "$cliDir\config" -Destination "$cliDir\config.backup" -Force
+        Write-Host "Configuration backed up to config.backup" -ForegroundColor Green
+    }
+    
+    Write-Host "Removing old files..." -ForegroundColor Cyan
+    # Remove old Python files but keep config
+    Remove-Item -Path "$cliDir\*.py" -Force -ErrorAction SilentlyContinue
+} else {
+    if (-Not (Test-Path -Path $cliDir)) {
+        New-Item -ItemType Directory -Path $cliDir | Out-Null
+    }
 }
 
 # Secure download with error handling
 try {
-    Write-Host "Downloading core files..." -ForegroundColor Cyan
+    Write-Host "Downloading fresh files from GitHub..." -ForegroundColor Cyan
     Invoke-WebRequest -Uri "https://raw.githubusercontent.com/fmdz387/cli-ai/refs/heads/master/utils.py" -OutFile "$cliDir\utils.py"
     
     Write-Host "Downloading enhanced UI components..." -ForegroundColor Cyan
@@ -45,6 +82,8 @@ try {
     Invoke-WebRequest -Uri "https://raw.githubusercontent.com/fmdz387/cli-ai/refs/heads/master/assistant.py" -OutFile "$cliDir\assistant.py"
     Invoke-WebRequest -Uri "https://raw.githubusercontent.com/fmdz387/cli-ai/refs/heads/master/cross_platform_utils.py" -OutFile "$cliDir\cross_platform_utils.py"
     Invoke-WebRequest -Uri "https://raw.githubusercontent.com/fmdz387/cli-ai/refs/heads/master/launcher.py" -OutFile "$cliDir\launcher.py"
+    
+    Write-Host "All files downloaded successfully!" -ForegroundColor Green
 } catch {
     Write-Host "Error downloading files: $_" -ForegroundColor Red
     exit 1
@@ -70,17 +109,54 @@ pip install anthropic pyreadline3 keyring keyrings.alt colorama
 
 # Step 3: Secure API key
 Write-Host "Step 3: Securing API key" -ForegroundColor Yellow
-$pythonScript = @"
+if ($isUpdate) {
+    # Check if API key exists in keyring
+    $checkKeyScript = @"
+try:
+    import keyring
+    key = keyring.get_password('cli_ai_assistant', 'anthropic_api_key')
+    print('exists' if key else 'none')
+except:
+    print('none')
+"@
+    $existingKey = python -c $checkKeyScript
+    
+    if ($existingKey -eq "exists") {
+        Write-Host "Existing API key preserved" -ForegroundColor Green
+    } else {
+        $apiKey = Read-Host -Prompt "No API key found. Enter your Anthropic API key" -AsSecureString
+        $apiKeyPlain = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto([System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($apiKey))
+        if ([string]::IsNullOrEmpty($apiKeyPlain)) {
+            Write-Host "API key required for setup" -ForegroundColor Red
+            exit 1
+        }
+        $pythonScript = @"
 import keyring
 keyring.set_password('cli_ai_assistant', 'anthropic_api_key', '$apiKeyPlain')
 "@
-python -c $pythonScript
+        python -c $pythonScript
+        Write-Host "API key stored securely" -ForegroundColor Green
+    }
+} else {
+    $pythonScript = @"
+import keyring
+keyring.set_password('cli_ai_assistant', 'anthropic_api_key', '$apiKeyPlain')
+"@
+    python -c $pythonScript
+    Write-Host "API key stored securely" -ForegroundColor Green
+}
 
 # Step 4: Configure enhanced settings
 Write-Host "Step 4: Configuring enhanced settings" -ForegroundColor Yellow
 
-# Create enhanced configuration
-$configContent = @"
+if ($isUpdate -and (Test-Path -Path "$cliDir\config.backup")) {
+    Write-Host "Restoring previous configuration..." -ForegroundColor Cyan
+    Move-Item -Path "$cliDir\config.backup" -Destination "$cliDir\config" -Force
+    Write-Host "Previous configuration restored" -ForegroundColor Green
+} elseif (-not (Test-Path -Path "$cliDir\config")) {
+    Write-Host "Creating default configuration..." -ForegroundColor Cyan
+    # Create enhanced configuration
+    $configContent = @"
 AI_ASSISTANT_SKIP_CONFIRM=false
 AI_DIRECTORY_TREE_CONTEXT=true
 AI_ASSISTANT_SHOW_EXPLANATIONS=true
@@ -89,8 +165,11 @@ AI_ASSISTANT_ENABLE_SYNTAX_HIGHLIGHTING=true
 AI_ASSISTANT_ENABLE_COMMAND_HISTORY=true
 AI_ASSISTANT_SAFETY_LEVEL=medium
 "@
-
-$configContent | Out-File -FilePath "$cliDir\config" -Encoding UTF8
+    $configContent | Out-File -FilePath "$cliDir\config" -Encoding UTF8
+    Write-Host "Default configuration created" -ForegroundColor Green
+} else {
+    Write-Host "Existing configuration preserved" -ForegroundColor Green
+}
 
 # Step 5: Configure CLI
 Write-Host "Step 5: Configuring CLI aliases" -ForegroundColor Yellow
@@ -101,16 +180,25 @@ if (-Not (Test-Path -Path $profilePath)) {
     New-Item -ItemType File -Path $profilePath -Force | Out-Null
 }
 
-# Remove old function if it exists
-if (Select-String -Path $profilePath -Pattern "function s") {
-    (Get-Content $profilePath) | Where-Object { $_ -notmatch "function s" } | Set-Content $profilePath
+# Remove any existing CLI AI Assistant functions
+if (Test-Path -Path $profilePath) {
+    $content = Get-Content $profilePath
+    $filteredContent = $content | Where-Object { $_ -notmatch "function s.*cli_ai_assistant" }
+    $filteredContent | Set-Content $profilePath
 }
 
-# Add enhanced launcher function
-Add-Content -Path $profilePath -Value "function s { python $cliDir\launcher.py @args }"
+# Add fresh launcher function
+$functionLine = "function s { python $cliDir\launcher.py @args }"
+Add-Content -Path $profilePath -Value $functionLine
+Write-Host "PowerShell function configured" -ForegroundColor Green
 
 # Print setup completion message
-Write-Host "`n*** CLI AI Assistant Setup Complete! ***" -ForegroundColor Green
+if ($isUpdate) {
+    Write-Host "`n*** CLI AI Assistant Update Complete! ***" -ForegroundColor Green
+    Write-Host "All files have been updated with the latest versions from GitHub." -ForegroundColor Cyan
+} else {
+    Write-Host "`n*** CLI AI Assistant Setup Complete! ***" -ForegroundColor Green
+}
 
 # Print usage information
 Write-Host "`nUsage:" -ForegroundColor Yellow
