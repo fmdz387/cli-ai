@@ -15,16 +15,39 @@ EOF
 
 echo -e "\nWelcome to CLI AI Assistant!\n"
 
-# Prompt for API key instead of passing as an argument
-read -sp "Enter your API key: " api_key
-echo
+# Check if this is an update or fresh install
+if [ -d "~/.cli_ai_assistant" ]; then
+    echo -e "\e[36mDetected existing CLI AI Assistant installation.\e[0m"
+    echo -e "\e[33mThis will update your installation with the latest files from GitHub.\e[0m"
+    read -p "Continue with update? (y/N): " confirm_update
+    if [[ ! "$confirm_update" =~ ^[Yy]$ ]]; then
+        echo -e "\e[31mUpdate cancelled.\e[0m"
+        exit 0
+    fi
+    IS_UPDATE=true
+    echo -e "\e[32mProceeding with update...\e[0m"
+else
+    IS_UPDATE=false
+    echo -e "\e[32mProceeding with fresh installation...\e[0m"
+fi
 
-# Check if the API key is provided
-if [ -z "$api_key" ]; then
-    echo -e "\e[31mWARNING: API key not provided!\e[0m"
-    echo -e "\e[33mUsage: curl -sSL https://raw.githubusercontent.com/fmdz387/cli-ai/refs/heads/master/setup.sh | bash -s <your_anthropic_api_key>\e[0m"
-    echo -e "$security_note"
-    exit 1
+# Prompt for API key for fresh installs or if keyring fails
+api_key=""
+if [ "$IS_UPDATE" = false ]; then
+    read -sp "Enter your API key: " api_key
+    echo
+    
+    # Check if the API key is provided
+    if [ -z "$api_key" ]; then
+        echo -e "\e[31mWARNING: API key not provided!\e[0m"
+        echo -e "\e[33mUsage: curl -sSL https://raw.githubusercontent.com/fmdz387/cli-ai/refs/heads/master/setup.sh | bash -s <your_anthropic_api_key>\e[0m"
+        echo -e "$security_note"
+        exit 1
+    fi
+else
+    # For updates, try to preserve existing API key
+    echo -e "\e[36mPreserving existing API key...\e[0m"
+    # We'll handle this in the API key step
 fi
 
 # Define colors
@@ -47,10 +70,24 @@ run_python() {
 
 # Step 1: Set up environment
 echo -e "${YELLOW}Step 1: Setting up environment${NC}"
-mkdir -p ~/.cli_ai_assistant
+
+if [ "$IS_UPDATE" = true ]; then
+    echo -e "${CYAN}Backing up existing configuration...${NC}"
+    # Backup config if it exists
+    if [ -f ~/.cli_ai_assistant/config ]; then
+        cp ~/.cli_ai_assistant/config ~/.cli_ai_assistant/config.backup
+        echo -e "${GREEN}Configuration backed up to config.backup${NC}"
+    fi
+    
+    echo -e "${CYAN}Removing old files...${NC}"
+    # Remove old Python files but keep config
+    rm -f ~/.cli_ai_assistant/*.py
+else
+    mkdir -p ~/.cli_ai_assistant
+fi
 
 # Secure download with error handling
-echo -e "${CYAN}Downloading core files...${NC}"
+echo -e "${CYAN}Downloading fresh files from GitHub...${NC}"
 if ! curl -sSL https://raw.githubusercontent.com/fmdz387/cli-ai/refs/heads/master/utils.py -o ~/.cli_ai_assistant/utils.py; then
     echo -e "${RED}Error downloading utils.py${NC}"
     exit 1
@@ -76,6 +113,8 @@ if ! curl -sSL https://raw.githubusercontent.com/fmdz387/cli-ai/refs/heads/maste
     echo -e "${RED}Error downloading launcher.py${NC}"
     exit 1
 fi
+
+echo -e "${GREEN}All files downloaded successfully!${NC}"
 
 # Make the scripts executable
 chmod +x ~/.cli_ai_assistant/launcher.py
@@ -121,16 +160,52 @@ pip3 install anthropic pyreadline3 keyring keyrings.alt colorama
 
 # Step 3: Secure API key
 echo -e "${YELLOW}Step 3: Securing API key${NC}"
-run_python <<EOF
+if [ "$IS_UPDATE" = true ]; then
+    # Check if API key exists in keyring
+    existing_key=$(run_python <<EOF
+try:
+    import keyring
+    key = keyring.get_password("cli_ai_assistant", "anthropic_api_key")
+    print("exists" if key else "none")
+except:
+    print("none")
+EOF
+)
+    
+    if [ "$existing_key" = "exists" ]; then
+        echo -e "${GREEN}Existing API key preserved${NC}"
+    else
+        read -sp "No API key found. Enter your API key: " api_key
+        echo
+        if [ -z "$api_key" ]; then
+            echo -e "${RED}API key required for setup${NC}"
+            exit 1
+        fi
+        run_python <<EOF
 import keyring
 keyring.set_password("cli_ai_assistant", "anthropic_api_key", "$api_key")
 EOF
+        echo -e "${GREEN}API key stored securely${NC}"
+    fi
+else
+    run_python <<EOF
+import keyring
+keyring.set_password("cli_ai_assistant", "anthropic_api_key", "$api_key")
+EOF
+    echo -e "${GREEN}API key stored securely${NC}"
+fi
 
 # Step 4: Configure enhanced settings
 echo -e "${YELLOW}Step 4: Configuring enhanced settings${NC}"
 
-# Create enhanced configuration
-cat > ~/.cli_ai_assistant/config << 'EOF'
+if [ "$IS_UPDATE" = true ] && [ -f ~/.cli_ai_assistant/config.backup ]; then
+    echo -e "${CYAN}Restoring previous configuration...${NC}"
+    mv ~/.cli_ai_assistant/config.backup ~/.cli_ai_assistant/config
+    echo -e "${GREEN}Previous configuration restored${NC}"
+elif [ ! -f ~/.cli_ai_assistant/config ]; then
+    echo -e "${CYAN}Creating default configuration...${NC}"
+    # Create enhanced configuration
+    cat > ~/.cli_ai_assistant/config << 'EOF'
 AI_ASSISTANT_SKIP_CONFIRM=false
 AI_DIRECTORY_TREE_CONTEXT=true
 AI_ASSISTANT_SHOW_EXPLANATIONS=true
@@ -139,27 +214,45 @@ AI_ASSISTANT_ENABLE_SYNTAX_HIGHLIGHTING=true
 AI_ASSISTANT_ENABLE_COMMAND_HISTORY=true
 AI_ASSISTANT_SAFETY_LEVEL=medium
 EOF
+    echo -e "${GREEN}Default configuration created${NC}"
+else
+    echo -e "${GREEN}Existing configuration preserved${NC}"
+fi
 
 # Step 5: Configure CLI aliases
 echo -e "${YELLOW}Step 5: Configuring CLI aliases${NC}"
 
+# Create or ensure .bashrc exists
+touch ~/.bashrc
+
 if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "cygwin" ]]; then
     # Windows (Git Bash or Cygwin)
-    if ! grep -q "alias s='python ~/.cli_ai_assistant/launcher.py'" ~/.bashrc; then
-        echo "alias s='python ~/.cli_ai_assistant/launcher.py'" >>~/.bashrc
-    fi
+    alias_line="alias s='python ~/.cli_ai_assistant/launcher.py'"
+    # Remove any existing alias
+    sed -i '/alias s=.*cli_ai_assistant/d' ~/.bashrc
+    # Add fresh alias
+    echo "$alias_line" >> ~/.bashrc
+    echo -e "${GREEN}Windows alias configured${NC}"
 else
     # Unix-based systems
-    if ! grep -q "alias s='python3 ~/.cli_ai_assistant/launcher.py'" ~/.bashrc; then
-        echo "alias s='python3 ~/.cli_ai_assistant/launcher.py'" >>~/.bashrc
-    fi
+    alias_line="alias s='python3 ~/.cli_ai_assistant/launcher.py'"
+    # Remove any existing alias
+    sed -i '/alias s=.*cli_ai_assistant/d' ~/.bashrc
+    # Add fresh alias
+    echo "$alias_line" >> ~/.bashrc
+    echo -e "${GREEN}Unix alias configured${NC}"
 fi
 
 # Apply the changes made in .bashrc
 source ~/.bashrc 2>/dev/null || true
 
 # Print setup completion message
-echo -e "\n${GREEN}*** CLI AI Assistant Setup Complete! ***${NC}"
+if [ "$IS_UPDATE" = true ]; then
+    echo -e "\n${GREEN}*** CLI AI Assistant Update Complete! ***${NC}"
+    echo -e "${CYAN}All files have been updated with the latest versions from GitHub.${NC}"
+else
+    echo -e "\n${GREEN}*** CLI AI Assistant Setup Complete! ***${NC}"
+fi
 
 # Print usage information
 echo -e "\n${YELLOW}Usage:${NC}"
