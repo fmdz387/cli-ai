@@ -526,9 +526,11 @@ Keep it under 3 sentences and use bullet points for multiple aspects."""
                 paste_result = CrossPlatformUtils.write_to_shell_input(command)
                 if paste_result['success']:
                     print(f"{self.colors.success('✓ Command copied and pasted to terminal')}")
+                    print()  # Add blank line for clarity
                 else:
                     print(f"{self.colors.success('✓ Command copied to clipboard')}")
                     print(f"{self.colors.muted('Paste with Ctrl+V in your terminal')}")
+                    print()  # Add blank line for clarity
             else:
                 print(f"{self.colors.warning('⚠️  Could not copy to clipboard')}")
                 print(f"{self.colors.muted('Manual copy: Select and copy the command above')}")
@@ -536,7 +538,7 @@ Keep it under 3 sentences and use bullet points for multiple aspects."""
             # Unix/Linux/macOS: Copy to clipboard and display
             print(f"{self.colors.command(command)}")
             
-            # Copy to clipboard
+            # Enhanced clipboard handling with diagnostics
             from cross_platform_utils import CrossPlatformUtils
             clipboard_result = CrossPlatformUtils.copy_to_clipboard(command)
             
@@ -544,8 +546,31 @@ Keep it under 3 sentences and use bullet points for multiple aspects."""
                 print(f"{self.colors.success('✓ Command copied to clipboard')}")
                 print(f"{self.colors.muted('Paste with Ctrl+V in your terminal')}")
             else:
-                print(f"{self.colors.warning('⚠️  Could not copy to clipboard')}")
-                print(f"{self.colors.muted('Manual copy: Select and copy the command above')}")
+                # Get diagnostic information for better error messages
+                diag = CrossPlatformUtils.get_clipboard_diagnostics()
+                
+                if not diag['available_commands']:
+                    print(f"{self.colors.warning('⚠️  No clipboard utility found')}")
+                    if diag['system'] == 'Linux':
+                        if diag.get('is_wsl', False):
+                            print(f"{self.colors.muted('WSL detected - clip.exe should be available')}")
+                            print(f"{self.colors.muted('Try: which clip.exe')}")
+                        else:
+                            print(f"{self.colors.muted('Install: sudo apt install xclip  # or xsel, wl-clipboard')}")
+                    elif diag['system'] == 'Darwin':
+                        print(f"{self.colors.muted('pbcopy should be available on macOS')}")
+                elif diag['issues']:
+                    print(f"{self.colors.warning('⚠️  Clipboard setup issue')}")
+                    for issue in diag['issues']:
+                        print(f"{self.colors.muted(f'  • {issue}')}")
+                else:
+                    print(f"{self.colors.warning('⚠️  Clipboard operation failed')}")
+                    
+                print(f"{self.colors.muted('Manually copy the command above')}")
+            
+            # Provide clear completion message and natural flow
+            print()  # Add blank line for clarity
+            print(f"{self.colors.muted('✨ Ready! You can now use the command in your terminal')}")
         
         return True
             
