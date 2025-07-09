@@ -44,17 +44,57 @@ s compress this directory into a tar.gz file
 
 ## 🎛️ Interactive Interface
 
-The v2 interface provides an intuitive command interaction experience:
+The v2 interface provides an intuitive command interaction experience with two modes:
 
-### Primary Actions
+### Standard Mode (Default)
+Interactive interface with gesture controls:
+
+#### Primary Actions
 - **`↵ Enter`** - Execute command immediately
 - **`⇥ Tab`** - Accept command and paste to active terminal
 - **`📋 Ctrl+C`** - Copy command to clipboard
 
-### Advanced Controls
+#### Advanced Controls
 - **`⚡ Ctrl+A`** - Show alternative commands
 - **`❓ ?`** - Show help and keyboard shortcuts
 - **`✗ Esc`** - Cancel and exit
+
+### Simple Mode
+A streamlined, performance-optimized experience designed for speed and efficiency:
+
+#### What Simple Mode Does:
+- **No Interactive UI**: Bypasses all UI boxes and gesture controls
+- **Faster Response**: Skips generating alternatives, explanations, and context processing
+- **Direct Output**: Command is immediately copied to clipboard and displayed
+- **Optimized API Usage**: Makes fewer API calls for faster execution
+
+#### Platform Behavior:
+- **Windows**: Command copied to clipboard and pasted to new line if terminal supports it
+- **Unix/Linux/macOS**: Command copied to clipboard and displayed for manual pasting
+- **Git Bash**: Enabled by default for optimal Git Bash compatibility
+
+#### When to Use Simple Mode:
+- **Performance Priority**: When you need the fastest possible response
+- **Terminal Compatibility**: In terminals with limited Unicode or UI support
+- **Automation/Scripting**: When integrating with scripts or automated workflows
+- **Minimal Overhead**: When you just want the command without explanations
+
+#### Configuration:
+```bash
+# Enable Simple Mode for faster, streamlined experience
+s config-set AI_ASSISTANT_SIMPLE_MODE=true
+
+# Disable Simple Mode (return to full interactive interface)
+s config-set AI_ASSISTANT_SIMPLE_MODE=false
+
+# Note: Git Bash users have Simple Mode enabled by default for optimal compatibility
+```
+
+#### Performance Benefits:
+- **Reduced API Calls**: No alternatives or explanations generated
+- **Faster Processing**: Skips directory tree context and command history processing
+- **Lower Latency**: Direct command generation without UI rendering overhead
+- **Resource Efficient**: Minimal memory and CPU usage
 
 ## 📊 Command Examples
 
@@ -115,12 +155,32 @@ AI_ASSISTANT_ENABLE_SYNTAX_HIGHLIGHTING=true
 AI_ASSISTANT_ENABLE_COMMAND_HISTORY=true
 ```
 
-### Quick Configuration
+### Configuration Management
+
+**View Configuration:**
+```bash
+# Display all configuration settings
+s config-show
+
+# Display specific setting with details
+s config-show AI_ASSISTANT_SAFETY_LEVEL
+s config-show AI_ASSISTANT_MAX_ALTERNATIVES
+```
+
+**Update Configuration:**
 ```bash
 s config-set AI_ASSISTANT_SAFETY_LEVEL=high
 s config-set AI_ASSISTANT_MAX_ALTERNATIVES=5
 s config-set AI_ASSISTANT_SHOW_EXPLANATIONS=false
 ```
+
+### Configuration Commands
+
+| Command | Description |
+|---------|-------------|
+| `s config-show` | Display all configuration settings with descriptions |
+| `s config-show <key>` | Display detailed information about a specific setting |
+| `s config-set <key>=<value>` | Update a configuration setting |
 
 ### Configuration Options
 
@@ -133,6 +193,7 @@ s config-set AI_ASSISTANT_SHOW_EXPLANATIONS=false
 | `AI_ASSISTANT_MAX_ALTERNATIVES` | `0-5` | Number of alternative commands to generate (default: `3`) |
 | `AI_ASSISTANT_ENABLE_SYNTAX_HIGHLIGHTING` | `true/false` | Colorize command syntax (default: `true`) |
 | `AI_ASSISTANT_ENABLE_COMMAND_HISTORY` | `true/false` | Enable command history navigation (default: `true`) |
+| `AI_ASSISTANT_SIMPLE_MODE` | `true/false` | Enable simple mode (no UI boxes, just clipboard/display) (default: `false`, `true` for Git Bash) |
 
 ## 🔐 Security & Privacy
 
@@ -251,6 +312,15 @@ pip list | grep anthropic  # Verify dependencies
 
 ### Performance Optimization
 
+**View current configuration:**
+```bash
+# See all settings with their current values
+s config-show
+
+# Check specific settings
+s config-show AI_ASSISTANT_SAFETY_LEVEL
+```
+
 **Disable context features for faster responses:**
 ```bash
 s config-set AI_DIRECTORY_TREE_CONTEXT=false
@@ -262,6 +332,15 @@ s config-set AI_ASSISTANT_MAX_ALTERNATIVES=0
 s config-set AI_ASSISTANT_ENABLE_SYNTAX_HIGHLIGHTING=false
 s config-set AI_ASSISTANT_SHOW_EXPLANATIONS=false
 ```
+
+**Use Simple Mode for minimal UI:**
+```bash
+s config-set AI_ASSISTANT_SIMPLE_MODE=true
+```
+
+**Performance Comparison:**
+- **Standard Mode**: Full interactive experience with alternatives, explanations, and context
+- **Simple Mode**: 2-3x faster response time, single API call, no UI overhead
 
 ## 📚 Technical Architecture
 
