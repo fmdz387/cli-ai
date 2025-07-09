@@ -79,6 +79,12 @@ def get_config_schema():
             'type': 'boolean',
             'default': 'true',
             'values': ['true', 'false']
+        },
+        'AI_ASSISTANT_SIMPLE_MODE': {
+            'description': 'Enable simple mode (no UI boxes, just clipboard/display)',
+            'type': 'boolean',
+            'default': 'false',
+            'values': ['true', 'false']
         }
     }
 

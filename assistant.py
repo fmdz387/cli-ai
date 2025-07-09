@@ -45,13 +45,19 @@ class AIAssistant:
         
     def _load_user_preferences(self) -> Dict[str, Any]:
         """Load user preferences from config"""
+        shell_env = determine_shell_environment()
+        
+        # Default Simple Mode to True for Git Bash (MSYS2 environments)
+        default_simple_mode = shell_env.startswith("MSYS2")
+        
         prefs = {
-            'preferred_shell': determine_shell_environment(),
+            'preferred_shell': shell_env,
             'safety_level': 'medium',
             'show_explanations': True,
             'enable_syntax_highlighting': True,
             'max_alternatives': 3,
             'enable_command_history': True,
+            'simple_mode': default_simple_mode,
         }
         
         # Override with config values
@@ -117,7 +123,7 @@ class AIAssistant:
             # Safe fallback
             return False
         
-    def _build_prompt(self, user_input: str) -> str:
+    def _build_prompt(self, user_input: str, simple_mode: bool = False) -> str:
         """Build prompt with context and preferences"""
         shell_environment = self.user_preferences['preferred_shell']
         
@@ -137,25 +143,27 @@ Requirements:
 
 Context Information:"""
 
-        # Add directory context if enabled
-        if self.config.get('AI_DIRECTORY_TREE_CONTEXT', 'false') == 'true':
-            directory_tree = get_current_directory_tree()
-            base_prompt += f"""
+        # Skip heavy context operations in Simple Mode for faster response
+        if not simple_mode:
+            # Add directory context if enabled
+            if self.config.get('AI_DIRECTORY_TREE_CONTEXT', 'false') == 'true':
+                directory_tree = get_current_directory_tree()
+                base_prompt += f"""
 <current_directory_tree>
 {directory_tree}
 </current_directory_tree>"""
 
-        # Add command history context
-        if self.command_history and self.user_preferences['enable_command_history']:
-            recent_commands = self.command_history[-5:]  # Last 5 commands
-            base_prompt += f"""
+            # Add command history context
+            if self.command_history and self.user_preferences['enable_command_history']:
+                recent_commands = self.command_history[-5:]  # Last 5 commands
+                base_prompt += f"""
 <recent_commands>
 {json.dumps(recent_commands, indent=2)}
 </recent_commands>"""
 
-        # Add session context
-        if self.session_context:
-            base_prompt += f"""
+            # Add session context
+            if self.session_context:
+                base_prompt += f"""
 <session_context>
 {json.dumps(self.session_context, indent=2)}
 </session_context>"""
@@ -256,6 +264,29 @@ Keep it under 3 sentences and use bullet points for multiple aspects."""
             hints.append("This search may take a long time")
             
         return hints
+        
+    def get_simple_command(self, user_input: str) -> str:
+        """Get AI command for Simple Mode - only basic command without extras"""
+        prompt = self._build_prompt(user_input, simple_mode=True)
+        
+        try:
+            message = self.client.messages.create(
+                model="claude-3-5-sonnet-20241022",
+                max_tokens=100,
+                temperature=0,
+                system="You are an expert command-line assistant. Provide only the command as your response.",
+                messages=[{"role": "user", "content": prompt}]
+            )
+            
+            # Extract the command from the response
+            if isinstance(message.content, list) and len(message.content) > 0:
+                command = message.content[0].text.strip()
+                return command
+            else:
+                raise ValueError("Unexpected response format")
+                
+        except Exception as e:
+            return f"# Error: {str(e)}"
         
     def get_ai_suggestion(self, user_input: str) -> CommandSuggestion:
         """Get AI suggestion with context"""
@@ -375,7 +406,11 @@ Keep it under 3 sentences and use bullet points for multiple aspects."""
         
     def process_command(self, user_input: str) -> bool:
         """Process user command with UI"""
- # Show loader animation
+        # Check if Simple Mode is enabled first to avoid unnecessary API calls
+        if self.user_preferences['simple_mode']:
+            return self._process_simple_mode_optimized(user_input)
+        
+        # Show loader animation for full mode
         stop_event = threading.Event()
         loader_thread = threading.Thread(target=self._loader_animation, args=(stop_event,))
         loader_thread.start()
@@ -393,7 +428,7 @@ Keep it under 3 sentences and use bullet points for multiple aspects."""
         if suggestion.command.startswith("# Error:"):
             print(f"{self.colors.error('Error:')} {suggestion.explanation}")
             return False
-            
+        
         # Use interactive UI for command processing
         try:
             selected_command = self.ui.process_command_interaction(suggestion)
@@ -449,6 +484,117 @@ Keep it under 3 sentences and use bullet points for multiple aspects."""
         except Exception as e:
             print(f"{self.colors.error('Error:')} Command processing failed: {e}")
             return False
+            
+    def _process_simple_mode_optimized(self, user_input: str) -> bool:
+        """Optimized Simple Mode - only gets basic command, no alternatives/explanations"""
+        # Show loader animation
+        stop_event = threading.Event()
+        loader_thread = threading.Thread(target=self._loader_animation, args=(stop_event,))
+        loader_thread.start()
+        
+        try:
+            command = self.get_simple_command(user_input)
+        except Exception as e:
+            print(f"{self.colors.error('Error:')} Failed to get command: {e}")
+            return False
+        finally:
+            stop_event.set()
+            loader_thread.join()
+            
+        # Check if command generation failed
+        if command.startswith("# Error:"):
+            print(f"{self.colors.error('Error:')} Failed to generate command")
+            return False
+            
+        # Update session context
+        self._update_session_context(user_input, command, False)
+        
+        # Detect OS for different behavior
+        import platform
+        is_windows = platform.system() == 'Windows'
+        
+        if is_windows:
+            # Windows: Copy to clipboard and paste to next line
+            print(f"{self.colors.command(command)}")
+            
+            # Copy to clipboard
+            from cross_platform_utils import CrossPlatformUtils
+            clipboard_result = CrossPlatformUtils.copy_to_clipboard(command)
+            
+            if clipboard_result:
+                # Try to paste to terminal
+                paste_result = CrossPlatformUtils.write_to_shell_input(command)
+                if paste_result['success']:
+                    print(f"{self.colors.success('✓ Command copied and pasted to terminal')}")
+                else:
+                    print(f"{self.colors.success('✓ Command copied to clipboard')}")
+                    print(f"{self.colors.muted('Paste with Ctrl+V in your terminal')}")
+            else:
+                print(f"{self.colors.warning('⚠️  Could not copy to clipboard')}")
+                print(f"{self.colors.muted('Manual copy: Select and copy the command above')}")
+        else:
+            # Unix/Linux/macOS: Copy to clipboard and display
+            print(f"{self.colors.command(command)}")
+            
+            # Copy to clipboard
+            from cross_platform_utils import CrossPlatformUtils
+            clipboard_result = CrossPlatformUtils.copy_to_clipboard(command)
+            
+            if clipboard_result:
+                print(f"{self.colors.success('✓ Command copied to clipboard')}")
+                print(f"{self.colors.muted('Paste with Ctrl+V in your terminal')}")
+            else:
+                print(f"{self.colors.warning('⚠️  Could not copy to clipboard')}")
+                print(f"{self.colors.muted('Manual copy: Select and copy the command above')}")
+        
+        return True
+            
+    def _process_simple_mode(self, user_input: str, suggestion: CommandSuggestion) -> bool:
+        """Process command in Simple Mode - no UI boxes, just copy/paste or display"""
+        command = suggestion.command
+        
+        # Update session context
+        self._update_session_context(user_input, command, False)
+        
+        # Detect OS for different behavior
+        import platform
+        is_windows = platform.system() == 'Windows'
+        
+        if is_windows:
+            # Windows: Copy to clipboard and paste to next line
+            print(f"{self.colors.command(command)}")
+            
+            # Copy to clipboard
+            from cross_platform_utils import CrossPlatformUtils
+            clipboard_result = CrossPlatformUtils.copy_to_clipboard(command)
+            
+            if clipboard_result:
+                # Try to paste to terminal
+                paste_result = CrossPlatformUtils.write_to_shell_input(command)
+                if paste_result['success']:
+                    print(f"{self.colors.success('✓ Command copied and pasted to terminal')}")
+                else:
+                    print(f"{self.colors.success('✓ Command copied to clipboard')}")
+                    print(f"{self.colors.muted('Paste with Ctrl+V in your terminal')}")
+            else:
+                print(f"{self.colors.warning('⚠️  Could not copy to clipboard')}")
+                print(f"{self.colors.muted('Manual copy: Select and copy the command above')}")
+        else:
+            # Unix/Linux/macOS: Copy to clipboard and display
+            print(f"{self.colors.command(command)}")
+            
+            # Copy to clipboard
+            from cross_platform_utils import CrossPlatformUtils
+            clipboard_result = CrossPlatformUtils.copy_to_clipboard(command)
+            
+            if clipboard_result:
+                print(f"{self.colors.success('✓ Command copied to clipboard')}")
+                print(f"{self.colors.muted('Paste with Ctrl+V in your terminal')}")
+            else:
+                print(f"{self.colors.warning('⚠️  Could not copy to clipboard')}")
+                print(f"{self.colors.muted('Manual copy: Select and copy the command above')}")
+        
+        return True
             
     def handle_config_command(self, key_value: str) -> bool:
         """Handle configuration update commands"""
