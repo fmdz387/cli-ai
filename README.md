@@ -149,6 +149,7 @@ AI_DIRECTORY_TREE_CONTEXT=true
 
 # Enhanced UI features
 AI_ASSISTANT_SAFETY_LEVEL=medium
+AI_ASSISTANT_MODEL=claude-sonnet-4-20250514
 AI_ASSISTANT_SHOW_EXPLANATIONS=true
 AI_ASSISTANT_MAX_ALTERNATIVES=3
 AI_ASSISTANT_ENABLE_SYNTAX_HIGHLIGHTING=true
@@ -187,6 +188,7 @@ s config-set AI_ASSISTANT_SHOW_EXPLANATIONS=false
 | Setting | Values | Description |
 |---------|--------|-------------|
 | `AI_ASSISTANT_SKIP_CONFIRM` | `true/false` | Skip confirmation prompts (default: `true`) |
+| `AI_ASSISTANT_MODEL` | `claude-sonnet-4-20250514` | The model to use for the AI assistant (default: `claude-sonnet-4-20250514`) |
 | `AI_DIRECTORY_TREE_CONTEXT` | `true/false` | Include directory structure in AI context (default: `true`) |
 | `AI_ASSISTANT_SAFETY_LEVEL` | `low/medium/high` | Command risk assessment level (default: `medium`) |
 | `AI_ASSISTANT_SHOW_EXPLANATIONS` | `true/false` | Display command explanations (default: `true`) |

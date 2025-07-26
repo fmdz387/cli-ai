@@ -44,6 +44,12 @@ def get_config_schema():
             'default': 'true',
             'values': ['true', 'false']
         },
+        'AI_ASSISTANT_MODEL': {
+            'description': 'The model to use for the AI assistant. Check Anthropic API documentation for available models: https://docs.anthropic.com/en/docs/about-claude/models/overview',
+            'type': 'string',
+            'default': 'claude-sonnet-4-20250514',
+            'values': ['claude-sonnet-4-20250514', 'claude-opus-4-20250514']
+        },
         'AI_DIRECTORY_TREE_CONTEXT': {
             'description': 'Include directory structure in AI context',
             'type': 'boolean',
@@ -191,7 +197,7 @@ def display_help():
     Examples:
       s "list all files in the current directory"
       s config-show
-      s config-show AI_ASSISTANT_SAFETY_LEVEL
+      s config-show AI_ASSISTANT_MODEL
       s config-set AI_ASSISTANT_SKIP_CONFIRM=true
       s help
 

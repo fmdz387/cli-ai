@@ -207,6 +207,7 @@ elif [ ! -f ~/.cli_ai_assistant/config ]; then
     # Create enhanced configuration
     cat > ~/.cli_ai_assistant/config << 'EOF'
 AI_ASSISTANT_SKIP_CONFIRM=false
+AI_ASSISTANT_MODEL=claude-sonnet-4-20250514
 AI_DIRECTORY_TREE_CONTEXT=true
 AI_ASSISTANT_SHOW_EXPLANATIONS=true
 AI_ASSISTANT_MAX_ALTERNATIVES=3
