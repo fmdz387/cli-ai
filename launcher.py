@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# Shebang will be ignored when using explicit python path from alias
 
 # Copyright 2024 Fahir M.
 #

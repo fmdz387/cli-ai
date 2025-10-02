@@ -64,7 +64,12 @@ run_python() {
     if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "win32" ]]; then
         python - "$@"
     else
-        python3 - "$@"
+        # Use venv python if available, otherwise fallback to system python3
+        if [ -f ~/.cli_ai_assistant/venv/bin/python ]; then
+            ~/.cli_ai_assistant/venv/bin/python - "$@"
+        else
+            python3 - "$@"
+        fi
     fi
 }
 
@@ -80,8 +85,17 @@ if [ "$IS_UPDATE" = true ]; then
     fi
     
     echo -e "${CYAN}Removing old files...${NC}"
-    # Remove old Python files but keep config
+    # Remove old Python files but keep config and venv
     rm -f ~/.cli_ai_assistant/*.py
+
+    # Update virtual environment if it exists
+    if [ -d ~/.cli_ai_assistant/venv ]; then
+        echo -e "${CYAN}Updating virtual environment packages...${NC}"
+        source ~/.cli_ai_assistant/venv/bin/activate
+        pip install --upgrade pip --quiet
+        pip install --upgrade anthropic keyring keyrings.alt colorama --quiet 2>/dev/null || true
+        deactivate
+    fi
 else
     mkdir -p ~/.cli_ai_assistant
 fi
@@ -156,7 +170,34 @@ fi
 
 # Install enhanced dependencies for better UI experience
 echo -e "${CYAN}Installing Python packages...${NC}"
-pip3 install anthropic pyreadline3 keyring keyrings.alt colorama
+
+# Create virtual environment if it doesn't exist
+if [ ! -d ~/.cli_ai_assistant/venv ]; then
+    echo -e "${CYAN}Creating virtual environment...${NC}"
+    python3 -m venv ~/.cli_ai_assistant/venv
+    echo -e "${GREEN}Virtual environment created${NC}"
+fi
+
+# Activate virtual environment and install packages
+source ~/.cli_ai_assistant/venv/bin/activate
+
+# Upgrade pip first
+pip install --upgrade pip --quiet
+
+# Install packages in virtual environment
+if pip install anthropic pyreadline3 keyring keyrings.alt colorama --quiet; then
+    echo -e "${GREEN}Python packages installed successfully${NC}"
+else
+    # Fallback: try installing without pyreadline3 (not needed on Unix)
+    if pip install anthropic keyring keyrings.alt colorama --quiet; then
+        echo -e "${GREEN}Python packages installed successfully${NC}"
+    else
+        echo -e "${RED}Failed to install Python packages${NC}"
+        exit 1
+    fi
+fi
+
+deactivate
 
 # Step 3: Secure API key
 echo -e "${YELLOW}Step 3: Securing API key${NC}"
@@ -235,8 +276,12 @@ if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "cygwin" ]]; then
     echo "$alias_line" >> ~/.bashrc
     echo -e "${GREEN}Windows alias configured${NC}"
 else
-    # Unix-based systems
-    alias_line="alias s='python3 ~/.cli_ai_assistant/launcher.py'"
+    # Unix-based systems - use venv python
+    if [ -f ~/.cli_ai_assistant/venv/bin/python ]; then
+        alias_line="alias s='~/.cli_ai_assistant/venv/bin/python ~/.cli_ai_assistant/launcher.py'"
+    else
+        alias_line="alias s='python3 ~/.cli_ai_assistant/launcher.py'"
+    fi
     # Remove any existing alias
     sed -i '/alias s=.*cli_ai_assistant/d' ~/.bashrc
     # Add fresh alias
