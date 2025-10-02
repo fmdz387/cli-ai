@@ -171,25 +171,63 @@ fi
 # Install enhanced dependencies for better UI experience
 echo -e "${CYAN}Installing Python packages...${NC}"
 
+# Install python3-venv if on Debian/Ubuntu and not installed
+if [[ -f /etc/debian_version || -f /etc/lsb-release ]]; then
+    if ! dpkg -l | grep -q python3-venv; then
+        echo -e "${YELLOW}Installing python3-venv package...${NC}"
+        if sudo apt-get install -y python3-venv 2>/dev/null; then
+            echo -e "${GREEN}python3-venv installed${NC}"
+        else
+            echo -e "${RED}Failed to install python3-venv. Please run: sudo apt install python3-venv${NC}"
+            exit 1
+        fi
+    fi
+fi
+
 # Create virtual environment if it doesn't exist
 if [ ! -d ~/.cli_ai_assistant/venv ]; then
     echo -e "${CYAN}Creating virtual environment...${NC}"
+    if python3 -m venv ~/.cli_ai_assistant/venv 2>/dev/null; then
+        echo -e "${GREEN}Virtual environment created${NC}"
+    else
+        echo -e "${RED}Failed to create virtual environment${NC}"
+        echo -e "${YELLOW}Trying alternative approach with --system-site-packages...${NC}"
+        if python3 -m venv --system-site-packages ~/.cli_ai_assistant/venv; then
+            echo -e "${GREEN}Virtual environment created with system packages${NC}"
+        else
+            echo -e "${RED}Virtual environment creation failed${NC}"
+            exit 1
+        fi
+    fi
+fi
+
+# Verify venv activation script exists
+if [ ! -f ~/.cli_ai_assistant/venv/bin/activate ]; then
+    echo -e "${RED}Virtual environment activation script not found${NC}"
+    echo -e "${YELLOW}Cleaning up and retrying...${NC}"
+    rm -rf ~/.cli_ai_assistant/venv
+
+    # Install python3-full if available (Ubuntu 24.04+)
+    if [[ -f /etc/debian_version || -f /etc/lsb-release ]]; then
+        sudo apt-get install -y python3-full python3-venv 2>/dev/null || true
+    fi
+
     python3 -m venv ~/.cli_ai_assistant/venv
-    echo -e "${GREEN}Virtual environment created${NC}"
 fi
 
 # Activate virtual environment and install packages
 source ~/.cli_ai_assistant/venv/bin/activate
 
 # Upgrade pip first
-pip install --upgrade pip --quiet
+pip install --upgrade pip --quiet 2>/dev/null || pip install --upgrade pip
 
 # Install packages in virtual environment
-if pip install anthropic pyreadline3 keyring keyrings.alt colorama --quiet; then
+if pip install anthropic keyring keyrings.alt colorama --quiet 2>/dev/null; then
     echo -e "${GREEN}Python packages installed successfully${NC}"
 else
-    # Fallback: try installing without pyreadline3 (not needed on Unix)
-    if pip install anthropic keyring keyrings.alt colorama --quiet; then
+    # Try without --quiet to see errors
+    echo -e "${YELLOW}Retrying package installation...${NC}"
+    if pip install anthropic keyring keyrings.alt colorama; then
         echo -e "${GREEN}Python packages installed successfully${NC}"
     else
         echo -e "${RED}Failed to install Python packages${NC}"
