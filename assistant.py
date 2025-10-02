@@ -183,8 +183,10 @@ Generate {self.user_preferences['max_alternatives']} alternative commands that a
 Respond with a JSON array of command strings only.
 Example: ["command1", "command2", "command3"]"""
 
+            # Get model from config or use default
+            model = self.config.get('AI_ASSISTANT_MODEL', 'claude-sonnet-4-5-20250929')
             message = self.client.messages.create(
-                model="claude-3-5-sonnet-20241022",
+                model=model,
                 max_tokens=200,
                 temperature=0.3,
                 messages=[{"role": "user", "content": alternatives_prompt}]
@@ -230,8 +232,10 @@ Provide a brief explanation focusing on:
 
 Keep it under 3 sentences and use bullet points for multiple aspects."""
 
+            # Get model from config or use default
+            model = self.config.get('AI_ASSISTANT_MODEL', 'claude-sonnet-4-5-20250929')
             message = self.client.messages.create(
-                model="claude-3-5-sonnet-20241022",
+                model=model,
                 max_tokens=150,
                 temperature=0,
                 messages=[{"role": "user", "content": explanation_prompt}]
@@ -268,10 +272,12 @@ Keep it under 3 sentences and use bullet points for multiple aspects."""
     def get_simple_command(self, user_input: str) -> str:
         """Get AI command for Simple Mode - only basic command without extras"""
         prompt = self._build_prompt(user_input, simple_mode=True)
-        
+
         try:
+            # Get model from config or use default
+            model = self.config.get('AI_ASSISTANT_MODEL', 'claude-sonnet-4-5-20250929')
             message = self.client.messages.create(
-                model="claude-3-5-sonnet-20241022",
+                model=model,
                 max_tokens=100,
                 temperature=0,
                 system="You are an expert command-line assistant. Provide only the command as your response.",
@@ -293,14 +299,16 @@ Keep it under 3 sentences and use bullet points for multiple aspects."""
         prompt = self._build_prompt(user_input)
         
         try:
+            # Get model from config or use default
+            model = self.config.get('AI_ASSISTANT_MODEL', 'claude-sonnet-4-5-20250929')
             message = self.client.messages.create(
-                model="claude-3-5-sonnet-20241022",
+                model=model,
                 max_tokens=100,
                 temperature=0,
                 system="You are an expert command-line assistant. Provide only the command as your response.",
                 messages=[{"role": "user", "content": prompt}]
             )
-            
+
             # Extract the command from the response
             if isinstance(message.content, list) and len(message.content) > 0:
                 command = message.content[0].text.strip()

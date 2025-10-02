@@ -47,8 +47,16 @@ def get_config_schema():
         'AI_ASSISTANT_MODEL': {
             'description': 'The model to use for the AI assistant. Check Anthropic API documentation for available models: https://docs.anthropic.com/en/docs/about-claude/models/overview',
             'type': 'string',
-            'default': 'claude-sonnet-4-20250514',
-            'values': ['claude-sonnet-4-20250514', 'claude-opus-4-20250514']
+            'default': 'claude-sonnet-4-5-20250929',
+            'values': [
+                'claude-sonnet-4-5-20250929', 'claude-sonnet-4-5',
+                'claude-sonnet-4-20250514', 'claude-sonnet-4-0',
+                'claude-3-7-sonnet-20250219', 'claude-3-7-sonnet-latest',
+                'claude-opus-4-1-20250805', 'claude-opus-4-1',
+                'claude-opus-4-20250514', 'claude-opus-4-0',
+                'claude-3-5-haiku-20241022', 'claude-3-5-haiku-latest',
+                'claude-3-haiku-20240307'
+            ]
         },
         'AI_DIRECTORY_TREE_CONTEXT': {
             'description': 'Include directory structure in AI context',
