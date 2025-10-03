@@ -822,6 +822,106 @@ Keep it under 3 sentences and use bullet points for multiple aspects."""
 
         return True
 
+    def handle_update_command(self) -> bool:
+        """Handle update command - run setup script from GitHub to update CLI AI Assistant"""
+        import platform
+        import tempfile
+
+        print(f"{self.colors.primary('CLI AI Assistant - Update')}")
+        print("=" * 50)
+        print()
+        print(f"{self.colors.info('Fetching latest version from GitHub...')}")
+        print()
+
+        try:
+            system = platform.system()
+
+            if system == 'Windows':
+                # Download and run setup.ps1
+                setup_url = 'https://raw.githubusercontent.com/fmdz387/cli-ai/refs/heads/master/setup.ps1'
+
+                # Download to temp file
+                with tempfile.NamedTemporaryFile(mode='w', suffix='.ps1', delete=False) as f:
+                    temp_script = f.name
+
+                print(f"{self.colors.muted('Downloading setup script...')}")
+                result = subprocess.run(
+                    ['powershell', '-Command',
+                     f"Invoke-WebRequest -Uri '{setup_url}' -OutFile '{temp_script}'"],
+                    capture_output=True,
+                    text=True,
+                    timeout=30
+                )
+
+                if result.returncode != 0:
+                    print(f"{self.colors.error('Error:')} Failed to download setup script")
+                    print(f"{self.colors.muted(result.stderr)}")
+                    return False
+
+                print(f"{self.colors.success('✓')} Setup script downloaded")
+                print()
+                print(f"{self.colors.info('Running update...')}")
+                print()
+
+                # Run setup script
+                result = subprocess.run(
+                    ['powershell', '-ExecutionPolicy', 'Bypass', '-File', temp_script],
+                    timeout=300
+                )
+
+                # Cleanup
+                try:
+                    os.remove(temp_script)
+                except:
+                    pass
+
+                return result.returncode == 0
+
+            else:
+                # Download and run setup.sh
+                setup_url = 'https://raw.githubusercontent.com/fmdz387/cli-ai/refs/heads/master/setup.sh'
+
+                # Download to temp file
+                with tempfile.NamedTemporaryFile(mode='w', suffix='.sh', delete=False) as f:
+                    temp_script = f.name
+
+                print(f"{self.colors.muted('Downloading setup script...')}")
+                result = subprocess.run(
+                    ['curl', '-sSL', setup_url, '-o', temp_script],
+                    capture_output=True,
+                    text=True,
+                    timeout=30
+                )
+
+                if result.returncode != 0:
+                    print(f"{self.colors.error('Error:')} Failed to download setup script")
+                    print(f"{self.colors.muted(result.stderr)}")
+                    return False
+
+                print(f"{self.colors.success('✓')} Setup script downloaded")
+                print()
+                print(f"{self.colors.info('Running update...')}")
+                print()
+
+                # Make executable and run
+                os.chmod(temp_script, 0o755)
+                result = subprocess.run(['bash', temp_script], timeout=300)
+
+                # Cleanup
+                try:
+                    os.remove(temp_script)
+                except:
+                    pass
+
+                return result.returncode == 0
+
+        except subprocess.TimeoutExpired:
+            print(f"{self.colors.error('Error:')} Update timed out")
+            return False
+        except Exception as e:
+            print(f"{self.colors.error('Error:')} Update failed: {e}")
+            return False
+
     def show_help(self):
         """Show help with gesture commands"""
         help_content = [
@@ -830,6 +930,7 @@ Keep it under 3 sentences and use bullet points for multiple aspects."""
             "  s <natural language command>",
             "  s config-set <key=value>",
             "  s config-show [key]",
+            "  s update",
             "  s uninstall",
             "  s help",
             "",
@@ -845,6 +946,7 @@ Keep it under 3 sentences and use bullet points for multiple aspects."""
             "  config-set <key>=<val> - Update configuration setting",
             "",
             "System Commands:",
+            "  update                - Update CLI AI Assistant to latest version",
             "  uninstall             - Remove CLI AI Assistant completely",
             "",
             "Examples:",
@@ -869,6 +971,11 @@ def main():
         if sys.argv[1] == "help":
             assistant.show_help()
             sys.exit(0)
+
+        # Handle update command
+        if sys.argv[1] == "update":
+            success = assistant.handle_update_command()
+            sys.exit(0 if success else 1)
 
         # Handle uninstall command
         if sys.argv[1] == "uninstall":
