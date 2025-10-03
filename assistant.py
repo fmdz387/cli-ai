@@ -3,6 +3,7 @@ import sys
 import anthropic
 import threading
 import json
+import subprocess
 from typing import List, Optional, Dict, Any
 from utils import (
     get_config,
@@ -14,6 +15,7 @@ from utils import (
     get_api_key,
     get_current_directory_tree,
     determine_shell_environment,
+    get_install_dir,
 )
 from ui import (
     InteractiveCommandInterface,
@@ -686,7 +688,140 @@ Keep it under 3 sentences and use bullet points for multiple aspects."""
         except Exception as e:
             print(f"{self.colors.error('Error:')} Failed to display configuration: {e}")
             return False
-            
+
+    def handle_uninstall_command(self) -> bool:
+        """Handle uninstall command - remove all CLI AI Assistant components"""
+        import platform
+        import shutil
+
+        print(f"{self.colors.primary('CLI AI Assistant - Uninstall')}")
+        print("=" * 50)
+        print()
+
+        install_dir = get_install_dir()
+
+        print(f"{self.colors.warning('This will remove:')}")
+        print(f"  - Installation directory: {install_dir}")
+        print(f"  - Shell alias configuration")
+        print(f"  - API key from keyring")
+        print()
+
+        # Confirmation
+        response = input(f"{self.colors.primary('Continue with uninstall? (y/N):')} ")
+        if response.lower() not in ['y', 'yes']:
+            print(f"{self.colors.success('Uninstall cancelled.')}")
+            return False
+
+        print()
+
+        # Step 1: Remove shell alias
+        print(f"{self.colors.primary('[1/3] Removing shell alias...')}")
+        removed_count = 0
+
+        if platform.system() == 'Windows':
+            # Use PowerShell $PROFILE variable to find the active profile (same as setup)
+            try:
+                result = subprocess.run(
+                    ['powershell', '-Command', '$PROFILE'],
+                    capture_output=True,
+                    text=True,
+                    timeout=5
+                )
+                profile_path = result.stdout.strip()
+
+                if profile_path and os.path.exists(profile_path):
+                    try:
+                        with open(profile_path, 'r', encoding='utf-8') as f:
+                            lines = f.readlines()
+
+                        # Check if CLI AI Assistant alias exists (same pattern as setup)
+                        if any('cli_ai_assistant' in line for line in lines):
+                            # Backup
+                            import datetime
+                            backup_path = f"{profile_path}.backup.{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}"
+                            shutil.copy2(profile_path, backup_path)
+
+                            # Remove alias - same pattern as setup: filter out lines matching "function s.*cli_ai_assistant"
+                            new_lines = [line for line in lines if not ('function s' in line and 'cli_ai_assistant' in line)]
+
+                            with open(profile_path, 'w', encoding='utf-8') as f:
+                                f.writelines(new_lines)
+
+                            print(f"  {self.colors.success('✓')} Removed alias from PowerShell profile")
+                            print(f"    Backup saved: {os.path.basename(backup_path)}")
+                            removed_count += 1
+                        else:
+                            print(f"  {self.colors.muted('-')} No alias found in PowerShell profile")
+                    except Exception as e:
+                        print(f"  {self.colors.warning('!')} Could not modify PowerShell profile: {e}")
+                else:
+                    print(f"  {self.colors.muted('-')} PowerShell profile not found")
+            except Exception as e:
+                print(f"  {self.colors.warning('!')} Could not access PowerShell profile: {e}")
+        else:
+            # Unix profiles
+            profiles = [
+                os.path.expanduser('~/.bashrc'),
+                os.path.expanduser('~/.bash_profile'),
+                os.path.expanduser('~/.zshrc'),
+                os.path.expanduser('~/.profile')
+            ]
+
+            for profile_path in profiles:
+                if os.path.exists(profile_path):
+                    try:
+                        with open(profile_path, 'r', encoding='utf-8') as f:
+                            lines = f.readlines()
+
+                        # Same pattern as setup.sh: remove lines matching "alias s=.*cli_ai_assistant"
+                        if any('alias s=' in line and 'cli_ai_assistant' in line for line in lines):
+                            # Backup
+                            import datetime
+                            backup_path = f"{profile_path}.backup.{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}"
+                            shutil.copy2(profile_path, backup_path)
+
+                            # Remove alias line (same logic as setup.sh sed command)
+                            new_lines = [line for line in lines if not ('alias s=' in line and 'cli_ai_assistant' in line)]
+
+                            with open(profile_path, 'w', encoding='utf-8') as f:
+                                f.writelines(new_lines)
+
+                            print(f"  {self.colors.success('✓')} Removed alias from {os.path.basename(profile_path)}")
+                            print(f"    Backup saved: {os.path.basename(backup_path)}")
+                            removed_count += 1
+                    except Exception as e:
+                        print(f"  {self.colors.warning('!')} Could not modify {profile_path}: {e}")
+
+        if removed_count == 0:
+            print(f"  {self.colors.muted('-')} No alias found in shell profiles")
+
+        # Step 2: Remove API key
+        print(f"{self.colors.primary('[2/3] Removing API key from keyring...')}")
+        try:
+            keyring.delete_password('cli_ai_assistant', 'anthropic_api_key')
+            print(f"  {self.colors.success('✓')} API key removed from keyring")
+        except:
+            print(f"  {self.colors.muted('-')} No API key found in keyring")
+
+        # Step 3: Remove installation directory
+        print(f"{self.colors.primary('[3/3] Removing installation directory...')}")
+        if os.path.exists(install_dir):
+            try:
+                shutil.rmtree(install_dir)
+                print(f"  {self.colors.success('✓')} Removed {install_dir}")
+            except Exception as e:
+                print(f"  {self.colors.error('✗')} Could not remove directory: {e}")
+                return False
+        else:
+            print(f"  {self.colors.muted('-')} Installation directory not found")
+
+        print()
+        print(f"{self.colors.success('Uninstall complete!')}")
+        print()
+        print(f"{self.colors.warning('Note:')} Please restart your shell for alias removal to take effect.")
+
+        return True
+
     def show_help(self):
         """Show help with gesture commands"""
         help_content = [
@@ -695,6 +830,7 @@ Keep it under 3 sentences and use bullet points for multiple aspects."""
             "  s <natural language command>",
             "  s config-set <key=value>",
             "  s config-show [key]",
+            "  s uninstall",
             "  s help",
             "",
             "Interactive Controls:",
@@ -708,13 +844,16 @@ Keep it under 3 sentences and use bullet points for multiple aspects."""
             "  config-show <key>     - Display specific configuration",
             "  config-set <key>=<val> - Update configuration setting",
             "",
+            "System Commands:",
+            "  uninstall             - Remove CLI AI Assistant completely",
+            "",
             "Examples:",
             "  s show directory tree with permissions",
             "  s config-show",
             "  s config-show AI_ASSISTANT_SAFETY_LEVEL",
             "  s config-set AI_ASSISTANT_MAX_ALTERNATIVES=5",
         ]
-        
+
         self.ui._draw_box(help_content, "CLI AI Assistant - Help")
 
 def main():
@@ -730,12 +869,17 @@ def main():
         if sys.argv[1] == "help":
             assistant.show_help()
             sys.exit(0)
-            
+
+        # Handle uninstall command
+        if sys.argv[1] == "uninstall":
+            success = assistant.handle_uninstall_command()
+            sys.exit(0 if success else 1)
+
         # Handle config-set command
         if sys.argv[1] == "config-set" and len(sys.argv) == 3:
             success = assistant.handle_config_command(sys.argv[2])
             sys.exit(0 if success else 1)
-            
+
         # Handle config-show command
         if sys.argv[1] == "config-show":
             key = sys.argv[2] if len(sys.argv) == 3 else None

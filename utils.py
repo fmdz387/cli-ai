@@ -279,6 +279,10 @@ def get_api_key():
         sys.exit(1)
     return api_key
 
+def get_install_dir():
+    """Get the installation directory path."""
+    return os.path.join(os.path.expanduser('~'), '.cli_ai_assistant')
+
 def show_config(key=None):
     """Display configuration settings with beautiful formatting."""
     config = get_config()
