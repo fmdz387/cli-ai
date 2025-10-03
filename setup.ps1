@@ -158,7 +158,7 @@ if ($isUpdate -and (Test-Path -Path "$cliDir\config.backup")) {
     # Create enhanced configuration
     $configContent = @"
 AI_ASSISTANT_SKIP_CONFIRM=false
-AI_ASSISTANT_MODEL=claude-sonnet-4-20250514
+AI_ASSISTANT_MODEL=claude-sonnet-4-5-20250929
 AI_DIRECTORY_TREE_CONTEXT=true
 AI_ASSISTANT_SHOW_EXPLANATIONS=true
 AI_ASSISTANT_MAX_ALTERNATIVES=3

@@ -16,7 +16,7 @@ EOF
 echo -e "\nWelcome to CLI AI Assistant!\n"
 
 # Check if this is an update or fresh install
-if [ -d "~/.cli_ai_assistant" ]; then
+if [ -d ~/.cli_ai_assistant ] && [ -f ~/.cli_ai_assistant/launcher.py ]; then
     echo -e "\e[36mDetected existing CLI AI Assistant installation.\e[0m"
     echo -e "\e[33mThis will update your installation with the latest files from GitHub.\e[0m"
     read -p "Continue with update? (y/N): " confirm_update
@@ -36,18 +36,15 @@ api_key=""
 if [ "$IS_UPDATE" = false ]; then
     read -sp "Enter your API key: " api_key
     echo
-    
+
     # Check if the API key is provided
     if [ -z "$api_key" ]; then
         echo -e "\e[31mWARNING: API key not provided!\e[0m"
-        echo -e "\e[33mUsage: curl -sSL https://raw.githubusercontent.com/fmdz387/cli-ai/refs/heads/master/setup.sh | bash -s <your_anthropic_api_key>\e[0m"
-        echo -e "$security_note"
         exit 1
     fi
 else
     # For updates, try to preserve existing API key
     echo -e "\e[36mPreserving existing API key...\e[0m"
-    # We'll handle this in the API key step
 fi
 
 # Define colors
@@ -56,199 +53,120 @@ YELLOW='\033[1;33m'
 CYAN='\033[0;36m'
 RED='\033[0;31m'
 MAGENTA='\033[1;35m'
-WHITE='\033[1;37m'
-NC='\033[0m' # No Color
-
-# Define a function to execute Python commands
-run_python() {
-    if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "win32" ]]; then
-        python - "$@"
-    else
-        # Use venv python if available, otherwise fallback to system python3
-        if [ -f ~/.cli_ai_assistant/venv/bin/python ]; then
-            ~/.cli_ai_assistant/venv/bin/python - "$@"
-        else
-            python3 - "$@"
-        fi
-    fi
-}
+NC='\033[0m'
 
 # Step 1: Set up environment
 echo -e "${YELLOW}Step 1: Setting up environment${NC}"
 
 if [ "$IS_UPDATE" = true ]; then
     echo -e "${CYAN}Backing up existing configuration...${NC}"
-    # Backup config if it exists
     if [ -f ~/.cli_ai_assistant/config ]; then
         cp ~/.cli_ai_assistant/config ~/.cli_ai_assistant/config.backup
-        echo -e "${GREEN}Configuration backed up to config.backup${NC}"
+        echo -e "${GREEN}Configuration backed up${NC}"
     fi
-    
+
     echo -e "${CYAN}Removing old files...${NC}"
-    # Remove old Python files but keep config and venv
     rm -f ~/.cli_ai_assistant/*.py
 
-    # Update virtual environment if it exists
     if [ -d ~/.cli_ai_assistant/venv ]; then
-        echo -e "${CYAN}Updating virtual environment packages...${NC}"
-        source ~/.cli_ai_assistant/venv/bin/activate
-        pip install --upgrade pip --quiet
-        pip install --upgrade anthropic keyring keyrings.alt colorama --quiet 2>/dev/null || true
-        deactivate
+        echo -e "${CYAN}Updating venv packages...${NC}"
+        source ~/.cli_ai_assistant/venv/bin/activate 2>/dev/null && {
+            pip install --upgrade pip --quiet 2>/dev/null
+            pip install --upgrade anthropic keyring keyrings.alt colorama --quiet 2>/dev/null
+            deactivate
+        }
     fi
 else
     mkdir -p ~/.cli_ai_assistant
 fi
 
-# Secure download with error handling
-echo -e "${CYAN}Downloading fresh files from GitHub...${NC}"
-if ! curl -sSL https://raw.githubusercontent.com/fmdz387/cli-ai/refs/heads/master/utils.py -o ~/.cli_ai_assistant/utils.py; then
-    echo -e "${RED}Error downloading utils.py${NC}"
-    exit 1
-fi
+# Download files
+echo -e "${CYAN}Downloading files from GitHub...${NC}"
+curl -sSL https://raw.githubusercontent.com/fmdz387/cli-ai/refs/heads/master/utils.py -o ~/.cli_ai_assistant/utils.py || exit 1
+curl -sSL https://raw.githubusercontent.com/fmdz387/cli-ai/refs/heads/master/ui.py -o ~/.cli_ai_assistant/ui.py || exit 1
+curl -sSL https://raw.githubusercontent.com/fmdz387/cli-ai/refs/heads/master/assistant.py -o ~/.cli_ai_assistant/assistant.py || exit 1
+curl -sSL https://raw.githubusercontent.com/fmdz387/cli-ai/refs/heads/master/cross_platform_utils.py -o ~/.cli_ai_assistant/cross_platform_utils.py || exit 1
+curl -sSL https://raw.githubusercontent.com/fmdz387/cli-ai/refs/heads/master/launcher.py -o ~/.cli_ai_assistant/launcher.py || exit 1
 
-echo -e "${CYAN}Downloading enhanced UI components...${NC}"
-if ! curl -sSL https://raw.githubusercontent.com/fmdz387/cli-ai/refs/heads/master/ui.py -o ~/.cli_ai_assistant/ui.py; then
-    echo -e "${RED}Error downloading ui.py${NC}"
-    exit 1
-fi
-
-if ! curl -sSL https://raw.githubusercontent.com/fmdz387/cli-ai/refs/heads/master/assistant.py -o ~/.cli_ai_assistant/assistant.py; then
-    echo -e "${RED}Error downloading assistant.py${NC}"
-    exit 1
-fi
-
-if ! curl -sSL https://raw.githubusercontent.com/fmdz387/cli-ai/refs/heads/master/cross_platform_utils.py -o ~/.cli_ai_assistant/cross_platform_utils.py; then
-    echo -e "${RED}Error downloading cross_platform_utils.py${NC}"
-    exit 1
-fi
-
-if ! curl -sSL https://raw.githubusercontent.com/fmdz387/cli-ai/refs/heads/master/launcher.py -o ~/.cli_ai_assistant/launcher.py; then
-    echo -e "${RED}Error downloading launcher.py${NC}"
-    exit 1
-fi
-
-echo -e "${GREEN}All files downloaded successfully!${NC}"
-
-# Make the scripts executable
+echo -e "${GREEN}Files downloaded successfully${NC}"
 chmod +x ~/.cli_ai_assistant/launcher.py
 
 # Step 2: Install dependencies
 echo -e "${YELLOW}Step 2: Installing dependencies${NC}"
-# Check if Python is installed
+
+# Check Python
 if ! command -v python3 &> /dev/null; then
-    echo -e "${YELLOW}Python not found. Installing Python...${NC}"
+    echo -e "${YELLOW}Installing Python...${NC}"
     if [[ "$OSTYPE" == "darwin"* ]]; then
-        # macOS
         brew install python
-    elif [[ -f /etc/debian_version || -f /etc/lsb-release ]]; then
-        # Debian or Ubuntu
-        sudo apt-get update
-        sudo apt-get install -y python3
-    else
-        echo -e "${RED}Unsupported OS. Please install Python manually.${NC}"
-        exit 1
+    elif [[ -f /etc/debian_version ]]; then
+        sudo apt-get update && sudo apt-get install -y python3
     fi
 fi
 
-# Check if pip is installed
-if ! command -v pip3 &> /dev/null; then
-    echo -e "${YELLOW}pip not found. Installing pip...${NC}"
-    if [[ "$OSTYPE" == "darwin"* ]]; then
-        # macOS
-        curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
-        python3 get-pip.py
-        rm get-pip.py
-    elif [[ -f /etc/debian_version || -f /etc/lsb-release ]]; then
-        # Debian or Ubuntu
-        sudo apt-get install -y python3-pip
-    else
-        echo -e "${RED}Unsupported OS. Please install pip manually.${NC}"
+# Install python3-venv and python3-pip for Debian/Ubuntu
+if [[ -f /etc/debian_version ]]; then
+    echo -e "${CYAN}Installing required Python packages...${NC}"
+    sudo apt-get install -y python3-venv python3-pip python3-full 2>/dev/null || sudo apt-get install -y python3-venv python3-pip
+fi
+
+# Create venv
+echo -e "${CYAN}Setting up virtual environment...${NC}"
+rm -rf ~/.cli_ai_assistant/venv  # Clean start
+python3 -m venv ~/.cli_ai_assistant/venv || {
+    echo -e "${RED}venv creation failed, trying with --system-site-packages${NC}"
+    python3 -m venv --system-site-packages ~/.cli_ai_assistant/venv || {
+        echo -e "${RED}Failed to create venv${NC}"
         exit 1
-    fi
-fi
+    }
+}
 
-# Install enhanced dependencies for better UI experience
-echo -e "${CYAN}Installing Python packages...${NC}"
-
-# Create virtual environment if it doesn't exist
-if [ ! -d ~/.cli_ai_assistant/venv ]; then
-    echo -e "${CYAN}Creating virtual environment...${NC}"
-    python3 -m venv ~/.cli_ai_assistant/venv
-    echo -e "${GREEN}Virtual environment created${NC}"
-fi
-
-# Activate virtual environment and install packages
-source ~/.cli_ai_assistant/venv/bin/activate
-
-# Upgrade pip first
+# Install packages in venv
+source ~/.cli_ai_assistant/venv/bin/activate || exit 1
+echo -e "${CYAN}Installing Python packages in venv...${NC}"
 pip install --upgrade pip --quiet
-
-# Install packages in virtual environment
-if pip install anthropic pyreadline3 keyring keyrings.alt colorama --quiet; then
-    echo -e "${GREEN}Python packages installed successfully${NC}"
-else
-    # Fallback: try installing without pyreadline3 (not needed on Unix)
-    if pip install anthropic keyring keyrings.alt colorama --quiet; then
-        echo -e "${GREEN}Python packages installed successfully${NC}"
-    else
-        echo -e "${RED}Failed to install Python packages${NC}"
-        exit 1
-    fi
-fi
-
+pip install anthropic keyring keyrings.alt colorama || exit 1
 deactivate
 
-# Step 3: Secure API key
+echo -e "${GREEN}Dependencies installed successfully${NC}"
+
+# Step 3: Store API key
 echo -e "${YELLOW}Step 3: Securing API key${NC}"
+
 if [ "$IS_UPDATE" = true ]; then
-    # Check if API key exists in keyring
-    existing_key=$(run_python <<EOF
+    existing_key=$(~/.cli_ai_assistant/venv/bin/python -c "
 try:
     import keyring
-    key = keyring.get_password("cli_ai_assistant", "anthropic_api_key")
-    print("exists" if key else "none")
+    key = keyring.get_password('cli_ai_assistant', 'anthropic_api_key')
+    print('exists' if key else 'none')
 except:
-    print("none")
-EOF
-)
-    
+    print('none')
+" 2>/dev/null)
+
     if [ "$existing_key" = "exists" ]; then
-        echo -e "${GREEN}Existing API key preserved${NC}"
+        echo -e "${GREEN}API key preserved${NC}"
     else
-        read -sp "No API key found. Enter your API key: " api_key
+        read -sp "Enter your API key: " api_key
         echo
-        if [ -z "$api_key" ]; then
-            echo -e "${RED}API key required for setup${NC}"
-            exit 1
-        fi
-        run_python <<EOF
-import keyring
-keyring.set_password("cli_ai_assistant", "anthropic_api_key", "$api_key")
-EOF
-        echo -e "${GREEN}API key stored securely${NC}"
+        [ -z "$api_key" ] && exit 1
+        ~/.cli_ai_assistant/venv/bin/python -c "import keyring; keyring.set_password('cli_ai_assistant', 'anthropic_api_key', '$api_key')"
+        echo -e "${GREEN}API key stored${NC}"
     fi
 else
-    run_python <<EOF
-import keyring
-keyring.set_password("cli_ai_assistant", "anthropic_api_key", "$api_key")
-EOF
+    ~/.cli_ai_assistant/venv/bin/python -c "import keyring; keyring.set_password('cli_ai_assistant', 'anthropic_api_key', '$api_key')"
     echo -e "${GREEN}API key stored securely${NC}"
 fi
 
-# Step 4: Configure enhanced settings
-echo -e "${YELLOW}Step 4: Configuring enhanced settings${NC}"
+# Step 4: Configuration
+echo -e "${YELLOW}Step 4: Configuration${NC}"
 
 if [ "$IS_UPDATE" = true ] && [ -f ~/.cli_ai_assistant/config.backup ]; then
-    echo -e "${CYAN}Restoring previous configuration...${NC}"
     mv ~/.cli_ai_assistant/config.backup ~/.cli_ai_assistant/config
-    echo -e "${GREEN}Previous configuration restored${NC}"
+    echo -e "${GREEN}Configuration restored${NC}"
 elif [ ! -f ~/.cli_ai_assistant/config ]; then
-    echo -e "${CYAN}Creating default configuration...${NC}"
-    # Create enhanced configuration
     cat > ~/.cli_ai_assistant/config << 'EOF'
 AI_ASSISTANT_SKIP_CONFIRM=false
-AI_ASSISTANT_MODEL=claude-sonnet-4-20250514
+AI_ASSISTANT_MODEL=claude-sonnet-4-5-20250929
 AI_DIRECTORY_TREE_CONTEXT=true
 AI_ASSISTANT_SHOW_EXPLANATIONS=true
 AI_ASSISTANT_MAX_ALTERNATIVES=3
@@ -256,75 +174,18 @@ AI_ASSISTANT_ENABLE_SYNTAX_HIGHLIGHTING=true
 AI_ASSISTANT_ENABLE_COMMAND_HISTORY=true
 AI_ASSISTANT_SAFETY_LEVEL=medium
 EOF
-    echo -e "${GREEN}Default configuration created${NC}"
-else
-    echo -e "${GREEN}Existing configuration preserved${NC}"
+    echo -e "${GREEN}Default config created${NC}"
 fi
 
-# Step 5: Configure CLI aliases
-echo -e "${YELLOW}Step 5: Configuring CLI aliases${NC}"
+# Step 5: Shell alias
+echo -e "${YELLOW}Step 5: Configuring shell alias${NC}"
 
-# Create or ensure .bashrc exists
 touch ~/.bashrc
+alias_line="alias s='~/.cli_ai_assistant/venv/bin/python ~/.cli_ai_assistant/launcher.py'"
+sed -i '/alias s=.*cli_ai_assistant/d' ~/.bashrc 2>/dev/null || sed '/alias s=.*cli_ai_assistant/d' ~/.bashrc > ~/.bashrc.tmp && mv ~/.bashrc.tmp ~/.bashrc
+echo "$alias_line" >> ~/.bashrc
 
-if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "cygwin" ]]; then
-    # Windows (Git Bash or Cygwin)
-    alias_line="alias s='python ~/.cli_ai_assistant/launcher.py'"
-    # Remove any existing alias
-    sed -i '/alias s=.*cli_ai_assistant/d' ~/.bashrc
-    # Add fresh alias
-    echo "$alias_line" >> ~/.bashrc
-    echo -e "${GREEN}Windows alias configured${NC}"
-else
-    # Unix-based systems - use venv python
-    if [ -f ~/.cli_ai_assistant/venv/bin/python ]; then
-        alias_line="alias s='~/.cli_ai_assistant/venv/bin/python ~/.cli_ai_assistant/launcher.py'"
-    else
-        alias_line="alias s='python3 ~/.cli_ai_assistant/launcher.py'"
-    fi
-    # Remove any existing alias
-    sed -i '/alias s=.*cli_ai_assistant/d' ~/.bashrc
-    # Add fresh alias
-    echo "$alias_line" >> ~/.bashrc
-    echo -e "${GREEN}Unix alias configured${NC}"
-fi
-
-# Apply the changes made in .bashrc
-source ~/.bashrc 2>/dev/null || true
-
-# Print setup completion message
-if [ "$IS_UPDATE" = true ]; then
-    echo -e "\n${GREEN}*** CLI AI Assistant Update Complete! ***${NC}"
-    echo -e "${CYAN}All files have been updated with the latest versions from GitHub.${NC}"
-else
-    echo -e "\n${GREEN}*** CLI AI Assistant Setup Complete! ***${NC}"
-fi
-
-# Print usage information
-echo -e "\n${YELLOW}Usage:${NC}"
-echo -e "  ${CYAN}s${NC} <natural language command>   - Use AI assistant"
-
-# Print enhanced features
-echo -e "\n${YELLOW}Enhanced Features:${NC}"
-echo -e "  ${WHITE}- Interactive command preview with syntax highlighting${NC}"
-echo -e "  ${WHITE}- Gesture-based controls (Enter, Tab, Ctrl+A, Esc, etc.)${NC}"
-echo -e "  ${WHITE}- Alternative command suggestions${NC}"
-echo -e "  ${WHITE}- Risk assessment and safety warnings${NC}"
-echo -e "  ${WHITE}- Cross-platform clipboard support${NC}"
-
-# Print gesture controls
-echo -e "\n${YELLOW}Gesture Controls:${NC}"
-echo -e "  ${CYAN}Enter${NC}       Execute command"
-echo -e "  ${CYAN}Tab${NC}         Accept command and copy/paste to terminal if focused"
-echo -e "  ${CYAN}Ctrl+A${NC}      Show alternatives"
-echo -e "  ${CYAN}Esc${NC}         Cancel"
-
-# Print examples
-echo -e "\n${YELLOW}Examples:${NC}"
-echo -e "  ${CYAN}s${NC} \"show docker containers\""
-echo -e "  ${CYAN}s${NC} \"show directory tree with permissions\""
-
-# Add colored note about API key security
-echo -e "$security_note"
-
-echo -e "\n${MAGENTA}Restart your terminal session to use the 's' command!${NC}"
+echo -e "${GREEN}✓ Setup complete!${NC}\n"
+echo -e "${YELLOW}Usage:${NC} ${CYAN}s${NC} <command>"
+echo -e "${YELLOW}Example:${NC} ${CYAN}s${NC} \"list files\"\n"
+echo -e "${MAGENTA}Restart your terminal or run: source ~/.bashrc${NC}"

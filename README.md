@@ -149,7 +149,7 @@ AI_DIRECTORY_TREE_CONTEXT=true
 
 # Enhanced UI features
 AI_ASSISTANT_SAFETY_LEVEL=medium
-AI_ASSISTANT_MODEL=claude-sonnet-4-20250514
+AI_ASSISTANT_MODEL=claude-sonnet-4-5-20250929
 AI_ASSISTANT_SHOW_EXPLANATIONS=true
 AI_ASSISTANT_MAX_ALTERNATIVES=3
 AI_ASSISTANT_ENABLE_SYNTAX_HIGHLIGHTING=true
@@ -188,7 +188,7 @@ s config-set AI_ASSISTANT_SHOW_EXPLANATIONS=false
 | Setting | Values | Description |
 |---------|--------|-------------|
 | `AI_ASSISTANT_SKIP_CONFIRM` | `true/false` | Skip confirmation prompts (default: `true`) |
-| `AI_ASSISTANT_MODEL` | `claude-sonnet-4-20250514` | The model to use for the AI assistant (default: `claude-sonnet-4-20250514`) |
+| `AI_ASSISTANT_MODEL` | See model list below | The model to use for the AI assistant (default: `claude-sonnet-4-5-20250929`) |
 | `AI_DIRECTORY_TREE_CONTEXT` | `true/false` | Include directory structure in AI context (default: `true`) |
 | `AI_ASSISTANT_SAFETY_LEVEL` | `low/medium/high` | Command risk assessment level (default: `medium`) |
 | `AI_ASSISTANT_SHOW_EXPLANATIONS` | `true/false` | Display command explanations (default: `true`) |
@@ -196,6 +196,51 @@ s config-set AI_ASSISTANT_SHOW_EXPLANATIONS=false
 | `AI_ASSISTANT_ENABLE_SYNTAX_HIGHLIGHTING` | `true/false` | Colorize command syntax (default: `true`) |
 | `AI_ASSISTANT_ENABLE_COMMAND_HISTORY` | `true/false` | Enable command history navigation (default: `true`) |
 | `AI_ASSISTANT_SIMPLE_MODE` | `true/false` | Enable simple mode (no UI boxes, just clipboard/display) (default: `false`, `true` for Git Bash) |
+
+### Available AI Models
+
+All current Anthropic Claude models are supported:
+
+**Claude Sonnet 4.5** (Latest, Recommended):
+- `claude-sonnet-4-5-20250929` (default, best for coding and complex agents)
+- `claude-sonnet-4-5` (alias)
+
+**Claude Sonnet 4**:
+- `claude-sonnet-4-20250514`
+- `claude-sonnet-4-0` (alias)
+
+**Claude Sonnet 3.7**:
+- `claude-3-7-sonnet-20250219`
+- `claude-3-7-sonnet-latest` (alias)
+
+**Claude Opus 4.1**:
+- `claude-opus-4-1-20250805` (most capable, higher cost)
+- `claude-opus-4-1` (alias)
+
+**Claude Opus 4**:
+- `claude-opus-4-20250514`
+- `claude-opus-4-0` (alias)
+
+**Claude Haiku 3.5** (Fast, Cost-effective):
+- `claude-3-5-haiku-20241022`
+- `claude-3-5-haiku-latest` (alias)
+
+**Claude Haiku 3**:
+- `claude-3-haiku-20240307`
+
+**Changing Models:**
+```bash
+# Use latest Claude Sonnet 4.5 (default)
+s config-set AI_ASSISTANT_MODEL=claude-sonnet-4-5-20250929
+
+# Use Claude Opus 4.1 for more complex tasks
+s config-set AI_ASSISTANT_MODEL=claude-opus-4-1-20250805
+
+# Use Claude Haiku 3.5 for faster, cost-effective responses
+s config-set AI_ASSISTANT_MODEL=claude-3-5-haiku-20241022
+```
+
+For complete model details and pricing, see the [Anthropic Models Documentation](https://docs.anthropic.com/en/docs/about-claude/models/overview).
 
 ## 🔐 Security & Privacy
 
@@ -347,7 +392,7 @@ s config-set AI_ASSISTANT_SIMPLE_MODE=true
 ## 📚 Technical Architecture
 
 ### Core Components
-- **AI Engine**: Claude 3.5 Sonnet integration with optimized prompts
+- **AI Engine**: Claude integration with support for all current models (Sonnet 4.5, Opus 4.1, Haiku 3.5, etc.)
 - **Command Parser**: Natural language to shell command translation
 - **UI Framework**: Cross-platform terminal interface with gesture support
 - **Security Layer**: Command risk assessment and user protection

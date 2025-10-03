@@ -47,8 +47,16 @@ def get_config_schema():
         'AI_ASSISTANT_MODEL': {
             'description': 'The model to use for the AI assistant. Check Anthropic API documentation for available models: https://docs.anthropic.com/en/docs/about-claude/models/overview',
             'type': 'string',
-            'default': 'claude-sonnet-4-20250514',
-            'values': ['claude-sonnet-4-20250514', 'claude-opus-4-20250514']
+            'default': 'claude-sonnet-4-5-20250929',
+            'values': [
+                'claude-sonnet-4-5-20250929', 'claude-sonnet-4-5',
+                'claude-sonnet-4-20250514', 'claude-sonnet-4-0',
+                'claude-3-7-sonnet-20250219', 'claude-3-7-sonnet-latest',
+                'claude-opus-4-1-20250805', 'claude-opus-4-1',
+                'claude-opus-4-20250514', 'claude-opus-4-0',
+                'claude-3-5-haiku-20241022', 'claude-3-5-haiku-latest',
+                'claude-3-haiku-20240307'
+            ]
         },
         'AI_DIRECTORY_TREE_CONTEXT': {
             'description': 'Include directory structure in AI context',
@@ -270,6 +278,10 @@ def get_api_key():
         print("\033[91mError: API key not found. Please run the setup script first.\033[0m")
         sys.exit(1)
     return api_key
+
+def get_install_dir():
+    """Get the installation directory path."""
+    return os.path.join(os.path.expanduser('~'), '.cli_ai_assistant')
 
 def show_config(key=None):
     """Display configuration settings with beautiful formatting."""
