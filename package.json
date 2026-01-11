@@ -1,0 +1,92 @@
+{
+  "name": "@fmdz387/cli-ai",
+  "version": "3.0.0",
+  "description": "CLI AI Assistant v3 - Natural language to shell commands with persistent REPL session",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "bin": {
+    "s": "./dist/cli.js",
+    "cli-ai": "./dist/cli.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src --ext .ts,.tsx",
+    "format": "prettier --write src/**/*.{ts,tsx}",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "prepare": "tsup",
+    "prepublishOnly": "pnpm typecheck && pnpm build",
+    "link:global": "pnpm build && pnpm link --global",
+    "unlink:global": "pnpm unlink --global"
+  },
+  "keywords": [
+    "cli",
+    "ai",
+    "assistant",
+    "terminal",
+    "shell",
+    "anthropic",
+    "claude",
+    "natural-language",
+    "command-line"
+  ],
+  "author": "fmdz387",
+  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fmdz387/cli-ai.git"
+  },
+  "homepage": "https://github.com/fmdz387/cli-ai#readme",
+  "bugs": {
+    "url": "https://github.com/fmdz387/cli-ai/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "packageManager": "pnpm@10.10.0",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.71.2",
+    "@inkjs/ui": "^2.0.0",
+    "chalk": "^5.3.0",
+    "clipboardy": "^4.0.0",
+    "conf": "^13.0.0",
+    "execa": "^9.0.0",
+    "ink": "^6.0.0",
+    "keytar": "^7.9.0",
+    "react": "^19.0.0",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "8.57.0",
+    "@trivago/prettier-plugin-sort-imports": "5.2.2",
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "@typescript-eslint/eslint-plugin": "6.21.0",
+    "@typescript-eslint/parser": "6.21.0",
+    "eslint": "8.57.0",
+    "eslint-config-prettier": "10.1.8",
+    "eslint-plugin-react": "7.33.2",
+    "eslint-plugin-react-hooks": "5.2.0",
+    "eslint-plugin-unused-imports": "4.2.0",
+    "prettier": "3.2.5",
+    "prettier-eslint": "16.4.2",
+    "tsup": "^8.0.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.0.0"
+  }
+}
