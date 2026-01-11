@@ -1,0 +1,43 @@
+# Source files (dist is published)
+src/
+
+# Documentation (except README)
+*.md
+!README.md
+
+# Configuration files
+.claude/
+.eslintrc.json
+prettier.config.cjs
+tsconfig.json
+tsup.config.ts
+vitest.config.ts
+
+# Lock files
+pnpm-lock.yaml
+package-lock.json
+yarn.lock
+
+# Scripts
+setup.ps1
+setup.sh
+
+# Development docs
+V3_SPEC.md
+CLAUDE.md
+
+# Test files
+**/__tests__/
+**/*.test.ts
+**/*.test.tsx
+**/*.spec.ts
+**/*.spec.tsx
+
+# IDE
+.vscode/
+.idea/
+
+# Misc
+.DS_Store
+Thumbs.db
+*.log

@@ -1,427 +1,146 @@
-# 🤖 CLI AI Assistant v2
+# CLI AI
 
-[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![Python 3.8+](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://python.org)
-[![Cross Platform](https://img.shields.io/badge/Platform-Windows%20|%20Linux%20|%20macOS-green.svg)](https://github.com/fmdz387/cli-ai)
+[![npm version](https://img.shields.io/npm/v/@fmdz387/cli-ai)](https://www.npmjs.com/package/@fmdz387/cli-ai)
+[![License: ISC](https://img.shields.io/badge/License-ISC-blue.svg)](https://opensource.org/licenses/ISC)
+[![Node.js](https://img.shields.io/badge/Node.js-20+-green.svg)](https://nodejs.org/)
 
-![CLI AI Assistant Demo](https://github.com/user-attachments/assets/46837c45-ad5a-48f3-92f0-a1cf9872c918)
+**A lightweight, safe and fast CLI tool that translates natural language to shell commands. Powered by the Anthropic Claude AI models.**
 
-Lightweight, powerful and intelligent command-line assistant that translates natural language into precise shell commands. Featuring an advanced interactive interface, gesture controls, real-time syntax highlighting, and cross-platform compatibility.
+Describe what you want in plain English. Get the right command for your shell. Review, execute, or copy.
 
-## ✨ What's New in v2
+![CLI AI Demo](assets/cli-ai.png)
 
-- **🎯 Interactive Command Interface**: Gesture-based controls with real-time preview
-- **🎨 Advanced Terminal UI**: Syntax highlighting, Unicode support
-- **⚡ Smart Command Suggestions**: AI-powered alternatives and explanations
-- **🔒 Enhanced Security**: Risk assessment and safety warnings
-- **🚀 Cross-Platform Excellence**: Optimized for Windows, Linux and macOS
-- **📋 Smart Clipboard Integration**: One-click command copying and pasting
-- **⌨️ Advanced Keyboard Shortcuts**: Vim-inspired editing with history navigation
+## Highlights
 
-## 🚀 Quick Start
+- **Cross-platform** - Works on Windows (PowerShell, CMD, Git Bash), macOS, and Linux
+- **Shell-aware** - Generates commands specific to your detected shell
+- **Interactive** - Execute, copy, edit, or request alternatives
+- **Secure** - API keys stored in system keyring, never in plain text
+- **Risk assessment** - Color-coded risk levels for every command
 
-### One-Line Installation
+## Quick Start
 
-**Windows:**
-```powershell
-powershell -Command "Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/fmdz387/cli-ai/refs/heads/master/setup.ps1' -OutFile 'setup.ps1'; .\setup.ps1"
-```
-
-**Linux/macOS:**
-```bash
-curl -sSL https://raw.githubusercontent.com/fmdz387/cli-ai/refs/heads/master/setup.sh -o setup.sh && bash setup.sh
-```
-
-### Basic Usage
-
-After installation, use `s` followed by your natural language command:
+### 1. Install
 
 ```bash
-s find all Python files modified in the last week
-s show docker containers with high memory usage
-s compress this directory into a tar.gz file
+npm install -g @fmdz387/cli-ai
 ```
 
-## 🎛️ Interactive Interface
+### 2. Run
 
-The v2 interface provides an intuitive command interaction experience with two modes:
-
-### Standard Mode (Default)
-Interactive interface with gesture controls:
-
-#### Primary Actions
-- **`↵ Enter`** - Execute command immediately
-- **`⇥ Tab`** - Accept command and paste to active terminal
-- **`📋 Ctrl+C`** - Copy command to clipboard
-
-#### Advanced Controls
-- **`⚡ Ctrl+A`** - Show alternative commands
-- **`❓ ?`** - Show help and keyboard shortcuts
-- **`✗ Esc`** - Cancel and exit
-
-### Simple Mode
-A streamlined, performance-optimized experience designed for speed and efficiency:
-
-#### What Simple Mode Does:
-- **No Interactive UI**: Bypasses all UI boxes and gesture controls
-- **Faster Response**: Skips generating alternatives, explanations, and context processing
-- **Direct Output**: Command is immediately copied to clipboard and displayed
-- **Optimized API Usage**: Makes fewer API calls for faster execution
-
-#### Platform Behavior:
-- **Windows**: Command copied to clipboard and pasted to new line if terminal supports it
-- **Unix/Linux/macOS**: Command copied to clipboard and displayed for manual pasting
-- **Git Bash**: Enabled by default for optimal Git Bash compatibility
-
-#### When to Use Simple Mode:
-- **Performance Priority**: When you need the fastest possible response
-- **Terminal Compatibility**: In terminals with limited Unicode or UI support
-- **Automation/Scripting**: When integrating with scripts or automated workflows
-- **Minimal Overhead**: When you just want the command without explanations
-
-#### Configuration:
 ```bash
-# Enable Simple Mode for faster, streamlined experience
-s config-set AI_ASSISTANT_SIMPLE_MODE=true
-
-# Disable Simple Mode (return to full interactive interface)
-s config-set AI_ASSISTANT_SIMPLE_MODE=false
-
-# Note: Git Bash users have Simple Mode enabled by default for optimal compatibility
+s
 ```
 
-#### Performance Benefits:
-- **Reduced API Calls**: No alternatives or explanations generated
-- **Faster Processing**: Skips directory tree context and command history processing
-- **Lower Latency**: Direct command generation without UI rendering overhead
-- **Resource Efficient**: Minimal memory and CPU usage
+On first run, you'll be prompted for your [Anthropic API key](https://console.anthropic.com/settings/keys).
 
-## 📊 Command Examples
+### 3. Use
 
-### File Operations
-```bash
-s list all files larger than 100MB sorted by size
-# → find . -type f -size +100M -exec ls -lh {} + | sort -k5 -hr
+Type what you want in natural language:
 
-s find duplicate files in this directory
-# → fdupes -r .
+```
+> find files larger than 100MB
 
-s backup my home directory to external drive
-# → rsync -av --progress ~/ /media/backup/
+$ find . -size +100M -type f
+Risk: low
+
+[E] Execute  [C] Copy  [A] Alternatives  [?] Explain
 ```
 
-### System Monitoring
-```bash
-s show top 10 processes using most CPU
-# → ps aux --sort=-%cpu | head -n 11
-
-s monitor network connections in real time
-# → netstat -tulnp | watch -n 1
-
-s check disk usage for each mounted filesystem
-# → df -h
-```
-
-### Development Tasks
-```bash
-s find all TODO comments in Python files
-# → grep -rn "TODO" --include="*.py" .
-
-s start a local HTTP server on port 8080
-# → python -m http.server 8080
-
-s show git commits from last month with stats
-# → git log --since="1 month ago" --stat
-```
-
-## ⚙️ Configuration
-
-### Core Settings
-
-The assistant uses a configuration file located at `~/.cli_ai_assistant/config`:
-
-```ini
-# Execution behavior
-AI_ASSISTANT_SKIP_CONFIRM=true
-
-# Context and privacy
-AI_DIRECTORY_TREE_CONTEXT=true
-
-# Enhanced UI features
-AI_ASSISTANT_SAFETY_LEVEL=medium
-AI_ASSISTANT_MODEL=claude-sonnet-4-5-20250929
-AI_ASSISTANT_SHOW_EXPLANATIONS=true
-AI_ASSISTANT_MAX_ALTERNATIVES=3
-AI_ASSISTANT_ENABLE_SYNTAX_HIGHLIGHTING=true
-AI_ASSISTANT_ENABLE_COMMAND_HISTORY=true
-```
-
-### Configuration Management
-
-**View Configuration:**
-```bash
-# Display all configuration settings
-s config-show
-
-# Display specific setting with details
-s config-show AI_ASSISTANT_SAFETY_LEVEL
-s config-show AI_ASSISTANT_MAX_ALTERNATIVES
-```
-
-**Update Configuration:**
-```bash
-s config-set AI_ASSISTANT_SAFETY_LEVEL=high
-s config-set AI_ASSISTANT_MAX_ALTERNATIVES=5
-s config-set AI_ASSISTANT_SHOW_EXPLANATIONS=false
-```
-
-### Configuration Commands
+## Usage
 
 | Command | Description |
 |---------|-------------|
-| `s config-show` | Display all configuration settings with descriptions |
-| `s config-show <key>` | Display detailed information about a specific setting |
-| `s config-set <key>=<value>` | Update a configuration setting |
+| `s` | Start interactive session |
+| `s "your request"` | One-shot mode (outputs command directly) |
+| `echo "request" \| s` | Piped input |
+| `s --help` | Show help |
 
-### Configuration Options
+### Interactive Controls
 
-| Setting | Values | Description |
-|---------|--------|-------------|
-| `AI_ASSISTANT_SKIP_CONFIRM` | `true/false` | Skip confirmation prompts (default: `true`) |
-| `AI_ASSISTANT_MODEL` | See model list below | The model to use for the AI assistant (default: `claude-sonnet-4-5-20250929`) |
-| `AI_DIRECTORY_TREE_CONTEXT` | `true/false` | Include directory structure in AI context (default: `true`) |
-| `AI_ASSISTANT_SAFETY_LEVEL` | `low/medium/high` | Command risk assessment level (default: `medium`) |
-| `AI_ASSISTANT_SHOW_EXPLANATIONS` | `true/false` | Display command explanations (default: `true`) |
-| `AI_ASSISTANT_MAX_ALTERNATIVES` | `0-5` | Number of alternative commands to generate (default: `3`) |
-| `AI_ASSISTANT_ENABLE_SYNTAX_HIGHLIGHTING` | `true/false` | Colorize command syntax (default: `true`) |
-| `AI_ASSISTANT_ENABLE_COMMAND_HISTORY` | `true/false` | Enable command history navigation (default: `true`) |
-| `AI_ASSISTANT_SIMPLE_MODE` | `true/false` | Enable simple mode (no UI boxes, just clipboard/display) (default: `false`, `true` for Git Bash) |
+| Key | Action |
+|-----|--------|
+| `E` | Execute command |
+| `C` | Copy to clipboard |
+| `A` | Get alternatives |
+| `?` | Explain command |
+| `Esc` | Cancel |
+| `Ctrl+C` | Exit |
 
-### Available AI Models
+## Requirements
 
-All current Anthropic Claude models are supported:
+- **Node.js 20+**
+- **Build tools** for native module compilation:
 
-**Claude Sonnet 4.5** (Latest, Recommended):
-- `claude-sonnet-4-5-20250929` (default, best for coding and complex agents)
-- `claude-sonnet-4-5` (alias)
+| Platform | Command |
+|----------|---------|
+| Windows | `npm install -g windows-build-tools` (as Admin) |
+| macOS | `xcode-select --install` |
+| Ubuntu/Debian | `sudo apt-get install build-essential libsecret-1-dev` |
+| Fedora | `sudo dnf install gcc-c++ libsecret-devel` |
+| Arch | `sudo pacman -S base-devel libsecret` |
 
-**Claude Sonnet 4**:
-- `claude-sonnet-4-20250514`
-- `claude-sonnet-4-0` (alias)
+## API Key Storage
 
-**Claude Sonnet 3.7**:
-- `claude-3-7-sonnet-20250219`
-- `claude-3-7-sonnet-latest` (alias)
+Your API key is stored securely:
 
-**Claude Opus 4.1**:
-- `claude-opus-4-1-20250805` (most capable, higher cost)
-- `claude-opus-4-1` (alias)
+| Platform | Storage |
+|----------|---------|
+| macOS | Keychain |
+| Windows | Credential Manager |
+| Linux | Secret Service (GNOME Keyring, KWallet) |
 
-**Claude Opus 4**:
-- `claude-opus-4-20250514`
-- `claude-opus-4-0` (alias)
+Fallback: encrypted file at `~/.cli_ai_assistant/`
 
-**Claude Haiku 3.5** (Fast, Cost-effective):
-- `claude-3-5-haiku-20241022`
-- `claude-3-5-haiku-latest` (alias)
-
-**Claude Haiku 3**:
-- `claude-3-haiku-20240307`
-
-**Changing Models:**
+Alternative: set via environment variable:
 ```bash
-# Use latest Claude Sonnet 4.5 (default)
-s config-set AI_ASSISTANT_MODEL=claude-sonnet-4-5-20250929
-
-# Use Claude Opus 4.1 for more complex tasks
-s config-set AI_ASSISTANT_MODEL=claude-opus-4-1-20250805
-
-# Use Claude Haiku 3.5 for faster, cost-effective responses
-s config-set AI_ASSISTANT_MODEL=claude-3-5-haiku-20241022
+export ANTHROPIC_API_KEY="sk-ant-..."
 ```
 
-For complete model details and pricing, see the [Anthropic Models Documentation](https://docs.anthropic.com/en/docs/about-claude/models/overview).
+## Risk Assessment
 
-## 🔐 Security & Privacy
+| Level | Meaning |
+|-------|---------|
+| **Low** (green) | Read-only, safe commands |
+| **Medium** (yellow) | Modifies files or system state |
+| **High** (red) | Potentially destructive or irreversible |
 
-### API Key Security
-- **Secure Storage**: API keys are stored in your system's secure keyring
-- **Local Processing**: Keys never leave your machine
-- **No Logging**: Sensitive information is never logged or cached
+High-risk patterns: `rm -rf`, `sudo rm`, `chmod 777`, `mkfs`, `dd`, `DROP TABLE`, `curl | bash`
 
-### Command Safety
-- **Risk Assessment**: Commands are automatically analyzed for potential dangers
-- **Safety Warnings**: High-risk operations display clear warnings
-- **User Control**: All commands require explicit user confirmation or execution
+## Configuration
 
-### Privacy Controls
-- **Optional Context**: Directory tree sharing can be disabled
-- **Local Operation**: All processing happens on your machine
-- **No Telemetry**: No usage data is collected or transmitted
+Default model: `claude-sonnet-4-5-20250929`
 
-## 🖥️ Cross-Platform Support
-
-### Optimized for Your Environment
-
-The assistant automatically detects and optimizes for:
-
-**Windows:**
-- Command Prompt, PowerShell, Windows Terminal
-- WSL (Windows Subsystem for Linux)
-- MSYS2/Git Bash environments
-
-**Linux:**
-- Bash, Zsh, Fish shells
-- X11 and Wayland display servers
-- Various distributions (Ubuntu, Debian, Fedora, Arch, etc.)
-
-**macOS:**
-- Terminal.app, iTerm2, and third-party terminals
-- Homebrew package management integration
-- System theme detection
-
-### Terminal Features
-- **Unicode Support**: Beautiful icons and symbols where supported
-- **Color Themes**: Automatic light/dark theme detection
-- **Responsive Layout**: Adapts to terminal size and capabilities
-- **Accessibility**: Fallback modes for limited terminals
-
-## 🛠️ Advanced Features
-
-### Smart Command Generation
-- **Context Awareness**: Uses directory structure and command history
-- **Multi-Platform**: Generates appropriate commands for your OS/shell
-- **Error Recovery**: Provides alternatives when commands fail
-
-### Enhanced User Experience
-- **Loading Animations**: Visual feedback during AI processing
-- **Progress Indicators**: Clear status for long-running operations
-- **Error Handling**: Graceful degradation and helpful error messages
-
-### Developer Experience
-- **Command History**: Navigate through previously generated commands
-- **Syntax Validation**: Real-time command validation and highlighting
-- **Alternative Suggestions**: Multiple approaches to accomplish tasks
-
-## 🎯 Use Cases
-
-### System Administration
+Override with:
 ```bash
-s monitor system resources and alert if CPU usage exceeds 80%
-s create a cron job to backup database daily at 2 AM
-s find all files owned by user john and change ownership to admin
+export AI_MODEL="claude-sonnet-4-5-20250929"
 ```
 
-### Development Workflow
-```bash
-s run tests and generate coverage report
-s deploy application to staging environment
-s revert last 3 git commits
-```
+Config location: `~/.cli_ai_assistant/`
 
-### Data Processing
-```bash
-s merge all CSV files in data directory and remove duplicates
-```
+## Development
 
-### DevOps Tasks
-```bash
-s build Docker image and push to registry with latest tag
-s show kubernetes pods that are not in running state
-s update all npm packages and commit changes
-```
-
-## 🔧 Troubleshooting
-
-### Common Issues
-
-**Command not recognized:**
-```bash
-# Refresh shell configuration
-s help  # Test basic functionality
-source ~/.bashrc  # Linux/macOS
-# or restart terminal
-```
-
-**API key issues:**
-```bash
-# Reconfigure API key
-s config-set ANTHROPIC_API_KEY=your_key_here
-# or run setup again
-```
-
-**Permission errors:**
-```bash
-# Check installation
-python --version  # Ensure Python 3.8+
-pip list | grep anthropic  # Verify dependencies
-```
-
-### Performance Optimization
-
-**View current configuration:**
-```bash
-# See all settings with their current values
-s config-show
-
-# Check specific settings
-s config-show AI_ASSISTANT_SAFETY_LEVEL
-```
-
-**Disable context features for faster responses:**
-```bash
-s config-set AI_DIRECTORY_TREE_CONTEXT=false
-s config-set AI_ASSISTANT_MAX_ALTERNATIVES=0
-```
-
-**Reduce UI features for slower terminals:**
-```bash
-s config-set AI_ASSISTANT_ENABLE_SYNTAX_HIGHLIGHTING=false
-s config-set AI_ASSISTANT_SHOW_EXPLANATIONS=false
-```
-
-**Use Simple Mode for minimal UI:**
-```bash
-s config-set AI_ASSISTANT_SIMPLE_MODE=true
-```
-
-**Performance Comparison:**
-- **Standard Mode**: Full interactive experience with alternatives, explanations, and context
-- **Simple Mode**: 2-3x faster response time, single API call, no UI overhead
-
-## 📚 Technical Architecture
-
-### Core Components
-- **AI Engine**: Claude integration with support for all current models (Sonnet 4.5, Opus 4.1, Haiku 3.5, etc.)
-- **Command Parser**: Natural language to shell command translation
-- **UI Framework**: Cross-platform terminal interface with gesture support
-- **Security Layer**: Command risk assessment and user protection
-
-### Dependencies
-- **anthropic**: Claude API client
-- **keyring**: Secure credential storage
-- **Cross-platform utilities**: Terminal optimization and clipboard integration
-
-## 🤝 Contributing
-
-We welcome contributions!
-
-### Development Setup
 ```bash
 git clone https://github.com/fmdz387/cli-ai.git
 cd cli-ai
-pip install -r requirements.txt
-python assistant.py "test command"
+pnpm install
+pnpm dev        # Watch mode
+pnpm build      # Production build
+pnpm typecheck  # Type checking
+pnpm lint       # Linting
 ```
 
-## 📄 License
+## Troubleshooting
 
-This project is licensed under the Apache License 2.0. See the [LICENSE](LICENSE) file for details.
+**Installation fails with native module errors**
+Install build tools for your platform (see Requirements).
 
-## 🔗 Links
+**Command not found after install**
+Add npm global bin to PATH: `npm bin -g`
 
-- [X/Twitter](https://x.com/fylornx)
+**API key issues**
+Set via environment: `export ANTHROPIC_API_KEY="sk-ant-..."`
 
----
+## License
 
-*Transform your command line experience with the power of AI*
+ISC
