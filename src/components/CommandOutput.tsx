@@ -25,6 +25,19 @@ function formatOutput(output: string, maxLines: number): { lines: string[]; hidd
   return { lines: truncatedLines, hiddenCount: lines.length - maxLines };
 }
 
+/**
+ * Inline exit code badge - compact indicator shown on the same line as command
+ * Design: Inspired by blogr-web status badges (semantic colors, minimal footprint)
+ * - Success: green checkmark
+ * - Failure: red X with exit code
+ */
+function ExitCodeBadge({ exitCode }: { exitCode: number }): ReactNode {
+  if (exitCode === 0) {
+    return <Text color="green">✓</Text>;
+  }
+  return <Text color="red">✗ {exitCode}</Text>;
+}
+
 export function CommandOutput({
   result,
   expanded = false,
@@ -37,14 +50,10 @@ export function CommandOutput({
     return (
       <Box flexDirection="column">
         <Box>
-          <Text dimColor>$ {result.command}</Text>
+          <Text dimColor>$ {result.command} </Text>
+          <ExitCodeBadge exitCode={result.exitCode} />
+          <Text dimColor italic> (no output)</Text>
         </Box>
-        <Box>
-          <Text dimColor italic>
-            (no output)
-          </Text>
-        </Box>
-        <ExitCodeDisplay exitCode={result.exitCode} />
       </Box>
     );
   }
@@ -56,7 +65,8 @@ export function CommandOutput({
   return (
     <Box flexDirection="column">
       <Box>
-        <Text dimColor>$ {result.command}</Text>
+        <Text dimColor>$ {result.command} </Text>
+        <ExitCodeBadge exitCode={result.exitCode} />
       </Box>
 
       {stdout.lines.length > 0 && (
@@ -84,24 +94,6 @@ export function CommandOutput({
           <Text dimColor> to expand)</Text>
         </Box>
       )}
-
-      <ExitCodeDisplay exitCode={result.exitCode} />
-    </Box>
-  );
-}
-
-function ExitCodeDisplay({ exitCode }: { exitCode: number }): ReactNode {
-  if (exitCode === 0) {
-    return (
-      <Box>
-        <Text color="green" dimColor>✓</Text>
-      </Box>
-    );
-  }
-
-  return (
-    <Box>
-      <Text color="red">✗ exit {exitCode}</Text>
     </Box>
   );
 }

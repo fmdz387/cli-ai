@@ -68,8 +68,8 @@ pnpm link:global
 Now you can run from any terminal:
 
 ```bash
-s "find large files"
-cli-ai "list running processes"
+s
+cli-ai
 ```
 
 To remove the global link:
@@ -87,7 +87,7 @@ If you don't want to link globally, run the CLI directly:
 pnpm build
 
 # Then run with node
-node dist/cli.js "your prompt here"
+node dist/cli.js
 ```
 
 ### Option 3: Use npm link (Alternative)
@@ -97,7 +97,7 @@ pnpm build
 npm link
 
 # Now s and cli-ai are available globally
-s "show disk usage"
+s
 ```
 
 To unlink:
@@ -149,10 +149,10 @@ pnpm dev
 
 # Terminal 2: Link globally once, then test changes
 pnpm link:global
-s "your test prompt"
+s
 
 # After making code changes, just re-run s - it uses the rebuilt dist/
-s "another test"
+s
 ```
 
 ## Testing
@@ -243,7 +243,6 @@ For development, you can create a test config:
 ```json
 {
   "model": "claude-sonnet-4-5-20250929",
-  "simpleMode": false,
   "safetyLevel": "medium",
   "showExplanations": true,
   "maxAlternatives": 3
@@ -265,7 +264,7 @@ Create `.vscode/launch.json`:
       "request": "launch",
       "name": "Debug CLI",
       "program": "${workspaceFolder}/dist/cli.js",
-      "args": ["your test prompt"],
+      "args": [],
       "preLaunchTask": "pnpm: build",
       "sourceMaps": true,
       "outFiles": ["${workspaceFolder}/dist/**/*.js"]
@@ -293,14 +292,6 @@ npm install -g windows-build-tools
 # Or install Visual Studio Build Tools manually
 ```
 
-### Git Bash: Simple Mode Auto-Enabled
-
-Git Bash/MSYS2 defaults to simple mode due to terminal limitations. Override in config:
-
-```json
-{
-  "simpleMode": false
-}
 ```
 
 ### WSL: Clipboard Issues

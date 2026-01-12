@@ -52,8 +52,7 @@ Risk: low
 | Command | Description |
 |---------|-------------|
 | `s` | Start interactive session |
-| `s "your request"` | One-shot mode (outputs command directly) |
-| `echo "request" \| s` | Piped input |
+| `cli-ai` | Start interactive session (alias) |
 | `s --help` | Show help |
 
 ### Interactive Controls
