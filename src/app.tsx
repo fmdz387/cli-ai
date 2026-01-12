@@ -93,10 +93,10 @@ export function App(): ReactNode {
   }, [configLoading, hasKey, store.state.status, isExecuting, aiLoading]);
 
   const handleApiKeyComplete = useCallback(
-    async (apiKey: string) => {
-      const result = await saveApiKey(apiKey);
+    (apiKey: string) => {
+      const result = saveApiKey(apiKey);
       if (result.success) {
-        await refreshKeyStatus();
+        refreshKeyStatus();
         completeSetup();
       }
     },

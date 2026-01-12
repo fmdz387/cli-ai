@@ -22,9 +22,9 @@ interface UseConfigState {
 }
 
 interface UseConfigActions {
-  saveKey: (key: string) => Promise<boolean>;
+  saveKey: (key: string) => boolean;
   updateConfig: (config: Partial<AppConfig>) => void;
-  refreshKeyStatus: () => Promise<void>;
+  refreshKeyStatus: () => void;
 }
 
 export type UseConfigReturn = UseConfigState & UseConfigActions;
@@ -41,38 +41,24 @@ export function useConfig(): UseConfigReturn {
   });
 
   useEffect(() => {
-    let mounted = true;
-
-    async function checkKey() {
-      try {
-        const keyExists = await hasApiKey();
-        if (mounted) {
-          setState((prev) => ({
-            ...prev,
-            isLoading: false,
-            hasKey: keyExists,
-            error: null,
-          }));
-        }
-      } catch (error) {
-        if (mounted) {
-          setState((prev) => ({
-            ...prev,
-            isLoading: false,
-            error: error instanceof Error ? error.message : 'Failed to check API key',
-          }));
-        }
-      }
+    try {
+      const keyExists = hasApiKey();
+      setState((prev) => ({
+        ...prev,
+        isLoading: false,
+        hasKey: keyExists,
+        error: null,
+      }));
+    } catch (error) {
+      setState((prev) => ({
+        ...prev,
+        isLoading: false,
+        error: error instanceof Error ? error.message : 'Failed to check API key',
+      }));
     }
-
-    void checkKey();
-
-    return () => {
-      mounted = false;
-    };
   }, []);
 
-  const saveKey = useCallback(async (key: string): Promise<boolean> => {
+  const saveKey = useCallback((key: string): boolean => {
     if (!validateApiKeyFormat(key)) {
       setState((prev) => ({
         ...prev,
@@ -82,7 +68,7 @@ export function useConfig(): UseConfigReturn {
     }
 
     try {
-      const result = await saveApiKey(key);
+      const result = saveApiKey(key);
       if (result.success) {
         setState((prev) => ({
           ...prev,
@@ -114,9 +100,9 @@ export function useConfig(): UseConfigReturn {
     }));
   }, []);
 
-  const refreshKeyStatus = useCallback(async (): Promise<void> => {
+  const refreshKeyStatus = useCallback((): void => {
     try {
-      const keyExists = await hasApiKey();
+      const keyExists = hasApiKey();
       setState((prev) => ({
         ...prev,
         hasKey: keyExists,
@@ -142,19 +128,11 @@ export function useConfig(): UseConfigReturn {
  * Hook to get the API key directly (for use in AI client)
  */
 export function useApiKey(): {
-  getKey: () => Promise<string | null>;
-  isLoading: boolean;
+  getKey: () => string | null;
 } {
-  const [isLoading, setIsLoading] = useState(false);
-
-  const getKey = useCallback(async (): Promise<string | null> => {
-    setIsLoading(true);
-    try {
-      return await getApiKey();
-    } finally {
-      setIsLoading(false);
-    }
+  const getKey = useCallback((): string | null => {
+    return getApiKey();
   }, []);
 
-  return { getKey, isLoading };
+  return { getKey };
 }
