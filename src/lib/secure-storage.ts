@@ -14,7 +14,7 @@ import { CONFIG_DIR_NAME, DEFAULT_CONFIG, KEYRING_ACCOUNT, KEYRING_SERVICE } fro
 import type { AppConfig, Result } from '../types/index.js';
 
 /**
- * Legacy encryption key (hardcoded in v3.0.0)
+ * Legacy encryption key (hardcoded in v3.0.1)
  * Used only for migration purposes
  */
 const LEGACY_ENCRYPTION_KEY = 'cli-ai-v3-encryption-key';
