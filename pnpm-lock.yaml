@@ -93,6 +93,34 @@ importers:
       vitest:
         specifier: ^4.0.17
         version: 4.0.17(@types/node@22.19.5)(jiti@1.21.7)
+    optionalDependencies:
+      '@napi-rs/keyring-darwin-arm64':
+        specifier: ^1.2.0
+        version: 1.2.0
+      '@napi-rs/keyring-darwin-x64':
+        specifier: ^1.2.0
+        version: 1.2.0
+      '@napi-rs/keyring-linux-arm64-gnu':
+        specifier: ^1.2.0
+        version: 1.2.0
+      '@napi-rs/keyring-linux-arm64-musl':
+        specifier: ^1.2.0
+        version: 1.2.0
+      '@napi-rs/keyring-linux-x64-gnu':
+        specifier: ^1.2.0
+        version: 1.2.0
+      '@napi-rs/keyring-linux-x64-musl':
+        specifier: ^1.2.0
+        version: 1.2.0
+      '@napi-rs/keyring-win32-arm64-msvc':
+        specifier: ^1.2.0
+        version: 1.2.0
+      '@napi-rs/keyring-win32-ia32-msvc':
+        specifier: ^1.2.0
+        version: 1.2.0
+      '@napi-rs/keyring-win32-x64-msvc':
+        specifier: ^1.2.0
+        version: 1.2.0
 
 packages:
 

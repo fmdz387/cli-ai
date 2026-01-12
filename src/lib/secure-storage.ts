@@ -2,7 +2,6 @@
  * Secure storage for API keys with @napi-rs/keyring + encrypted conf fallback
  */
 
-import { Entry } from '@napi-rs/keyring';
 import Conf from 'conf';
 import { createHash } from 'node:crypto';
 import { existsSync, unlinkSync } from 'node:fs';
@@ -127,18 +126,49 @@ function createStore(): Conf<{ apiKey?: string; config?: Partial<AppConfig> }> {
  */
 const store = createStore();
 
-let keyringEntry: Entry | null = null;
+/**
+ * Lazy-loaded keyring module to prevent startup crashes if native binding unavailable
+ */
+let keyringModule: typeof import('@napi-rs/keyring') | null = null;
+let keyringModuleLoaded = false;
+let keyringEntry: InstanceType<typeof import('@napi-rs/keyring').Entry> | null = null;
 let keyringAvailable: boolean | null = null;
+
+/**
+ * Lazy-load the @napi-rs/keyring module
+ * Returns null if the native binding is unavailable
+ */
+function loadKeyringModule(): typeof import('@napi-rs/keyring') | null {
+  if (keyringModuleLoaded) return keyringModule;
+
+  keyringModuleLoaded = true;
+  try {
+    // Use require for synchronous loading (dynamic import is async)
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    keyringModule = require('@napi-rs/keyring') as typeof import('@napi-rs/keyring');
+    return keyringModule;
+  } catch {
+    // Native binding not available - fall back to encrypted conf
+    keyringModule = null;
+    return null;
+  }
+}
 
 /**
  * Get or create keyring entry, testing availability on first access
  */
-function getKeyringEntry(): Entry | null {
+function getKeyringEntry(): InstanceType<typeof import('@napi-rs/keyring').Entry> | null {
   if (keyringAvailable === false) return null;
 
   if (keyringEntry === null) {
+    const kr = loadKeyringModule();
+    if (!kr) {
+      keyringAvailable = false;
+      return null;
+    }
+
     try {
-      keyringEntry = new Entry(KEYRING_SERVICE, KEYRING_ACCOUNT);
+      keyringEntry = new kr.Entry(KEYRING_SERVICE, KEYRING_ACCOUNT);
       // Test that keyring actually works by attempting to read
       // This will throw if keyring is not available on the system
       keyringEntry.getPassword();

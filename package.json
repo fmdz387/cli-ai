@@ -1,6 +1,6 @@
 {
   "name": "@fmdzc/cli-ai",
-  "version": "3.0.1",
+  "version": "3.0.3",
   "description": "CLI AI Assistant v3 - Natural language to shell commands with persistent REPL session",
   "type": "module",
   "main": "./dist/index.js",
@@ -87,6 +87,17 @@
     "ink": "^6.0.0",
     "react": "^19.0.0",
     "zod": "^3.23.0"
+  },
+  "optionalDependencies": {
+    "@napi-rs/keyring-win32-x64-msvc": "^1.2.0",
+    "@napi-rs/keyring-win32-ia32-msvc": "^1.2.0",
+    "@napi-rs/keyring-win32-arm64-msvc": "^1.2.0",
+    "@napi-rs/keyring-darwin-x64": "^1.2.0",
+    "@napi-rs/keyring-darwin-arm64": "^1.2.0",
+    "@napi-rs/keyring-linux-x64-gnu": "^1.2.0",
+    "@napi-rs/keyring-linux-x64-musl": "^1.2.0",
+    "@napi-rs/keyring-linux-arm64-gnu": "^1.2.0",
+    "@napi-rs/keyring-linux-arm64-musl": "^1.2.0"
   },
   "devDependencies": {
     "@eslint/js": "8.57.0",
