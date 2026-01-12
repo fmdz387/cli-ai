@@ -1,6 +1,6 @@
 # Publishing to npm
 
-Guide for publishing `@fmdz387/cli-ai` to the npm registry.
+Guide for publishing `@fmdzc/cli-ai` to the npm registry.
 
 ## Prerequisites
 

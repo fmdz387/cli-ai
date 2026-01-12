@@ -24,7 +24,7 @@ Describe what you want in plain English. Get the right command. Review, execute,
 
 ```bash
 # Install globally
-npm install -g @fmdz387/cli-ai
+npm install -g @fmdzc/cli-ai
 
 # Run
 s
