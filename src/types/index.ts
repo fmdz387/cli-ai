@@ -2,6 +2,8 @@
  * Core type definitions for CLI AI v3
  */
 
+import type { ConfigSection, SlashCommand } from '../commands/types.js';
+
 /**
  * Result type for error handling - discriminated union for type-safe error handling
  */
@@ -48,7 +50,10 @@ export type SessionState =
   | { status: 'proposal'; proposal: CommandProposal }
   | { status: 'alternatives'; proposals: CommandProposal[]; originalQuery: string }
   | { status: 'executing'; command: string }
-  | { status: 'output'; result: ExecutionResult };
+  | { status: 'output'; result: ExecutionResult }
+  | { status: 'palette'; query: string; filteredCommands: SlashCommand[] }
+  | { status: 'config'; section: ConfigSection }
+  | { status: 'help' };
 
 /**
  * Session context passed to AI for command generation
@@ -99,7 +104,16 @@ export type SessionAction =
   | { type: 'EDIT'; command: string }
   | { type: 'CANCEL' }
   | { type: 'TOGGLE_OUTPUT' }
-  | { type: 'SETUP_COMPLETE' };
+  | { type: 'SETUP_COMPLETE' }
+  | { type: 'OPEN_PALETTE' }
+  | { type: 'UPDATE_PALETTE'; query: string; filteredCommands: SlashCommand[] }
+  | { type: 'CLOSE_PALETTE' }
+  | { type: 'OPEN_CONFIG' }
+  | { type: 'UPDATE_CONFIG_SECTION'; section: ConfigSection }
+  | { type: 'CLOSE_CONFIG' }
+  | { type: 'OPEN_HELP' }
+  | { type: 'CLOSE_HELP' }
+  | { type: 'CLEAR_HISTORY' };
 
 /**
  * Application configuration
@@ -109,6 +123,8 @@ export interface AppConfig {
   maxHistoryEntries: number;
   maxOutputLines: number;
   maxAlternatives: number;
+  /** Whether to pass conversation history as context to AI */
+  contextEnabled: boolean;
 }
 
 /**

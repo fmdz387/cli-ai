@@ -4,6 +4,7 @@
 
 import { useCallback, useReducer } from 'react';
 
+import type { ConfigSection, SlashCommand } from '../commands/types.js';
 import { DEFAULT_CONFIG } from '../constants.js';
 import type {
   CommandProposal,
@@ -148,6 +149,73 @@ function sessionReducer(store: SessionStore, action: SessionAction): SessionStor
       };
     }
 
+    case 'OPEN_PALETTE':
+      return {
+        ...store,
+        state: { status: 'palette', query: '', filteredCommands: [] },
+        error: null,
+      };
+
+    case 'UPDATE_PALETTE':
+      return {
+        ...store,
+        state: {
+          status: 'palette',
+          query: action.query,
+          filteredCommands: action.filteredCommands,
+        },
+      };
+
+    case 'CLOSE_PALETTE':
+      return {
+        ...store,
+        state: { status: 'input' },
+        error: null,
+      };
+
+    case 'OPEN_CONFIG':
+      return {
+        ...store,
+        state: { status: 'config', section: 'api-key' },
+        error: null,
+      };
+
+    case 'UPDATE_CONFIG_SECTION':
+      return {
+        ...store,
+        state: { status: 'config', section: action.section },
+      };
+
+    case 'CLOSE_CONFIG':
+      return {
+        ...store,
+        state: { status: 'input' },
+        error: null,
+      };
+
+    case 'OPEN_HELP':
+      return {
+        ...store,
+        state: { status: 'help' },
+        error: null,
+      };
+
+    case 'CLOSE_HELP':
+      return {
+        ...store,
+        state: { status: 'input' },
+        error: null,
+      };
+
+    case 'CLEAR_HISTORY':
+      return {
+        ...store,
+        state: { status: 'input' },
+        history: [],
+        outputExpanded: false,
+        error: null,
+      };
+
     default:
       return store;
   }
@@ -170,6 +238,19 @@ export interface UseSessionReturn {
   toggleOutput: () => void;
   completeSetup: () => void;
   clearEditingCommand: () => void;
+  // Palette methods
+  openPalette: () => void;
+  updatePalette: (query: string, filteredCommands: SlashCommand[]) => void;
+  closePalette: () => void;
+  // Config methods
+  openConfig: () => void;
+  updateConfigSection: (section: ConfigSection) => void;
+  closeConfig: () => void;
+  // Help methods
+  openHelp: () => void;
+  closeHelp: () => void;
+  // History methods
+  clearHistory: () => void;
 }
 
 /**
@@ -230,6 +311,42 @@ export function useSession(): UseSessionReturn {
     dispatch({ type: 'EDIT', command: '' });
   }, []);
 
+  const openPalette = useCallback(() => {
+    dispatch({ type: 'OPEN_PALETTE' });
+  }, []);
+
+  const updatePalette = useCallback((query: string, filteredCommands: SlashCommand[]) => {
+    dispatch({ type: 'UPDATE_PALETTE', query, filteredCommands });
+  }, []);
+
+  const closePalette = useCallback(() => {
+    dispatch({ type: 'CLOSE_PALETTE' });
+  }, []);
+
+  const openConfig = useCallback(() => {
+    dispatch({ type: 'OPEN_CONFIG' });
+  }, []);
+
+  const updateConfigSection = useCallback((section: ConfigSection) => {
+    dispatch({ type: 'UPDATE_CONFIG_SECTION', section });
+  }, []);
+
+  const closeConfig = useCallback(() => {
+    dispatch({ type: 'CLOSE_CONFIG' });
+  }, []);
+
+  const openHelp = useCallback(() => {
+    dispatch({ type: 'OPEN_HELP' });
+  }, []);
+
+  const closeHelp = useCallback(() => {
+    dispatch({ type: 'CLOSE_HELP' });
+  }, []);
+
+  const clearHistory = useCallback(() => {
+    dispatch({ type: 'CLEAR_HISTORY' });
+  }, []);
+
   return {
     store,
     dispatch,
@@ -246,5 +363,14 @@ export function useSession(): UseSessionReturn {
     toggleOutput,
     completeSetup,
     clearEditingCommand,
+    openPalette,
+    updatePalette,
+    closePalette,
+    openConfig,
+    updateConfigSection,
+    closeConfig,
+    openHelp,
+    closeHelp,
+    clearHistory,
   };
 }
