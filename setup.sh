@@ -84,7 +84,7 @@ echo ""
 # Install CLI AI globally
 echo -e "${YELLOW}Installing CLI AI...${NC}"
 
-npm install -g @fmdz387/cli-ai
+npm install -g @fmdzc/cli-ai
 
 echo ""
 echo -e "${GREEN}CLI AI installed successfully!${NC}"

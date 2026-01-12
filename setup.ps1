@@ -66,7 +66,7 @@ Write-Host ""
 Write-Host "Installing CLI AI..." -ForegroundColor Yellow
 
 try {
-    npm install -g @fmdz387/cli-ai
+    npm install -g @fmdzc/cli-ai
     Write-Host ""
     Write-Host "CLI AI installed successfully!" -ForegroundColor Green
     Write-Host ""

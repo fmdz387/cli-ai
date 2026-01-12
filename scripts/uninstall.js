@@ -168,7 +168,7 @@ function removeGlobalLink() {
 
     if (pnpmResult.stdout && pnpmResult.stdout.includes('cli-ai')) {
       log('Found pnpm global link, removing...');
-      const unlinkResult = spawnSync('pnpm', ['unlink', '--global', '@fmdz387/cli-ai'], {
+      const unlinkResult = spawnSync('pnpm', ['unlink', '--global', '@fmdzc/cli-ai'], {
         encoding: 'utf-8',
         shell: true,
       });
@@ -190,7 +190,7 @@ function removeGlobalLink() {
 
     if (npmResult.stdout && npmResult.stdout.includes('cli-ai')) {
       log('Found npm global link, removing...');
-      const unlinkResult = spawnSync('npm', ['unlink', '-g', '@fmdz387/cli-ai'], {
+      const unlinkResult = spawnSync('npm', ['unlink', '-g', '@fmdzc/cli-ai'], {
         encoding: 'utf-8',
         shell: true,
       });
@@ -315,9 +315,9 @@ async function main() {
   if (allSuccess) {
     log('CLI AI has been completely removed from your system!', 'success');
     console.log('\nNote: If you installed via npm/pnpm globally, you may also want to run:');
-    console.log('  npm uninstall -g @fmdz387/cli-ai');
+    console.log('  npm uninstall -g @fmdzc/cli-ai');
     console.log('  # or');
-    console.log('  pnpm uninstall -g @fmdz387/cli-ai\n');
+    console.log('  pnpm uninstall -g @fmdzc/cli-ai\n');
   } else {
     log('Uninstall completed with some warnings (see above)', 'warn');
   }

@@ -103,7 +103,7 @@ s
 To unlink:
 
 ```bash
-npm unlink -g @fmdz387/cli-ai
+npm unlink -g @fmdzc/cli-ai
 ```
 
 ### Verify Installation
