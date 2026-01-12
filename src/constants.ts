@@ -1,13 +1,12 @@
 /**
  * Application constants and defaults
  */
-
 import type { AppConfig } from './types/index.js';
 
 /**
  * Application version
  */
-export const VERSION = '3.0.1';
+export const VERSION = '3.0.3';
 
 /**
  * Application name

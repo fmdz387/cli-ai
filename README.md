@@ -28,6 +28,8 @@ npm install -g @fmdzc/cli-ai
 
 # Run
 s
+# or
+cli-ai
 ```
 
 On first run, you'll be prompted for your [Anthropic API key](https://console.anthropic.com/settings/keys).
