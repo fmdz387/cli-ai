@@ -246,7 +246,12 @@ export function App(): ReactNode {
                   <Text color='cyan'>{item.entry.query}</Text>
                 </Box>
                 <Box marginLeft={2} flexDirection='column'>
-                  <Text dimColor>$ {item.entry.command}</Text>
+                  <Box>
+                    <Text dimColor>$ {item.entry.command} </Text>
+                    <Text color={item.entry.exitCode === 0 ? 'green' : 'red'}>
+                      {item.entry.exitCode === 0 ? '✓' : `✗ ${item.entry.exitCode}`}
+                    </Text>
+                  </Box>
                   {item.entry.output && (
                     <Box flexDirection='column'>
                       {item.entry.output.split('\n').slice(0, 10).map((line, i) => (
@@ -257,9 +262,6 @@ export function App(): ReactNode {
                       )}
                     </Box>
                   )}
-                  <Text color={item.entry.exitCode === 0 ? 'green' : 'red'} dimColor>
-                    {item.entry.exitCode === 0 ? '✓' : `✗ exit ${item.entry.exitCode}`}
-                  </Text>
                 </Box>
                 <Box marginTop={1}>
                   <Text dimColor>{'─'.repeat(50)}</Text>
@@ -278,7 +280,12 @@ export function App(): ReactNode {
             <Text color='cyan'>{lastHistoryEntry.query}</Text>
           </Box>
           <Box marginLeft={2} flexDirection='column'>
-            <Text dimColor>$ {lastHistoryEntry.command}</Text>
+            <Box>
+              <Text dimColor>$ {lastHistoryEntry.command} </Text>
+              <Text color={lastHistoryEntry.exitCode === 0 ? 'green' : 'red'}>
+                {lastHistoryEntry.exitCode === 0 ? '✓' : `✗ ${lastHistoryEntry.exitCode}`}
+              </Text>
+            </Box>
             {lastHistoryEntry.output && (
               <Box flexDirection='column'>
                 {(() => {
@@ -303,9 +310,6 @@ export function App(): ReactNode {
                 })()}
               </Box>
             )}
-            <Text color={lastHistoryEntry.exitCode === 0 ? 'green' : 'red'} dimColor>
-              {lastHistoryEntry.exitCode === 0 ? '✓' : `✗ exit ${lastHistoryEntry.exitCode}`}
-            </Text>
           </Box>
           <Box marginTop={1}>
             <Text dimColor>{'─'.repeat(50)}</Text>

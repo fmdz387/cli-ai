@@ -17,8 +17,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Live Output Streaming**: Real-time command output display (last 10 lines)
 - **Alternative Commands**: AI-generated alternative approaches
 - **Command Explanation**: On-demand explanation for any command
-- **Piped Input Support**: Use in scripts with `echo "query" | s`
-- **One-Shot Mode**: Direct command generation with `s "query"`
 - **Cross-Platform**: Windows (PowerShell/cmd), macOS, Linux (bash/zsh/fish)
 
 ### Changed
