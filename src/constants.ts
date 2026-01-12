@@ -6,7 +6,7 @@ import type { AppConfig } from './types/index.js';
 /**
  * Application version
  */
-export const VERSION = '3.0.4';
+export const VERSION = '3.0.5';
 
 /**
  * Application name
