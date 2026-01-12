@@ -4,37 +4,35 @@
 [![License: ISC](https://img.shields.io/badge/License-ISC-blue.svg)](https://opensource.org/licenses/ISC)
 [![Node.js](https://img.shields.io/badge/Node.js-20+-green.svg)](https://nodejs.org/)
 
-**A lightweight, safe and fast CLI tool that translates natural language to shell commands. Powered by the Anthropic Claude AI models.**
+**Natural language to shell commands. Powered by Claude AI.**
 
-Describe what you want in plain English. Get the right command for your shell. Review, execute, or copy.
+Describe what you want in plain English. Get the right command. Review, execute, or copy.
 
 ![CLI AI Demo](assets/cli-ai.png)
 
-## Highlights
+## Features
 
-- **Cross-platform** - Works on Windows (PowerShell, CMD, Git Bash), macOS, and Linux
-- **Shell-aware** - Generates commands specific to your detected shell
+- **Natural language** - Just describe what you want to do
+- **Cross-platform** - Windows (PowerShell, CMD, Git Bash), macOS, Linux
+- **Shell-aware** - Commands tailored to your detected shell
 - **Interactive** - Execute, copy, edit, or request alternatives
+- **Context-aware** - Remembers your conversation history for smarter suggestions
 - **Secure** - API keys stored in system keyring, never in plain text
-- **Risk assessment** - Color-coded risk levels for every command
+- **Risk assessment** - Color-coded safety levels for every command
 
 ## Quick Start
 
-### 1. Install
-
 ```bash
+# Install globally
 npm install -g @fmdz387/cli-ai
-```
 
-### 2. Run
-
-```bash
+# Run
 s
 ```
 
 On first run, you'll be prompted for your [Anthropic API key](https://console.anthropic.com/settings/keys).
 
-### 3. Use
+## Usage
 
 Type what you want in natural language:
 
@@ -44,78 +42,117 @@ Type what you want in natural language:
 $ find . -size +100M -type f
 Risk: low
 
-[E] Execute  [C] Copy  [A] Alternatives  [?] Explain
+[1] Execute  [2] Copy  [3] Edit  [4] Alternatives  [5] Cancel
 ```
 
-## Usage
+### Slash Commands
+
+Type `/` to access commands:
 
 | Command | Description |
 |---------|-------------|
-| `s` | Start interactive session |
-| `cli-ai` | Start interactive session (alias) |
-| `s --help` | Show help |
+| `/config` | Open settings panel |
+| `/help` | Show help and shortcuts |
+| `/clear` | Clear command history |
+| `/exit` | Exit application |
 
-### Interactive Controls
+### Keyboard Shortcuts
 
+**Input Mode**
 | Key | Action |
 |-----|--------|
-| `E` | Execute command |
-| `C` | Copy to clipboard |
-| `A` | Get alternatives |
+| `/` | Open command palette |
+| `Enter` | Submit query |
+| `O` | Toggle output expansion |
+| `Ctrl+D` | Exit (when empty) |
+
+**Command Proposal**
+| Key | Action |
+|-----|--------|
+| `1` / `Enter` | Execute command |
+| `2` | Copy to clipboard |
+| `3` | Edit command |
+| `4` | Show alternatives |
+| `5` / `Esc` | Cancel |
 | `?` | Explain command |
-| `Esc` | Cancel |
-| `Ctrl+C` | Exit |
+
+**Settings Panel**
+| Key | Action |
+|-----|--------|
+| `Tab` | Next section |
+| `Up/Down` | Navigate items |
+| `Enter` | Toggle/Select |
+| `Esc` | Close |
+
+## Settings
+
+Access settings with `/config`:
+
+### API Key
+- View masked key and storage method
+- Change or remove API key
+
+### Model Selection
+| Model | Description |
+|-------|-------------|
+| Claude Sonnet 4.5 | Fast and capable (default) |
+| Claude Opus 4.5 | Most capable |
+| Claude Haiku 4.5 | Fastest |
+
+### Options
+| Setting | Description |
+|---------|-------------|
+| Context | Pass conversation history to AI for smarter suggestions |
+| Show explanations | Display command explanations |
+| Syntax highlighting | Colorize command output |
+| Simple mode | Minimal UI mode |
+
+## Risk Assessment
+
+| Level | Color | Meaning |
+|-------|-------|---------|
+| Low | Green | Safe, read-only commands |
+| Medium | Yellow | Modifies files or system state |
+| High | Red | Potentially destructive |
+
+## Security
+
+### API Key Storage
+
+Your Anthropic API key is stored securely using industry-standard methods:
+
+**Primary: System Keyring**
+
+| Platform | Storage Backend |
+|----------|-----------------|
+| macOS | Keychain |
+| Windows | Credential Manager |
+| Linux | Secret Service API (GNOME Keyring, KWallet) |
+
+The system keyring provides OS-level encryption and access control. Your API key is never stored in plain text or environment variables.
+
+**Fallback: Encrypted File**
+
+If the system keyring is unavailable, the key is stored in an encrypted file at `~/.cli_ai_assistant/`. The encryption key is derived from your machine's unique identifiers (hostname + username), making the encrypted file non-portable and machine-specific.
+
+### Key Management
+
+- **View**: See masked key (`sk-ant-***...****`) and storage method in `/config`
+- **Change**: Update your API key anytime through settings
+- **Remove**: Delete your stored key completely
 
 ## Requirements
 
 - **Node.js 20+**
-- **Build tools** for native module compilation:
+- **Build tools** for native modules:
 
 | Platform | Command |
 |----------|---------|
-| Windows | `npm install -g windows-build-tools` (as Admin) |
+| Windows | `npm install -g windows-build-tools` (Admin) |
 | macOS | `xcode-select --install` |
-| Ubuntu/Debian | `sudo apt-get install build-essential libsecret-1-dev` |
+| Ubuntu/Debian | `sudo apt install build-essential libsecret-1-dev` |
 | Fedora | `sudo dnf install gcc-c++ libsecret-devel` |
 | Arch | `sudo pacman -S base-devel libsecret` |
-
-## API Key Storage
-
-Your API key is stored securely:
-
-| Platform | Storage |
-|----------|---------|
-| macOS | Keychain |
-| Windows | Credential Manager |
-| Linux | Secret Service (GNOME Keyring, KWallet) |
-
-Fallback: encrypted file at `~/.cli_ai_assistant/`
-
-Alternative: set via environment variable:
-```bash
-export ANTHROPIC_API_KEY="sk-ant-..."
-```
-
-## Risk Assessment
-
-| Level | Meaning |
-|-------|---------|
-| **Low** (green) | Read-only, safe commands |
-| **Medium** (yellow) | Modifies files or system state |
-| **High** (red) | Potentially destructive or irreversible |
-
-High-risk patterns: `rm -rf`, `sudo rm`, `chmod 777`, `mkfs`, `dd`, `DROP TABLE`, `curl | bash`
-
-## Configuration
-
-Default model: `claude-sonnet-4-5-20250929`
-
-Override with:
-```bash
-export AI_MODEL="claude-sonnet-4-5-20250929"
-```
-
-Config location: `~/.cli_ai_assistant/`
 
 ## Development
 
@@ -125,20 +162,7 @@ cd cli-ai
 pnpm install
 pnpm dev        # Watch mode
 pnpm build      # Production build
-pnpm typecheck  # Type checking
-pnpm lint       # Linting
 ```
-
-## Troubleshooting
-
-**Installation fails with native module errors**
-Install build tools for your platform (see Requirements).
-
-**Command not found after install**
-Add npm global bin to PATH: `npm bin -g`
-
-**API key issues**
-Set via environment: `export ANTHROPIC_API_KEY="sk-ant-..."`
 
 ## License
 

@@ -99,6 +99,7 @@ export function App(): ReactNode {
   const appConfig: AppConfig = useMemo(
     () => ({
       model: selectedModel,
+      contextEnabled: displayToggles.contextEnabled,
       maxHistoryEntries: 5,
       maxOutputLines: 10,
       maxAlternatives: 3,
@@ -384,7 +385,7 @@ export function App(): ReactNode {
     (direction: 'up' | 'down') => {
       const itemCounts: Record<ConfigSection, number> = {
         'api-key': hasKey ? 2 : 1,
-        model: 4,
+        model: 3,
         toggles: 4,
         about: 0,
       };
@@ -425,10 +426,9 @@ export function App(): ReactNode {
     // Handle model section - select the focused model
     if (store.state.section === 'model') {
       const models = [
-        'claude-sonnet-4-5-20250929',
-        'claude-opus-4-1-20250219',
-        'claude-haiku-3-5-20241022',
-        'claude-sonnet-4-20250514',
+        'claude-sonnet-4-5',
+        'claude-opus-4-5',
+        'claude-haiku-4-5',
       ];
       const newModel = models[configItemIndex];
       if (newModel) {
@@ -468,7 +468,7 @@ export function App(): ReactNode {
     if (store.state.status !== 'config') return 0;
     const itemCounts: Record<ConfigSection, number> = {
       'api-key': hasKey ? 2 : 1,
-      model: 4,
+      model: 3,
       toggles: 4,
       about: 0,
     };

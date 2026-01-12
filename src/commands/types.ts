@@ -82,10 +82,9 @@ export interface ConfigPanelState {
  * Available models for selection
  */
 export const AVAILABLE_MODELS = [
-  { id: 'claude-sonnet-4-5-20250929', name: 'Claude Sonnet 4.5', description: 'Fast and capable' },
-  { id: 'claude-opus-4-1-20250219', name: 'Claude Opus 4.1', description: 'Most capable' },
-  { id: 'claude-haiku-3-5-20241022', name: 'Claude Haiku 3.5', description: 'Fastest' },
-  { id: 'claude-sonnet-4-20250514', name: 'Claude Sonnet 4', description: 'Balanced' },
+  { id: 'claude-sonnet-4-5', name: 'Claude Sonnet 4.5', description: 'Fast and capable' },
+  { id: 'claude-opus-4-5', name: 'Claude Opus 4.5', description: 'Most capable' },
+  { id: 'claude-haiku-4-5', name: 'Claude Haiku 4.5', description: 'Fastest' },
 ] as const;
 
 /**

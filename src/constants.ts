@@ -32,7 +32,7 @@ export const CONFIG_DIR_NAME = '.cli_ai_assistant';
 /**
  * Default AI model
  */
-export const DEFAULT_MODEL = 'claude-sonnet-4-5-20250929';
+export const DEFAULT_MODEL = 'claude-sonnet-4-5';
 
 /**
  * Default application configuration

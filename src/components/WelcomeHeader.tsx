@@ -25,7 +25,7 @@ const LOGO = [
 export function WelcomeHeader({ shell, cwd, model }: WelcomeHeaderProps): ReactNode {
   const username = userInfo().username || 'user';
   const shortCwd = cwd.replace(homedir(), '~');
-  const displayModel = model || 'claude-sonnet-4-5-20250929';
+  const displayModel = model || 'claude-sonnet-4-5';
 
   return (
     <Box
