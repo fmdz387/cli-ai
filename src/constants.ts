@@ -42,7 +42,18 @@ export const DEFAULT_CONFIG: AppConfig = {
   maxHistoryEntries: 5,
   maxOutputLines: 10,
   maxAlternatives: 3,
+  contextEnabled: true,
 };
+
+/**
+ * Maximum characters per execution output in context (to limit token usage)
+ */
+export const MAX_CONTEXT_OUTPUT_CHARS = 500;
+
+/**
+ * Maximum history entries to include in context
+ */
+export const MAX_CONTEXT_HISTORY = 10;
 
 /**
  * Dangerous command patterns - commands that should be flagged as high risk

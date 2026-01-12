@@ -1,12 +1,11 @@
 /**
  * Command execution output display component
  */
+import { DEFAULT_CONFIG } from '../constants.js';
+import type { ExecutionResult, HistoryEntry } from '../types/index.js';
 
 import { Box, Text } from 'ink';
 import type { ReactNode } from 'react';
-
-import { DEFAULT_CONFIG } from '../constants.js';
-import type { ExecutionResult, HistoryEntry } from '../types/index.js';
 
 interface CommandOutputProps {
   result: ExecutionResult;
@@ -15,7 +14,7 @@ interface CommandOutputProps {
 }
 
 function formatOutput(output: string, maxLines: number): { lines: string[]; hiddenCount: number } {
-  const lines = output.split('\n').filter(line => line.length > 0);
+  const lines = output.split('\n').filter((line) => line.length > 0);
 
   if (lines.length <= maxLines) {
     return { lines, hiddenCount: 0 };
@@ -27,15 +26,14 @@ function formatOutput(output: string, maxLines: number): { lines: string[]; hidd
 
 /**
  * Inline exit code badge - compact indicator shown on the same line as command
- * Design: Inspired by blogr-web status badges (semantic colors, minimal footprint)
  * - Success: green checkmark
  * - Failure: red X with exit code
  */
 function ExitCodeBadge({ exitCode }: { exitCode: number }): ReactNode {
   if (exitCode === 0) {
-    return <Text color="green">✓</Text>;
+    return <Text color='green'>✓</Text>;
   }
-  return <Text color="red">✗ {exitCode}</Text>;
+  return <Text color='red'>✗ {exitCode}</Text>;
 }
 
 export function CommandOutput({
@@ -48,29 +46,36 @@ export function CommandOutput({
 
   if (!hasOutput) {
     return (
-      <Box flexDirection="column">
+      <Box flexDirection='column'>
         <Box>
           <Text dimColor>$ {result.command} </Text>
           <ExitCodeBadge exitCode={result.exitCode} />
-          <Text dimColor italic> (no output)</Text>
+          <Text dimColor italic>
+            {' '}
+            (no output)
+          </Text>
         </Box>
       </Box>
     );
   }
 
-  const stdout = result.stdout ? formatOutput(result.stdout, effectiveMaxLines) : { lines: [], hiddenCount: 0 };
-  const stderr = result.stderr ? formatOutput(result.stderr, effectiveMaxLines) : { lines: [], hiddenCount: 0 };
+  const stdout = result.stdout
+    ? formatOutput(result.stdout, effectiveMaxLines)
+    : { lines: [], hiddenCount: 0 };
+  const stderr = result.stderr
+    ? formatOutput(result.stderr, effectiveMaxLines)
+    : { lines: [], hiddenCount: 0 };
   const totalHidden = stdout.hiddenCount + stderr.hiddenCount;
 
   return (
-    <Box flexDirection="column">
+    <Box flexDirection='column'>
       <Box>
         <Text dimColor>$ {result.command} </Text>
         <ExitCodeBadge exitCode={result.exitCode} />
       </Box>
 
       {stdout.lines.length > 0 && (
-        <Box flexDirection="column">
+        <Box flexDirection='column'>
           {stdout.lines.map((line, i) => (
             <Text key={`stdout-${i}`}>{line}</Text>
           ))}
@@ -78,9 +83,9 @@ export function CommandOutput({
       )}
 
       {stderr.lines.length > 0 && (
-        <Box flexDirection="column">
+        <Box flexDirection='column'>
           {stderr.lines.map((line, i) => (
-            <Text key={`stderr-${i}`} color="red">
+            <Text key={`stderr-${i}`} color='red'>
               {line}
             </Text>
           ))}
@@ -90,7 +95,7 @@ export function CommandOutput({
       {totalHidden > 0 && !expanded && (
         <Box>
           <Text dimColor>... ({totalHidden} more lines, press </Text>
-          <Text color="blue">[O]</Text>
+          <Text color='blue'>[O]</Text>
           <Text dimColor> to expand)</Text>
         </Box>
       )}
@@ -113,13 +118,15 @@ function HistoryItem({ entry, expanded, isLatest }: HistoryItemProps): ReactNode
   };
 
   return (
-    <Box flexDirection="column" marginBottom={1}>
+    <Box flexDirection='column' marginBottom={1}>
       <Box>
-        <Text color="cyan" bold>❯ </Text>
-        <Text color="cyan">{entry.query}</Text>
+        <Text color='cyan' bold>
+          ❯{' '}
+        </Text>
+        <Text color='cyan'>{entry.query}</Text>
       </Box>
 
-      <Box flexDirection="column" marginLeft={2}>
+      <Box flexDirection='column' marginLeft={2}>
         <CommandOutput result={result} expanded={expanded} maxLines={isLatest ? 10 : 3} />
       </Box>
 
@@ -143,7 +150,7 @@ export function OutputHistory({ history, expanded }: OutputHistoryProps): ReactN
   }
 
   return (
-    <Box flexDirection="column">
+    <Box flexDirection='column'>
       <HistoryItem entry={lastEntry} expanded={expanded} isLatest={true} />
     </Box>
   );
@@ -156,12 +163,12 @@ interface LiveOutputProps {
 
 export function LiveOutput({ lines, command }: LiveOutputProps): ReactNode {
   return (
-    <Box flexDirection="column" marginY={1}>
+    <Box flexDirection='column' marginY={1}>
       <Box marginBottom={1}>
         <Text dimColor>$ {command}</Text>
       </Box>
 
-      <Box flexDirection="column">
+      <Box flexDirection='column'>
         {lines.map((line, i) => {
           const isError = line.startsWith('[ERR]');
           return (
@@ -173,7 +180,7 @@ export function LiveOutput({ lines, command }: LiveOutputProps): ReactNode {
       </Box>
 
       <Box marginTop={1}>
-        <Text color="yellow">⏳ Running...</Text>
+        <Text color='yellow'>⏳ Running...</Text>
       </Box>
     </Box>
   );

@@ -30,12 +30,13 @@ export type UseAIReturn = UseAIState & UseAIActions;
 interface UseAIOptions {
   shell: ShellType;
   history?: HistoryEntry[];
+  contextEnabled?: boolean;
 }
 
 /**
  * Hook for AI-powered command generation
  */
-export function useAI({ shell, history = [] }: UseAIOptions): UseAIReturn {
+export function useAI({ shell, history = [], contextEnabled = true }: UseAIOptions): UseAIReturn {
   const [state, setState] = useState<UseAIState>({
     isLoading: false,
     error: null,
@@ -45,12 +46,16 @@ export function useAI({ shell, history = [] }: UseAIOptions): UseAIReturn {
   const historyRef = useRef(history);
   historyRef.current = history;
 
+  const contextEnabledRef = useRef(contextEnabled);
+  contextEnabledRef.current = contextEnabled;
+
   const generate = useCallback(
     async (query: string): Promise<Result<CommandProposal>> => {
       setState((prev) => ({ ...prev, isLoading: true, error: null }));
 
       try {
-        const context = createSessionContext(shell, historyRef.current);
+        const historyToPass = contextEnabledRef.current ? historyRef.current : [];
+        const context = createSessionContext(shell, historyToPass);
         const result = await generateCommand(query, context);
 
         if (result.success) {
@@ -86,7 +91,8 @@ export function useAI({ shell, history = [] }: UseAIOptions): UseAIReturn {
       setState((prev) => ({ ...prev, isLoading: true, error: null }));
 
       try {
-        const context = createSessionContext(shell, historyRef.current);
+        const historyToPass = contextEnabledRef.current ? historyRef.current : [];
+        const context = createSessionContext(shell, historyToPass);
         const result = await generateAlternatives(query, context, excludeCommand);
 
         setState((prev) => ({ ...prev, isLoading: false }));

@@ -2,9 +2,6 @@
  * Single Input Controller Hook - the ONLY useInput in the entire application
  * Prevents Ink stdin race conditions by centralizing all input handling
  */
-
-import { useInput } from 'ink';
-import { useCallback, useReducer, useRef, useState } from 'react';
 import {
   textInputReducer,
   createTextInputState,
@@ -12,11 +9,17 @@ import {
   type TextInputAction,
 } from '../components/ControlledTextInput.js';
 
+import { useInput } from 'ink';
+import { useCallback, useReducer, useRef, useState } from 'react';
+
 export type InputMode =
-  | 'disabled'      // No input handling (loading, executing)
-  | 'text'          // Text input mode (typing queries)
-  | 'menu'          // Options menu (1-5, arrows)
-  | 'selection';    // Alternative selection (1-N, up/down)
+  | 'disabled' // No input handling (loading, executing)
+  | 'text' // Text input mode (typing queries)
+  | 'menu' // Options menu (1-5, arrows)
+  | 'selection' // Alternative selection (1-N, up/down)
+  | 'palette' // Command palette (filter, navigate, select)
+  | 'config' // Config panel (navigate sections/items)
+  | 'help'; // Help panel (just Escape to close)
 
 export interface MenuCallbacks {
   onExecute: () => void;
@@ -37,7 +40,32 @@ export interface SelectionCallbacks {
 export interface TextCallbacks {
   onSubmit: (value: string) => void;
   onToggleOutput?: () => void;
+  onTextChange?: (value: string) => void;
+  onNavigateInlinePalette?: (direction: 'up' | 'down') => void;
+  onCloseInlinePalette?: () => void;
+  hasInlinePalette?: boolean;
   hasHistory: boolean;
+}
+
+export interface PaletteCallbacks {
+  onQueryChange: (query: string) => void;
+  onSelect: () => void;
+  onNavigate: (direction: 'up' | 'down') => void;
+  onClose: () => void;
+  filteredCount: number;
+}
+
+export interface ConfigCallbacks {
+  onNavigateSection: (direction: 'next' | 'prev') => void;
+  onNavigateItem: (direction: 'up' | 'down') => void;
+  onToggle: () => void;
+  onClose: () => void;
+  sectionCount: number;
+  itemCount: number;
+}
+
+export interface HelpCallbacks {
+  onClose: () => void;
 }
 
 export interface UseInputControllerOptions {
@@ -45,8 +73,13 @@ export interface UseInputControllerOptions {
   menuCallbacks?: MenuCallbacks;
   selectionCallbacks?: SelectionCallbacks;
   textCallbacks?: TextCallbacks;
+  paletteCallbacks?: PaletteCallbacks;
+  configCallbacks?: ConfigCallbacks;
+  helpCallbacks?: HelpCallbacks;
   /** Initial value for text input (e.g., when editing a command) */
   initialTextValue?: string;
+  /** Current palette query for text state sync */
+  paletteQuery?: string;
 }
 
 export interface UseInputControllerReturn {
@@ -62,6 +95,12 @@ export interface UseInputControllerReturn {
   menuFocusIndex: number;
   /** Selection focus index */
   selectionFocusIndex: number;
+  /** Palette focus index */
+  paletteFocusIndex: number;
+  /** Config section index */
+  configSectionIndex: number;
+  /** Config item index within section */
+  configItemIndex: number;
 }
 
 export function useInputController({
@@ -69,15 +108,22 @@ export function useInputController({
   menuCallbacks,
   selectionCallbacks,
   textCallbacks,
+  paletteCallbacks,
+  configCallbacks,
+  helpCallbacks,
   initialTextValue = '',
+  paletteQuery = '',
 }: UseInputControllerOptions): UseInputControllerReturn {
   const [textState, dispatchText] = useReducer(
     textInputReducer,
-    createTextInputState(initialTextValue)
+    createTextInputState(initialTextValue),
   );
 
   const [menuFocusIndex, setMenuFocusIndex] = useState(0);
   const [selectionFocusIndex, setSelectionFocusIndex] = useState(0);
+  const [paletteFocusIndex, setPaletteFocusIndex] = useState(0);
+  const [configSectionIndex, setConfigSectionIndex] = useState(0);
+  const [configItemIndex, setConfigItemIndex] = useState(0);
 
   const prevInitialValueRef = useRef(initialTextValue);
   if (prevInitialValueRef.current !== initialTextValue) {
@@ -91,6 +137,11 @@ export function useInputController({
       setMenuFocusIndex(0);
     } else if (mode === 'selection') {
       setSelectionFocusIndex(0);
+    } else if (mode === 'palette') {
+      setPaletteFocusIndex(0);
+    } else if (mode === 'config') {
+      setConfigSectionIndex(0);
+      setConfigItemIndex(0);
     }
     prevModeRef.current = mode;
   }
@@ -139,6 +190,18 @@ export function useInputController({
           return;
         }
 
+        // Handle Up/Down arrows for inline palette navigation
+        if (textCallbacks.hasInlinePalette && textCallbacks.onNavigateInlinePalette) {
+          if (key.upArrow) {
+            textCallbacks.onNavigateInlinePalette('up');
+            return;
+          }
+          if (key.downArrow) {
+            textCallbacks.onNavigateInlinePalette('down');
+            return;
+          }
+        }
+
         if (key.leftArrow) {
           dispatchText({ type: 'move-left' });
           return;
@@ -150,10 +213,22 @@ export function useInputController({
 
         if (key.backspace || key.delete) {
           dispatchText({ type: 'delete' });
+          // Notify about text change (calculate new value after delete)
+          const newValue = textState.value.slice(0, textState.cursorOffset - 1) + textState.value.slice(textState.cursorOffset);
+          textCallbacks.onTextChange?.(newValue);
           return;
         }
 
-        if (key.ctrl || key.meta || key.escape) {
+        // Handle Escape to close inline palette and clear input
+        if (key.escape) {
+          if (textCallbacks.hasInlinePalette && textCallbacks.onCloseInlinePalette) {
+            textCallbacks.onCloseInlinePalette();
+            dispatchText({ type: 'clear' });
+          }
+          return;
+        }
+
+        if (key.ctrl || key.meta) {
           return;
         }
 
@@ -163,6 +238,9 @@ export function useInputController({
 
         if (input && input.length > 0) {
           dispatchText({ type: 'insert', text: input });
+          // Notify about text change
+          const newValue = textState.value.slice(0, textState.cursorOffset) + input + textState.value.slice(textState.cursorOffset);
+          textCallbacks.onTextChange?.(newValue);
         }
         return;
       }
@@ -181,11 +259,21 @@ export function useInputController({
           const actions = ['execute', 'copy', 'edit', 'alternatives', 'cancel'] as const;
           const action = actions[menuFocusIndex];
           switch (action) {
-            case 'execute': menuCallbacks.onExecute(); break;
-            case 'copy': menuCallbacks.onCopy(); break;
-            case 'edit': menuCallbacks.onEdit(); break;
-            case 'alternatives': menuCallbacks.onAlternatives(); break;
-            case 'cancel': menuCallbacks.onCancel(); break;
+            case 'execute':
+              menuCallbacks.onExecute();
+              break;
+            case 'copy':
+              menuCallbacks.onCopy();
+              break;
+            case 'edit':
+              menuCallbacks.onEdit();
+              break;
+            case 'alternatives':
+              menuCallbacks.onAlternatives();
+              break;
+            case 'cancel':
+              menuCallbacks.onCancel();
+              break;
           }
           return;
         }
@@ -195,11 +283,21 @@ export function useInputController({
           const actions = ['execute', 'copy', 'edit', 'alternatives', 'cancel'] as const;
           const action = actions[index];
           switch (action) {
-            case 'execute': menuCallbacks.onExecute(); break;
-            case 'copy': menuCallbacks.onCopy(); break;
-            case 'edit': menuCallbacks.onEdit(); break;
-            case 'alternatives': menuCallbacks.onAlternatives(); break;
-            case 'cancel': menuCallbacks.onCancel(); break;
+            case 'execute':
+              menuCallbacks.onExecute();
+              break;
+            case 'copy':
+              menuCallbacks.onCopy();
+              break;
+            case 'edit':
+              menuCallbacks.onEdit();
+              break;
+            case 'alternatives':
+              menuCallbacks.onAlternatives();
+              break;
+            case 'cancel':
+              menuCallbacks.onCancel();
+              break;
           }
           return;
         }
@@ -250,8 +348,136 @@ export function useInputController({
         }
         return;
       }
+
+      // Palette mode: filter commands, navigate, select
+      if (mode === 'palette' && paletteCallbacks) {
+        const count = paletteCallbacks.filteredCount;
+
+        if (key.upArrow) {
+          setPaletteFocusIndex((prev) => {
+            if (count === 0) return 0;
+            return (prev - 1 + count) % count;
+          });
+          paletteCallbacks.onNavigate('up');
+          return;
+        }
+
+        if (key.downArrow) {
+          setPaletteFocusIndex((prev) => {
+            if (count === 0) return 0;
+            return (prev + 1) % count;
+          });
+          paletteCallbacks.onNavigate('down');
+          return;
+        }
+
+        if (key.return) {
+          paletteCallbacks.onSelect();
+          return;
+        }
+
+        if (key.escape) {
+          paletteCallbacks.onClose();
+          return;
+        }
+
+        // Backspace on empty query closes palette
+        if ((key.backspace || key.delete) && paletteQuery === '') {
+          paletteCallbacks.onClose();
+          return;
+        }
+
+        // Handle text input for filtering
+        if (key.backspace || key.delete) {
+          const newQuery = paletteQuery.slice(0, -1);
+          paletteCallbacks.onQueryChange(newQuery);
+          setPaletteFocusIndex(0);
+          return;
+        }
+
+        if (key.ctrl || key.meta || key.tab) {
+          return;
+        }
+
+        // Number keys for quick select (1-9)
+        const numKey = parseInt(input, 10);
+        if (numKey >= 1 && numKey <= 9 && numKey <= count) {
+          setPaletteFocusIndex(numKey - 1);
+          paletteCallbacks.onSelect();
+          return;
+        }
+
+        if (input && input.length > 0) {
+          const newQuery = paletteQuery + input;
+          paletteCallbacks.onQueryChange(newQuery);
+          setPaletteFocusIndex(0);
+        }
+        return;
+      }
+
+      // Config mode: navigate sections and items
+      if (mode === 'config' && configCallbacks) {
+        const sectionCount = configCallbacks.sectionCount;
+        const itemCount = configCallbacks.itemCount;
+
+        // Tab navigates between sections
+        if (key.tab && !key.shift) {
+          setConfigSectionIndex((prev) => (prev + 1) % sectionCount);
+          setConfigItemIndex(0);
+          configCallbacks.onNavigateSection('next');
+          return;
+        }
+
+        if (key.tab && key.shift) {
+          setConfigSectionIndex((prev) => (prev - 1 + sectionCount) % sectionCount);
+          setConfigItemIndex(0);
+          configCallbacks.onNavigateSection('prev');
+          return;
+        }
+
+        // Arrow keys navigate items within section
+        if (key.upArrow) {
+          setConfigItemIndex((prev) => {
+            if (itemCount === 0) return 0;
+            return (prev - 1 + itemCount) % itemCount;
+          });
+          configCallbacks.onNavigateItem('up');
+          return;
+        }
+
+        if (key.downArrow) {
+          setConfigItemIndex((prev) => {
+            if (itemCount === 0) return 0;
+            return (prev + 1) % itemCount;
+          });
+          configCallbacks.onNavigateItem('down');
+          return;
+        }
+
+        // Enter or Space toggles/activates item
+        if (key.return || input === ' ') {
+          configCallbacks.onToggle();
+          return;
+        }
+
+        // Escape closes config panel
+        if (key.escape) {
+          configCallbacks.onClose();
+          return;
+        }
+        return;
+      }
+
+      // Help mode: just Escape to close
+      if (mode === 'help' && helpCallbacks) {
+        if (key.escape) {
+          helpCallbacks.onClose();
+          return;
+        }
+        return;
+      }
     },
-    { isActive: mode !== 'disabled' }
+    { isActive: mode !== 'disabled' },
   );
 
   return {
@@ -261,5 +487,8 @@ export function useInputController({
     setText,
     menuFocusIndex,
     selectionFocusIndex,
+    paletteFocusIndex,
+    configSectionIndex,
+    configItemIndex,
   };
 }

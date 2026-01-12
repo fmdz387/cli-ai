@@ -6,12 +6,13 @@ import { Box, Text } from 'ink';
 import { homedir, userInfo } from 'node:os';
 import type { ReactNode } from 'react';
 
-import { APP_NAME, VERSION, DEFAULT_MODEL } from '../constants.js';
+import { APP_NAME, VERSION } from '../constants.js';
 import type { ShellType } from '../types/index.js';
 
 interface WelcomeHeaderProps {
   shell: ShellType;
   cwd: string;
+  model?: string;
 }
 
 // ASCII art logo - simple terminal/command prompt icon
@@ -21,9 +22,10 @@ const LOGO = [
   '  ╰───────╯  ',
 ];
 
-export function WelcomeHeader({ shell, cwd }: WelcomeHeaderProps): ReactNode {
+export function WelcomeHeader({ shell, cwd, model }: WelcomeHeaderProps): ReactNode {
   const username = userInfo().username || 'user';
   const shortCwd = cwd.replace(homedir(), '~');
+  const displayModel = model || 'claude-sonnet-4-5-20250929';
 
   return (
     <Box
@@ -81,7 +83,7 @@ export function WelcomeHeader({ shell, cwd }: WelcomeHeaderProps): ReactNode {
 
           <Box marginTop={1} flexDirection="column">
             <Text dimColor>Model: </Text>
-            <Text color="magenta">{DEFAULT_MODEL.split('-').slice(0, 2).join(' ')}</Text>
+            <Text color="magenta">{displayModel.split('-').slice(0, 2).join(' ')}</Text>
           </Box>
         </Box>
       </Box>

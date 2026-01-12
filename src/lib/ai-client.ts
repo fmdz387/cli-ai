@@ -1,7 +1,7 @@
 /**
  * Anthropic API client wrapper with retry logic
  */
-import { AI_RETRY_CONFIG, DEFAULT_MODEL, MAX_AI_TOKENS } from '../constants.js';
+import { AI_RETRY_CONFIG, DEFAULT_MODEL, MAX_AI_TOKENS, MAX_CONTEXT_HISTORY, MAX_CONTEXT_OUTPUT_CHARS } from '../constants.js';
 import type {
   CommandProposal,
   HistoryEntry,
@@ -34,6 +34,21 @@ Rules:
 5. Never include placeholder values - ask for specifics if needed`;
 }
 
+function truncateOutput(output: string, maxChars: number): string {
+  if (!output || output.length <= maxChars) return output;
+
+  // Try to break at a newline within the limit
+  const truncated = output.slice(0, maxChars);
+  const lastNewline = truncated.lastIndexOf('\n');
+
+  if (lastNewline > maxChars * 0.5) {
+    // If we can break at a newline that's at least halfway through, use it
+    return truncated.slice(0, lastNewline) + '\n... (truncated)';
+  }
+
+  return truncated + '... (truncated)';
+}
+
 function buildUserPrompt(query: string, context: SessionContext): string {
   const parts: string[] = [];
 
@@ -43,17 +58,22 @@ function buildUserPrompt(query: string, context: SessionContext): string {
 
   // Add recent command history if available
   if (context.history.length > 0) {
-    parts.push('\nRecent commands:');
-    for (const entry of context.history.slice(-5)) {
-      parts.push(`- ${entry.command}`);
+    parts.push('\nConversation context (recent queries and results):');
+    const historySlice = context.history.slice(-MAX_CONTEXT_HISTORY);
+
+    for (const entry of historySlice) {
+      parts.push(`\nQuery: "${entry.query}"`);
+      parts.push(`Command: ${entry.command}`);
+      if (entry.exitCode !== undefined) {
+        parts.push(`Exit code: ${entry.exitCode}`);
+      }
       if (entry.output) {
-        const trimmedOutput = entry.output.split('\n').slice(0, 3).join('\n');
-        parts.push(`  Output: ${trimmedOutput}`);
+        const truncatedOutput = truncateOutput(entry.output, MAX_CONTEXT_OUTPUT_CHARS);
+        parts.push(`Output:\n${truncatedOutput}`);
       }
     }
   }
 
-  // Add the user's query
   parts.push(`\nUser request: ${query}`);
 
   return parts.join('\n');
