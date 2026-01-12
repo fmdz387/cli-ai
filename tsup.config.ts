@@ -7,7 +7,13 @@ export default defineConfig({
   target: 'node20',
   dts: true,
   clean: true,
-  sourcemap: true,
+  sourcemap: false,
+  minify: true,
+  esbuildOptions(options) {
+    options.drop = ['debugger'];
+    options.legalComments = 'none';
+    options.treeShaking = true;
+  },
   onSuccess: async () => {
     // Copy CLI wrapper with warning suppression
     copyFileSync('src/cli.js', 'dist/cli.js');

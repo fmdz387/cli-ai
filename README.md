@@ -1,6 +1,6 @@
 # CLI AI
 
-[![npm version](https://img.shields.io/npm/v/@fmdz387/cli-ai)](https://www.npmjs.com/package/@fmdz387/cli-ai)
+[![npm version](https://img.shields.io/npm/v/@fmdzc/cli-ai)](https://www.npmjs.com/package/@fmdzc/cli-ai)
 [![License: ISC](https://img.shields.io/badge/License-ISC-blue.svg)](https://opensource.org/licenses/ISC)
 [![Node.js](https://img.shields.io/badge/Node.js-20+-green.svg)](https://nodejs.org/)
 
