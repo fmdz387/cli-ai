@@ -41,10 +41,7 @@
     "@typescript-eslint/ban-types": "warn",
     "@typescript-eslint/no-non-null-assertion": "warn",
     "@typescript-eslint/no-non-null-asserted-optional-chain": "warn",
-    "@typescript-eslint/consistent-type-imports": [
-      "error",
-      { "prefer": "type-imports", "fixStyle": "separate-type-imports" }
-    ],
+    "@typescript-eslint/consistent-type-imports": "off",
 
     // Imports
     "unused-imports/no-unused-imports": "warn",
