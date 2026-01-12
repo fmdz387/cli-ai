@@ -63,7 +63,8 @@
     "url": "https://github.com/fmdz387/cli-ai/issues"
   },
   "publishConfig": {
-    "access": "public"
+    "access": "public",
+    "provenance": true
   },
   "contributors": [
     {
