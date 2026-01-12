@@ -16,7 +16,8 @@
     "cli-ai": "./dist/cli.js"
   },
   "files": [
-    "dist"
+    "dist",
+    "scripts"
   ],
   "engines": {
     "node": ">=20"
@@ -32,7 +33,9 @@
     "prepare": "tsup",
     "prepublishOnly": "pnpm typecheck && pnpm build",
     "link:global": "pnpm build && pnpm link --global",
-    "unlink:global": "pnpm unlink --global"
+    "unlink:global": "pnpm unlink --global",
+    "uninstall": "node scripts/uninstall.js",
+    "uninstall:force": "node scripts/uninstall.js --force"
   },
   "keywords": [
     "cli",
@@ -67,7 +70,7 @@
     "conf": "^13.0.0",
     "execa": "^9.0.0",
     "ink": "^6.0.0",
-    "keytar": "^7.9.0",
+    "@napi-rs/keyring": "^1.2.0",
     "react": "^19.0.0",
     "zod": "^3.23.0"
   },

@@ -88,7 +88,7 @@ export async function generateCommand(
   query: string,
   context: SessionContext,
 ): Promise<Result<CommandProposal>> {
-  const apiKey = await getApiKey();
+  const apiKey = getApiKey();
 
   if (!apiKey) {
     return {
@@ -146,7 +146,7 @@ export async function generateAlternatives(
   excludeCommand: string,
   count: number = 3,
 ): Promise<Result<CommandProposal[]>> {
-  const apiKey = await getApiKey();
+  const apiKey = getApiKey();
 
   if (!apiKey) {
     return {
@@ -206,7 +206,7 @@ Output JSON array: [{ "command": "...", "risk": "low|medium|high" }, ...]`;
 }
 
 export async function explainCommand(command: string): Promise<Result<string>> {
-  const apiKey = await getApiKey();
+  const apiKey = getApiKey();
 
   if (!apiKey) {
     return {
