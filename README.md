@@ -6,9 +6,9 @@
 
 **Natural language to shell commands. Multi-provider AI support.**
 
-Describe what you want in plain English. Get the right command. Review, execute, or copy.
+Describe what you want in plain English. Get the right command. Review, execute or copy.
 
-Supports **Anthropic**, **OpenAI**, and **OpenRouter** providers.
+Supports **Anthropic**, **OpenAI** and **OpenRouter** providers.
 
 ![CLI AI Demo](assets/cli-ai.png)
 
@@ -18,7 +18,7 @@ Supports **Anthropic**, **OpenAI**, and **OpenRouter** providers.
 - **Natural language** - Just describe what you want to do
 - **Cross-platform** - Windows (PowerShell, CMD, Git Bash), macOS, Linux
 - **Shell-aware** - Commands tailored to your detected shell
-- **Interactive** - Execute, copy, edit, or request alternatives
+- **Interactive** - Execute, copy, edit or request alternatives
 - **Context-aware** - Remembers your conversation history for smarter suggestions
 - **Secure** - API keys stored in system keyring, never in plain text
 - **Risk assessment** - Color-coded safety levels for every command
@@ -151,7 +151,7 @@ If the system keyring is unavailable, keys are stored in an encrypted file at `~
 ### Key Management
 
 - **View**: See masked keys and storage method per provider in `/config`
-- **Add**: Configure API keys for Anthropic, OpenAI, or OpenRouter
+- **Add**: Configure API keys for Anthropic, OpenAI or OpenRouter
 - **Change**: Update any API key anytime through settings
 - **Status**: Green ✓ indicates configured, red ✗ indicates not set
 
