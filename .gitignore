@@ -4,3 +4,4 @@ CLAUDE.md
 .claude/
 .env.local
 debug.log
+*-cwd
