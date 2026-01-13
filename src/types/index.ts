@@ -1,15 +1,12 @@
 /**
  * Core type definitions for CLI AI v3
  */
-
 import type { ConfigSection, SlashCommand } from '../commands/types.js';
 
 /**
  * Result type for error handling - discriminated union for type-safe error handling
  */
-export type Result<T, E = Error> =
-  | { success: true; data: T }
-  | { success: false; error: E };
+export type Result<T, E = Error> = { success: true; data: T } | { success: false; error: E };
 
 /**
  * Shell types supported by the application
@@ -20,6 +17,11 @@ export type ShellType = 'bash' | 'zsh' | 'fish' | 'powershell' | 'pwsh' | 'cmd';
  * Risk levels for commands
  */
 export type RiskLevel = 'low' | 'medium' | 'high';
+
+/**
+ * Supported AI providers
+ */
+export type AIProvider = 'anthropic' | 'openrouter' | 'openai';
 
 /**
  * A generated command proposal from the AI
@@ -119,6 +121,9 @@ export type SessionAction =
  * Application configuration
  */
 export interface AppConfig {
+  /** Active AI provider */
+  provider: AIProvider;
+  /** Model ID for the selected provider */
   model: string;
   maxHistoryEntries: number;
   maxOutputLines: number;

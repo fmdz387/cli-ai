@@ -1,7 +1,3 @@
-/**
- * Anthropic API client wrapper with retry logic
- */
-import { AI_RETRY_CONFIG, DEFAULT_MODEL, MAX_AI_TOKENS, MAX_CONTEXT_HISTORY, MAX_CONTEXT_OUTPUT_CHARS } from '../constants.js';
 import type {
   CommandProposal,
   HistoryEntry,
@@ -10,154 +6,39 @@ import type {
   ShellType,
 } from '../types/index.js';
 import { generateDirectoryTree } from './directory-tree.js';
-import { combineRiskAssessment } from './risk-assessment.js';
-import { getApiKey } from './secure-storage.js';
-import Anthropic from '@anthropic-ai/sdk';
+import { createProvider, type Provider } from './providers/index.js';
+import { getApiKey, getConfig } from './secure-storage.js';
 
-function buildSystemPrompt(shell: ShellType): string {
-  return `You are a CLI command generator for ${shell}.
-You translate natural language requests into shell commands.
+let cachedProvider: { key: string; instance: Provider } | null = null;
 
-IMPORTANT: Output ONLY valid JSON, no markdown, no explanation text.
-Format: { "command": "...", "risk": "low|medium|high" }
+function getProvider(): Provider | null {
+  const config = getConfig();
+  const apiKey = getApiKey(config.provider);
+  if (!apiKey) return null;
 
-Risk levels:
-- low: Safe reads, common commands (ls, cat, pwd, git status, etc.)
-- medium: Writes files, installs packages, modifies state
-- high: Destructive operations, sudo, system changes, recursive deletes
-
-Rules:
-1. Generate ONLY the command, no explanations in the command itself
-2. Use appropriate flags for the target shell
-3. Prefer safe alternatives when possible
-4. For destructive operations, include safety flags (-i for interactive, etc.)
-5. Never include placeholder values - ask for specifics if needed`;
-}
-
-function truncateOutput(output: string, maxChars: number): string {
-  if (!output || output.length <= maxChars) return output;
-
-  // Try to break at a newline within the limit
-  const truncated = output.slice(0, maxChars);
-  const lastNewline = truncated.lastIndexOf('\n');
-
-  if (lastNewline > maxChars * 0.5) {
-    // If we can break at a newline that's at least halfway through, use it
-    return truncated.slice(0, lastNewline) + '\n... (truncated)';
+  const cacheKey = `${config.provider}:${config.model}:${apiKey.slice(-4)}`;
+  if (cachedProvider?.key === cacheKey) {
+    return cachedProvider.instance;
   }
 
-  return truncated + '... (truncated)';
+  const instance = createProvider(config.provider, apiKey, config.model);
+  cachedProvider = { key: cacheKey, instance };
+  return instance;
 }
 
-function buildUserPrompt(query: string, context: SessionContext): string {
-  const parts: string[] = [];
-
-  // Add current directory and tree
-  parts.push(`Current directory: ${context.cwd}`);
-  parts.push(`\nDirectory structure:\n${context.directoryTree}`);
-
-  // Add recent command history if available
-  if (context.history.length > 0) {
-    parts.push('\nConversation context (recent queries and results):');
-    const historySlice = context.history.slice(-MAX_CONTEXT_HISTORY);
-
-    for (const entry of historySlice) {
-      parts.push(`\nQuery: "${entry.query}"`);
-      parts.push(`Command: ${entry.command}`);
-      if (entry.exitCode !== undefined) {
-        parts.push(`Exit code: ${entry.exitCode}`);
-      }
-      if (entry.output) {
-        const truncatedOutput = truncateOutput(entry.output, MAX_CONTEXT_OUTPUT_CHARS);
-        parts.push(`Output:\n${truncatedOutput}`);
-      }
-    }
-  }
-
-  parts.push(`\nUser request: ${query}`);
-
-  return parts.join('\n');
-}
-
-function parseResponse(content: string): CommandProposal {
-  const jsonMatch = content.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) {
-    throw new Error('No JSON found in AI response');
-  }
-
-  const parsed = JSON.parse(jsonMatch[0]) as { command?: string; risk?: string };
-
-  if (!parsed.command || typeof parsed.command !== 'string') {
-    throw new Error('Invalid response: missing command');
-  }
-
-  const risk = parsed.risk as 'low' | 'medium' | 'high' | undefined;
-  const validRisk = risk && ['low', 'medium', 'high'].includes(risk) ? risk : 'medium';
-
-  return {
-    command: parsed.command.trim(),
-    risk: combineRiskAssessment(validRisk, parsed.command),
-  };
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+export function clearProviderCache(): void {
+  cachedProvider = null;
 }
 
 export async function generateCommand(
   query: string,
   context: SessionContext,
 ): Promise<Result<CommandProposal>> {
-  const apiKey = getApiKey();
-
-  if (!apiKey) {
-    return {
-      success: false,
-      error: new Error('No API key configured'),
-    };
+  const provider = getProvider();
+  if (!provider) {
+    return { success: false, error: new Error('No API key configured') };
   }
-
-  const client = new Anthropic({ apiKey });
-  const model = process.env.AI_MODEL ?? DEFAULT_MODEL;
-
-  for (let attempt = 0; attempt < AI_RETRY_CONFIG.maxAttempts; attempt++) {
-    try {
-    const response = await client.messages.create({
-        model,
-        max_tokens: MAX_AI_TOKENS,
-        system: buildSystemPrompt(context.shell),
-        messages: [{ role: 'user', content: buildUserPrompt(query, context) }],
-      });
-
-      const textContent = response.content.find((c) => c.type === 'text');
-      if (!textContent || textContent.type !== 'text') {
-        throw new Error('No text content in AI response');
-      }
-
-      const proposal = parseResponse(textContent.text);
-      return { success: true, data: proposal };
-    } catch (error) {
-      const isLastAttempt = attempt === AI_RETRY_CONFIG.maxAttempts - 1;
-
-      if (isLastAttempt) {
-        return {
-          success: false,
-          error: error instanceof Error ? error : new Error(String(error)),
-        };
-      }
-
-      const delay = Math.min(
-        AI_RETRY_CONFIG.baseDelayMs * Math.pow(2, attempt),
-        AI_RETRY_CONFIG.maxDelayMs,
-      );
-      await sleep(delay);
-    }
-  }
-
-  return {
-    success: false,
-    error: new Error('Unexpected error in AI request'),
-  };
+  return provider.generateCommand(query, context);
 }
 
 export async function generateAlternatives(
@@ -166,102 +47,19 @@ export async function generateAlternatives(
   excludeCommand: string,
   count: number = 3,
 ): Promise<Result<CommandProposal[]>> {
-  const apiKey = getApiKey();
-
-  if (!apiKey) {
-    return {
-      success: false,
-      error: new Error('No API key configured'),
-    };
+  const provider = getProvider();
+  if (!provider) {
+    return { success: false, error: new Error('No API key configured') };
   }
-
-  const client = new Anthropic({ apiKey });
-  const model = process.env.AI_MODEL ?? DEFAULT_MODEL;
-
-  const altPrompt = `${buildUserPrompt(query, context)}
-
-Generate ${count} ALTERNATIVE commands (different approaches).
-Exclude: ${excludeCommand}
-
-Output JSON array: [{ "command": "...", "risk": "low|medium|high" }, ...]`;
-
-  try {
-  const response = await client.messages.create({
-      model,
-      max_tokens: MAX_AI_TOKENS * 2,
-      system: buildSystemPrompt(context.shell),
-      messages: [{ role: 'user', content: altPrompt }],
-    });
-
-    const textContent = response.content.find((c) => c.type === 'text');
-    if (!textContent || textContent.type !== 'text') {
-      throw new Error('No text content in AI response');
-    }
-
-    const jsonMatch = textContent.text.match(/\[[\s\S]*\]/);
-    if (!jsonMatch) {
-      throw new Error('No JSON array found in AI response');
-    }
-
-    const parsed = JSON.parse(jsonMatch[0]) as Array<{ command?: string; risk?: string }>;
-
-    const proposals: CommandProposal[] = parsed
-      .filter((p) => p.command && typeof p.command === 'string')
-      .map((p) => {
-        const risk = p.risk as 'low' | 'medium' | 'high' | undefined;
-        const validRisk = risk && ['low', 'medium', 'high'].includes(risk) ? risk : 'medium';
-        return {
-          command: p.command!.trim(),
-          risk: combineRiskAssessment(validRisk, p.command!),
-        };
-      });
-
-    return { success: true, data: proposals };
-  } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error : new Error(String(error)),
-    };
-  }
+  return provider.generateAlternatives(query, context, excludeCommand, count);
 }
 
 export async function explainCommand(command: string): Promise<Result<string>> {
-  const apiKey = getApiKey();
-
-  if (!apiKey) {
-    return {
-      success: false,
-      error: new Error('No API key configured'),
-    };
+  const provider = getProvider();
+  if (!provider) {
+    return { success: false, error: new Error('No API key configured') };
   }
-
-  const client = new Anthropic({ apiKey });
-  const model = process.env.AI_MODEL ?? DEFAULT_MODEL;
-
-  try {
-    const response = await client.messages.create({
-      model,
-      max_tokens: MAX_AI_TOKENS,
-      messages: [
-        {
-          role: 'user',
-          content: `Explain this command briefly (2-3 sentences max):\n${command}`,
-        },
-      ],
-    });
-
-    const textContent = response.content.find((c) => c.type === 'text');
-    if (!textContent || textContent.type !== 'text') {
-      throw new Error('No text content in AI response');
-    }
-
-    return { success: true, data: textContent.text.trim() };
-  } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error : new Error(String(error)),
-    };
-  }
+  return provider.explainCommand(command);
 }
 
 export function createSessionContext(
@@ -269,7 +67,6 @@ export function createSessionContext(
   history: HistoryEntry[] = [],
 ): SessionContext {
   const cwd = process.cwd();
-
   return {
     shell,
     cwd,

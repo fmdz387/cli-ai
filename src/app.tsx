@@ -3,7 +3,8 @@
  * Uses single useInput controller pattern - DO NOT add useInput to child components
  */
 import { commandRegistry } from './commands/index.js';
-import type { ConfigSection } from './commands/types.js';
+import { PROVIDER_MODELS, type ConfigSection } from './commands/types.js';
+import type { SlashCommand } from './commands/types.js';
 import { ApiKeySetup } from './components/ApiKeySetup.js';
 import { LiveOutput } from './components/CommandOutput.js';
 import { CommandPaletteDisplay } from './components/CommandPalette/index.js';
@@ -15,6 +16,7 @@ import { InputPromptDisplay } from './components/InputPromptDisplay.js';
 import { OptionsMenuDisplay, SelectionMenuDisplay } from './components/OptionsMenuDisplay.js';
 import { ThinkingSpinner } from './components/Spinner.js';
 import { WelcomeHeader } from './components/WelcomeHeader.js';
+import { AI_PROVIDERS, PROVIDER_CONFIG } from './constants.js';
 import { useAI } from './hooks/useAI.js';
 import { useCommandPalette } from './hooks/useCommandPalette.js';
 import { useConfig } from './hooks/useConfig.js';
@@ -23,14 +25,19 @@ import { useInputController, type InputMode } from './hooks/useInputController.j
 import { useSession } from './hooks/useSession.js';
 import { copyToClipboard } from './lib/clipboard.js';
 import { detectShell } from './lib/platform.js';
-import { deleteApiKey, getApiKey, getConfig, getStorageInfo, saveApiKey, setConfig } from './lib/secure-storage.js';
+import {
+  getApiKey,
+  getConfig,
+  getStorageInfo,
+  saveApiKey,
+  setConfig,
+} from './lib/secure-storage.js';
+import type { AIProvider, AppConfig, HistoryEntry } from './types/index.js';
 
 import { Box, Static, Text, useApp } from 'ink';
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
-import type { AppConfig, HistoryEntry } from './types/index.js';
-import type { SlashCommand } from './commands/types.js';
 
-type StaticItem = { id: string; type: 'header' } | { id: string; type: 'history'; entry: HistoryEntry };
+type StaticItem = { id: string; type: 'history'; entry: HistoryEntry };
 
 export function App(): ReactNode {
   const { exit } = useApp();
@@ -83,28 +90,32 @@ export function App(): ReactNode {
     };
   });
   const [isEditingApiKey, setIsEditingApiKey] = useState(false);
+  const [editingApiKeyProvider, setEditingApiKeyProvider] = useState<AIProvider | null>(null);
+  const [isEditingCustomModel, setIsEditingCustomModel] = useState(false);
+  const [currentProvider, setCurrentProvider] = useState<AIProvider>(() => getConfig().provider);
 
-  // Get storage info for config panel
-  const storageInfo: StorageInfo = useMemo(() => getStorageInfo(), [hasKey]);
+  const storageInfo: StorageInfo = useMemo(
+    () => getStorageInfo(currentProvider),
+    [hasKey, currentProvider],
+  );
 
-  // Get masked API key
   const maskedKey = useMemo(() => {
-    const key = getApiKey();
+    const key = getApiKey(currentProvider);
     if (!key) return null;
     if (key.length <= 12) return '***';
     return `${key.slice(0, 7)}...${key.slice(-4)}`;
-  }, [hasKey]);
+  }, [hasKey, currentProvider]);
 
-  // App config for palette
   const appConfig: AppConfig = useMemo(
     () => ({
+      provider: currentProvider,
       model: selectedModel,
       contextEnabled: displayToggles.contextEnabled,
       maxHistoryEntries: 5,
       maxOutputLines: 10,
       maxAlternatives: 3,
     }),
-    [selectedModel],
+    [currentProvider, selectedModel, displayToggles.contextEnabled],
   );
 
   // Command palette hook
@@ -119,7 +130,7 @@ export function App(): ReactNode {
   });
 
   const staticItems = useMemo<StaticItem[]>(() => {
-    const items: StaticItem[] = [{ id: 'header', type: 'header' }];
+    const items: StaticItem[] = [];
     const pastHistory = store.history.slice(0, -1);
     pastHistory.forEach((entry, i) => {
       items.push({ id: `history-${i}`, type: 'history', entry });
@@ -127,7 +138,8 @@ export function App(): ReactNode {
     return items;
   }, [store.history]);
 
-  const lastHistoryEntry = store.history.length > 0 ? store.history[store.history.length - 1] : null;
+  const lastHistoryEntry =
+    store.history.length > 0 ? store.history[store.history.length - 1] : null;
 
   const {
     generate,
@@ -165,15 +177,22 @@ export function App(): ReactNode {
   }, [configLoading, hasKey, store.state.status, isExecuting, aiLoading]);
 
   const handleApiKeyComplete = useCallback(
-    (apiKey: string) => {
-      const result = saveApiKey(apiKey);
+    (apiKey: string, provider: AIProvider) => {
+      const result = saveApiKey(provider, apiKey);
       if (result.success) {
+        // If this is a first-time setup, also set the provider as default
+        if (!hasKey && store.state.status === 'setup') {
+          setConfig({ provider, model: PROVIDER_CONFIG[provider].defaultModel });
+          setCurrentProvider(provider);
+          setSelectedModel(PROVIDER_CONFIG[provider].defaultModel);
+        }
         refreshKeyStatus();
         setIsEditingApiKey(false);
+        setEditingApiKeyProvider(null);
         completeSetup();
       }
     },
-    [refreshKeyStatus, completeSetup],
+    [hasKey, store.state.status, refreshKeyStatus, completeSetup],
   );
 
   useEffect(() => {
@@ -191,20 +210,17 @@ export function App(): ReactNode {
   }, [selectedModel]);
 
   // Handle text change to show inline palette when typing "/"
-  const handleTextChange = useCallback(
-    (value: string) => {
-      if (value.startsWith('/')) {
-        const query = value.slice(1);
-        const filtered = commandRegistry.filter(query);
-        setInlinePaletteCommands(filtered);
-        setInlinePaletteIndex(0);
-      } else {
-        setInlinePaletteCommands([]);
-        setInlinePaletteIndex(0);
-      }
-    },
-    [],
-  );
+  const handleTextChange = useCallback((value: string) => {
+    if (value.startsWith('/')) {
+      const query = value.slice(1);
+      const filtered = commandRegistry.filter(query);
+      setInlinePaletteCommands(filtered);
+      setInlinePaletteIndex(0);
+    } else {
+      setInlinePaletteCommands([]);
+      setInlinePaletteIndex(0);
+    }
+  }, []);
 
   const handleTextSubmit = useCallback(
     async (input: string) => {
@@ -262,7 +278,18 @@ export function App(): ReactNode {
         handleAIError(result.error);
       }
     },
-    [store.editingCommand, submitQuery, generate, handleAIResponse, handleAIError, executeEdited, executeCommand, palette, inlinePaletteCommands, inlinePaletteIndex],
+    [
+      store.editingCommand,
+      submitQuery,
+      generate,
+      handleAIResponse,
+      handleAIError,
+      executeEdited,
+      executeCommand,
+      palette,
+      inlinePaletteCommands,
+      inlinePaletteIndex,
+    ],
   );
 
   // Menu action handlers
@@ -366,8 +393,12 @@ export function App(): ReactNode {
   // Config callbacks
   const handleConfigNavigateSection = useCallback(
     (direction: 'next' | 'prev') => {
-      const sections: ConfigSection[] = ['api-key', 'model', 'toggles', 'about'];
+      const sections: ConfigSection[] = ['provider', 'api-keys', 'toggles', 'about'];
       if (store.state.status !== 'config') return;
+      // Cancel custom model editing when navigating sections
+      if (isEditingCustomModel) {
+        setIsEditingCustomModel(false);
+      }
       const currentIndex = sections.indexOf(store.state.section);
       let newIndex: number;
       if (direction === 'next') {
@@ -378,19 +409,24 @@ export function App(): ReactNode {
       updateConfigSection(sections[newIndex]!);
       setConfigItemIndex(0);
     },
-    [store.state, updateConfigSection],
+    [store.state, updateConfigSection, isEditingCustomModel],
   );
 
   const handleConfigNavigateItem = useCallback(
     (direction: 'up' | 'down') => {
-      const itemCounts: Record<ConfigSection, number> = {
-        'api-key': hasKey ? 2 : 1,
-        model: 3,
-        toggles: 4,
-        about: 0,
-      };
       if (store.state.status !== 'config') return;
-      const count = itemCounts[store.state.section];
+      let count: number;
+      if (store.state.section === 'provider') {
+        count = AI_PROVIDERS.length + PROVIDER_MODELS[currentProvider].length + 1;
+      } else {
+        const itemCounts: Record<ConfigSection, number> = {
+          provider: 0,
+          'api-keys': AI_PROVIDERS.length,
+          toggles: 4,
+          about: 0,
+        };
+        count = itemCounts[store.state.section];
+      }
       if (count === 0) return;
       setConfigItemIndex((prev) => {
         if (direction === 'up') {
@@ -399,20 +435,23 @@ export function App(): ReactNode {
         return (prev + 1) % count;
       });
     },
-    [store.state, hasKey],
+    [store.state, currentProvider],
   );
 
   const handleConfigToggle = useCallback(() => {
     if (store.state.status !== 'config') return;
 
-    // Handle toggles section
     if (store.state.section === 'toggles') {
       setDisplayToggles((prev) => {
-        const toggleKeys = ['contextEnabled', 'showExplanations', 'syntaxHighlighting', 'simpleMode'] as const;
+        const toggleKeys = [
+          'contextEnabled',
+          'showExplanations',
+          'syntaxHighlighting',
+          'simpleMode',
+        ] as const;
         const key = toggleKeys[configItemIndex];
         if (key) {
           const newValue = !prev[key];
-          // Persist contextEnabled to config
           if (key === 'contextEnabled') {
             setConfig({ contextEnabled: newValue });
           }
@@ -423,59 +462,82 @@ export function App(): ReactNode {
       return;
     }
 
-    // Handle model section - select the focused model
-    if (store.state.section === 'model') {
-      const models = [
-        'claude-sonnet-4-5',
-        'claude-opus-4-5',
-        'claude-haiku-4-5',
-      ];
-      const newModel = models[configItemIndex];
-      if (newModel) {
-        setSelectedModel(newModel);
-      }
-      return;
-    }
+    if (store.state.section === 'provider') {
+      const providers = AI_PROVIDERS;
+      const models = PROVIDER_MODELS[currentProvider];
+      const customModelIndex = AI_PROVIDERS.length + models.length;
 
-    // Handle API key section
-    if (store.state.section === 'api-key') {
-      if (configItemIndex === 0) {
-        // Change/Set API Key - close config and go to setup
-        closeConfig();
-        setIsEditingApiKey(true);
-      } else if (configItemIndex === 1 && hasKey) {
-        // Remove API Key
-        const result = deleteApiKey();
-        if (result.success) {
+      if (configItemIndex < AI_PROVIDERS.length) {
+        const newProvider = providers[configItemIndex];
+        if (newProvider && newProvider !== currentProvider) {
+          const newModel = PROVIDER_CONFIG[newProvider].defaultModel;
+          setConfig({ provider: newProvider, model: newModel });
+          setCurrentProvider(newProvider);
+          setSelectedModel(newModel);
+          setIsEditingCustomModel(false);
+          setConfigItemIndex(0);
           refreshKeyStatus();
-          closeConfig();
+        }
+      } else if (configItemIndex === customModelIndex) {
+        setIsEditingCustomModel(true);
+      } else {
+        const modelIndex = configItemIndex - AI_PROVIDERS.length;
+        const newModel = models[modelIndex];
+        if (newModel && newModel.id !== selectedModel) {
+          setConfig({ model: newModel.id });
+          setSelectedModel(newModel.id);
+          setIsEditingCustomModel(false);
         }
       }
       return;
     }
-  }, [store.state, configItemIndex, closeConfig, hasKey, refreshKeyStatus]);
+
+    if (store.state.section === 'api-keys') {
+      const providers = AI_PROVIDERS;
+      const provider = providers[configItemIndex];
+      if (provider) {
+        closeConfig();
+        setEditingApiKeyProvider(provider);
+        setIsEditingApiKey(true);
+      }
+      return;
+    }
+  }, [store.state, configItemIndex, closeConfig, currentProvider, refreshKeyStatus, selectedModel]);
 
   const handleConfigClose = useCallback(() => {
     closeConfig();
     setConfigItemIndex(0);
+    setIsEditingCustomModel(false);
   }, [closeConfig]);
 
   // Get palette query for input controller
   const paletteQuery = store.state.status === 'palette' ? store.state.query : '';
 
-  // Get current config section item count for input controller
   const configItemCount = useMemo(() => {
     if (store.state.status !== 'config') return 0;
+    if (store.state.section === 'provider') {
+      return AI_PROVIDERS.length + PROVIDER_MODELS[currentProvider].length + 1;
+    }
     const itemCounts: Record<ConfigSection, number> = {
-      'api-key': hasKey ? 2 : 1,
-      model: 3,
+      provider: 0,
+      'api-keys': AI_PROVIDERS.length,
       toggles: 4,
       about: 0,
     };
     return itemCounts[store.state.section];
-  }, [store.state, hasKey]);
+  }, [store.state, currentProvider]);
 
-  const { textState, clearText, setText, menuFocusIndex, selectionFocusIndex, paletteFocusIndex, configSectionIndex } = useInputController({
+  const {
+    textState,
+    clearText,
+    setText,
+    menuFocusIndex,
+    selectionFocusIndex,
+    paletteFocusIndex,
+    configSectionIndex,
+    customModelState,
+    dispatchCustomModel,
+  } = useInputController({
     mode: inputMode,
     initialTextValue: store.editingCommand ?? '',
     paletteQuery,
@@ -528,11 +590,28 @@ export function App(): ReactNode {
       onClose: handleConfigClose,
       sectionCount: 4,
       itemCount: configItemCount,
+      isEditingCustomModel,
+      onCustomModelSubmit: (value: string) => {
+        setConfig({ model: value });
+        setSelectedModel(value);
+        setIsEditingCustomModel(false);
+      },
+      onCustomModelCancel: () => {
+        setIsEditingCustomModel(false);
+      },
     },
     helpCallbacks: {
       onClose: closeHelp,
     },
   });
+
+  // Initialize custom model state when entering edit mode
+  useEffect(() => {
+    if (isEditingCustomModel) {
+      const isCurrentCustom = !PROVIDER_MODELS[currentProvider].some((m) => m.id === selectedModel);
+      dispatchCustomModel({ type: 'set', value: isCurrentCustom ? selectedModel : '' });
+    }
+  }, [isEditingCustomModel, currentProvider, selectedModel, dispatchCustomModel]);
 
   if (configLoading) {
     return (
@@ -543,55 +622,70 @@ export function App(): ReactNode {
   }
 
   if (isEditingApiKey || (!hasKey && store.state.status === 'setup')) {
-    return <ApiKeySetup onComplete={handleApiKeyComplete} error={configError} />;
+    return (
+      <ApiKeySetup
+        onComplete={handleApiKeyComplete}
+        error={configError}
+        provider={editingApiKeyProvider ?? undefined}
+      />
+    );
   }
 
   return (
     <Box flexDirection='column'>
+      {/* Header is outside Static so it can re-render reactively */}
+      <WelcomeHeader
+        shell={shell}
+        cwd={process.cwd()}
+        provider={currentProvider}
+        model={selectedModel}
+      />
+
       <Static items={staticItems}>
-        {(item) => {
-          if (item.type === 'header') {
-            return <WelcomeHeader key={item.id} shell={shell} cwd={process.cwd()} model={selectedModel} />;
-          }
-          if (item.type === 'history') {
-            return (
-              <Box key={item.id} flexDirection='column' marginBottom={1}>
-                <Box>
-                  <Text color='cyan' bold>❯ </Text>
-                  <Text color='cyan'>{item.entry.query}</Text>
-                </Box>
-                <Box marginLeft={2} flexDirection='column'>
-                  <Box>
-                    <Text dimColor>$ {item.entry.command} </Text>
-                    <Text color={item.entry.exitCode === 0 ? 'green' : 'red'}>
-                      {item.entry.exitCode === 0 ? '✓' : `✗ ${item.entry.exitCode}`}
+        {(item) => (
+          <Box key={item.id} flexDirection='column' marginBottom={1}>
+            <Box>
+              <Text color='cyan' bold>
+                ❯{' '}
+              </Text>
+              <Text color='cyan'>{item.entry.query}</Text>
+            </Box>
+            <Box marginLeft={2} flexDirection='column'>
+              <Box>
+                <Text dimColor>$ {item.entry.command} </Text>
+                <Text color={item.entry.exitCode === 0 ? 'green' : 'red'}>
+                  {item.entry.exitCode === 0 ? '✓' : `✗ ${item.entry.exitCode}`}
+                </Text>
+              </Box>
+              {item.entry.output && (
+                <Box flexDirection='column'>
+                  {item.entry.output
+                    .split('\n')
+                    .slice(0, 10)
+                    .map((line, i) => (
+                      <Text key={i}>{line}</Text>
+                    ))}
+                  {item.entry.output.split('\n').length > 10 && (
+                    <Text dimColor>
+                      ... ({item.entry.output.split('\n').length - 10} more lines)
                     </Text>
-                  </Box>
-                  {item.entry.output && (
-                    <Box flexDirection='column'>
-                      {item.entry.output.split('\n').slice(0, 10).map((line, i) => (
-                        <Text key={i}>{line}</Text>
-                      ))}
-                      {item.entry.output.split('\n').length > 10 && (
-                        <Text dimColor>... ({item.entry.output.split('\n').length - 10} more lines)</Text>
-                      )}
-                    </Box>
                   )}
                 </Box>
-                <Box marginTop={1}>
-                  <Text dimColor>{'─'.repeat(50)}</Text>
-                </Box>
-              </Box>
-            );
-          }
-          return null;
-        }}
+              )}
+            </Box>
+            <Box marginTop={1}>
+              <Text dimColor>{'─'.repeat(50)}</Text>
+            </Box>
+          </Box>
+        )}
       </Static>
 
       {lastHistoryEntry && (
         <Box flexDirection='column' marginBottom={1}>
           <Box>
-            <Text color='cyan' bold>❯ </Text>
+            <Text color='cyan' bold>
+              ❯{' '}
+            </Text>
             <Text color='cyan'>{lastHistoryEntry.query}</Text>
           </Box>
           <Box marginLeft={2} flexDirection='column'>
@@ -604,7 +698,7 @@ export function App(): ReactNode {
             {lastHistoryEntry.output && (
               <Box flexDirection='column'>
                 {(() => {
-                  const lines = lastHistoryEntry.output.split('\n').filter(l => l.length > 0);
+                  const lines = lastHistoryEntry.output.split('\n').filter((l) => l.length > 0);
                   const maxLines = store.outputExpanded ? 500 : 10;
                   const displayLines = lines.slice(0, maxLines);
                   const hiddenCount = lines.length - displayLines.length;
@@ -659,7 +753,7 @@ export function App(): ReactNode {
       )}
 
       {store.state.status === 'proposal' && aiLoading && (
-        <ThinkingSpinner label="Generating alternatives..." />
+        <ThinkingSpinner label='Generating alternatives...' />
       )}
 
       <OptionsMenuDisplay
@@ -697,13 +791,15 @@ export function App(): ReactNode {
       {/* Config Panel */}
       <ConfigPanelDisplay
         visible={store.state.status === 'config'}
-        activeSection={store.state.status === 'config' ? store.state.section : 'api-key'}
+        activeSection={store.state.status === 'config' ? store.state.section : 'provider'}
         sectionItemIndex={configItemIndex}
         config={appConfig}
         hasApiKey={hasKey}
         storageInfo={storageInfo}
         maskedKey={maskedKey}
         toggles={displayToggles}
+        isEditingCustomModel={isEditingCustomModel}
+        customModelState={customModelState}
       />
 
       {/* Help Panel */}
@@ -718,24 +814,30 @@ export function App(): ReactNode {
 
       {/* Inline Command Palette - shows below input when typing "/" */}
       {store.state.status === 'input' && inlinePaletteCommands.length > 0 && (
-        <Box flexDirection="column" marginLeft={2} marginTop={0}>
+        <Box flexDirection='column' marginLeft={2} marginTop={0}>
           <Box marginBottom={0}>
             <Text dimColor>{'─'.repeat(50)}</Text>
           </Box>
           {inlinePaletteCommands.slice(0, 5).map((cmd, index) => (
             <Box key={cmd.name}>
-              <Text color={index === inlinePaletteIndex ? 'cyan' : 'gray'} bold={index === inlinePaletteIndex}>
+              <Text
+                color={index === inlinePaletteIndex ? 'cyan' : 'gray'}
+                bold={index === inlinePaletteIndex}
+              >
                 {index === inlinePaletteIndex ? '> ' : '  '}
               </Text>
-              <Text color={index === inlinePaletteIndex ? 'cyan' : 'blue'} bold={index === inlinePaletteIndex}>
+              <Text
+                color={index === inlinePaletteIndex ? 'cyan' : 'blue'}
+                bold={index === inlinePaletteIndex}
+              >
                 /{cmd.name}
               </Text>
-              <Text>  </Text>
+              <Text> </Text>
               <Text dimColor={index !== inlinePaletteIndex}>{cmd.description}</Text>
             </Box>
           ))}
           <Box marginTop={0}>
-            <Text dimColor>[Enter] Select  [Up/Down] Navigate  [Esc] Cancel</Text>
+            <Text dimColor>[Enter] Select [Up/Down] Navigate [Esc] Cancel</Text>
           </Box>
         </Box>
       )}

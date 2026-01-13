@@ -1,6 +1,5 @@
-/**
- * Secure storage for API keys with @napi-rs/keyring + encrypted conf fallback
- */
+import { CONFIG_DIR_NAME, DEFAULT_CONFIG, KEYRING_SERVICE, PROVIDER_CONFIG } from '../constants.js';
+import type { AIProvider, AppConfig, Result } from '../types/index.js';
 
 import Conf from 'conf';
 import { createHash } from 'node:crypto';
@@ -9,19 +8,8 @@ import { hostname, userInfo } from 'node:os';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 
-import { CONFIG_DIR_NAME, DEFAULT_CONFIG, KEYRING_ACCOUNT, KEYRING_SERVICE } from '../constants.js';
-import type { AppConfig, Result } from '../types/index.js';
-
-/**
- * Legacy encryption key (hardcoded in v3.0.1)
- * Used only for migration purposes
- */
 const LEGACY_ENCRYPTION_KEY = 'cli-ai-v3-encryption-key';
 
-/**
- * Generate machine-specific encryption key (not hardcoded for security)
- * Derived from hostname + username to make encryption unique per machine/user
- */
 function getMachineEncryptionKey(): string {
   const machineId = `${hostname()}-${userInfo().username}-cli-ai-v3-salt`;
   return createHash('sha256').update(machineId).digest('hex').slice(0, 32);
@@ -30,81 +18,82 @@ function getMachineEncryptionKey(): string {
 const configDir = join(homedir(), CONFIG_DIR_NAME);
 const configPath = join(configDir, 'config.json');
 
-/**
- * Attempt migration from legacy encrypted config to new format
- * Returns true if migration was performed or not needed
- */
-function migrateFromLegacyConfig(): { apiKey?: string; config?: Partial<AppConfig> } | null {
+type StoreSchema = {
+  apiKey?: string;
+  apiKeys?: Partial<Record<AIProvider, string>>;
+  config?: Partial<AppConfig>;
+};
+
+function migrateFromLegacyConfig(): StoreSchema | null {
   if (!existsSync(configPath)) {
     return null;
   }
 
   try {
-    // Try reading with legacy key
-    const legacyStore = new Conf<{ apiKey?: string; config?: Partial<AppConfig> }>({
+    const legacyStore = new Conf<StoreSchema>({
       projectName: 'cli-ai',
       cwd: configDir,
       encryptionKey: LEGACY_ENCRYPTION_KEY,
     });
 
     const apiKey = legacyStore.get('apiKey');
+    const apiKeys = legacyStore.get('apiKeys');
     const config = legacyStore.get('config');
 
-    if (apiKey || config) {
-      // Successfully read legacy data
-      return { apiKey, config };
+    if (apiKey || apiKeys || config) {
+      return { apiKey, apiKeys, config };
     }
   } catch {
-    // Not legacy format, might be new format or corrupted
+    // Not legacy format
   }
 
   return null;
 }
 
-/**
- * Initialize store with migration support
- */
-function createStore(): Conf<{ apiKey?: string; config?: Partial<AppConfig> }> {
+function createStore(): Conf<StoreSchema> {
   const newEncryptionKey = getMachineEncryptionKey();
-
-  // Check if we need to migrate from legacy format
   const legacyData = migrateFromLegacyConfig();
 
   if (legacyData) {
-    // Delete old config file
     try {
       unlinkSync(configPath);
     } catch {
-      // Ignore deletion errors
+      // Ignore
     }
 
-    // Create new store with machine-specific key
-    const newStore = new Conf<{ apiKey?: string; config?: Partial<AppConfig> }>({
+    const newStore = new Conf<StoreSchema>({
       projectName: 'cli-ai',
       cwd: configDir,
       encryptionKey: newEncryptionKey,
     });
 
-    // Migrate data to new store
-    if (legacyData.apiKey) {
-      newStore.set('apiKey', legacyData.apiKey);
+    if (legacyData.apiKey && !legacyData.apiKeys) {
+      newStore.set('apiKeys', { anthropic: legacyData.apiKey });
+    } else if (legacyData.apiKeys) {
+      newStore.set('apiKeys', legacyData.apiKeys);
     }
+
     if (legacyData.config) {
-      newStore.set('config', legacyData.config);
+      const config = { ...legacyData.config };
+      if (!config.provider) {
+        config.provider = 'anthropic';
+      }
+      newStore.set('config', config);
     }
 
     return newStore;
   }
 
-  // No migration needed, try creating store with new key
   try {
-    return new Conf<{ apiKey?: string; config?: Partial<AppConfig> }>({
+    const newStore = new Conf<StoreSchema>({
       projectName: 'cli-ai',
       cwd: configDir,
       encryptionKey: newEncryptionKey,
     });
+
+    migrateToMultiProvider(newStore);
+    return newStore;
   } catch {
-    // Config file might be corrupted, delete and start fresh
     try {
       if (existsSync(configPath)) {
         unlinkSync(configPath);
@@ -113,7 +102,7 @@ function createStore(): Conf<{ apiKey?: string; config?: Partial<AppConfig> }> {
       // Ignore
     }
 
-    return new Conf<{ apiKey?: string; config?: Partial<AppConfig> }>({
+    return new Conf<StoreSchema>({
       projectName: 'cli-ai',
       cwd: configDir,
       encryptionKey: newEncryptionKey,
@@ -121,117 +110,119 @@ function createStore(): Conf<{ apiKey?: string; config?: Partial<AppConfig> }> {
   }
 }
 
-/**
- * Encrypted config store with migration support
- */
+function migrateToMultiProvider(store: Conf<StoreSchema>): void {
+  const oldKey = store.get('apiKey');
+  if (oldKey && !store.get('apiKeys')) {
+    store.set('apiKeys', { anthropic: oldKey });
+    store.delete('apiKey');
+  }
+
+  const config = store.get('config');
+  if (config && !config.provider) {
+    store.set('config', { ...config, provider: 'anthropic' });
+  }
+}
+
 const store = createStore();
 
-/**
- * Lazy-loaded keyring module to prevent startup crashes if native binding unavailable
- */
 let keyringModule: typeof import('@napi-rs/keyring') | null = null;
 let keyringModuleLoaded = false;
-let keyringEntry: InstanceType<typeof import('@napi-rs/keyring').Entry> | null = null;
+const keyringEntries = new Map<
+  AIProvider,
+  InstanceType<typeof import('@napi-rs/keyring').Entry> | null
+>();
 let keyringAvailable: boolean | null = null;
 
-/**
- * Lazy-load the @napi-rs/keyring module
- * Returns null if the native binding is unavailable
- */
 function loadKeyringModule(): typeof import('@napi-rs/keyring') | null {
   if (keyringModuleLoaded) return keyringModule;
 
   keyringModuleLoaded = true;
   try {
-    // Use require for synchronous loading (dynamic import is async)
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     keyringModule = require('@napi-rs/keyring') as typeof import('@napi-rs/keyring');
     return keyringModule;
   } catch {
-    // Native binding not available - fall back to encrypted conf
     keyringModule = null;
     return null;
   }
 }
 
-/**
- * Get or create keyring entry, testing availability on first access
- */
-function getKeyringEntry(): InstanceType<typeof import('@napi-rs/keyring').Entry> | null {
+function getKeyringEntry(
+  provider: AIProvider,
+): InstanceType<typeof import('@napi-rs/keyring').Entry> | null {
   if (keyringAvailable === false) return null;
 
-  if (keyringEntry === null) {
-    const kr = loadKeyringModule();
-    if (!kr) {
-      keyringAvailable = false;
-      return null;
-    }
+  const cached = keyringEntries.get(provider);
+  if (cached !== undefined) return cached;
 
-    try {
-      keyringEntry = new kr.Entry(KEYRING_SERVICE, KEYRING_ACCOUNT);
-      // Test that keyring actually works by attempting to read
-      // This will throw if keyring is not available on the system
-      keyringEntry.getPassword();
-      keyringAvailable = true;
-    } catch {
-      keyringAvailable = false;
-      keyringEntry = null;
-      return null;
-    }
+  const kr = loadKeyringModule();
+  if (!kr) {
+    keyringAvailable = false;
+    return null;
   }
-  return keyringEntry;
+
+  try {
+    const account = PROVIDER_CONFIG[provider].keyringAccount;
+    const entry = new kr.Entry(KEYRING_SERVICE, account);
+    entry.getPassword();
+    keyringAvailable = true;
+    keyringEntries.set(provider, entry);
+    return entry;
+  } catch {
+    keyringEntries.set(provider, null);
+    if (keyringAvailable === null) {
+      keyringAvailable = false;
+    }
+    return null;
+  }
 }
 
-/**
- * Check if system keyring is available
- */
 export function isKeyringAvailable(): boolean {
-  getKeyringEntry();
+  getKeyringEntry('anthropic');
   return keyringAvailable === true;
 }
 
-/**
- * Get API key from storage (env > keyring > encrypted file)
- */
-export function getApiKey(): string | null {
-  // Priority 1: Environment variable
-  const envKey = process.env.ANTHROPIC_API_KEY;
+export function getApiKey(provider: AIProvider): string | null {
+  const envVar = PROVIDER_CONFIG[provider].envVar;
+  const envKey = process.env[envVar];
   if (envKey) return envKey;
 
-  // Priority 2: System keyring (most secure)
-  const entry = getKeyringEntry();
+  const entry = getKeyringEntry(provider);
   if (entry) {
     try {
       const key = entry.getPassword();
       if (key) return key;
     } catch {
-      // Fall through to conf
+      // Fall through
     }
   }
 
-  // Priority 3: Encrypted conf file (fallback)
-  return store.get('apiKey') ?? null;
+  const apiKeys = store.get('apiKeys');
+  return apiKeys?.[provider] ?? null;
 }
 
-/**
- * Save API key to storage (prefers keyring, falls back to encrypted file)
- */
-export function saveApiKey(apiKey: string): Result<void> {
+export function saveApiKey(provider: AIProvider, apiKey: string): Result<void> {
   try {
-    const entry = getKeyringEntry();
+    const entry = getKeyringEntry(provider);
     if (entry) {
       try {
         entry.setPassword(apiKey);
-        // Clear any fallback storage when successfully saved to keyring
-        store.delete('apiKey');
+        const apiKeys = store.get('apiKeys') ?? {};
+        delete apiKeys[provider];
+        if (Object.keys(apiKeys).length > 0) {
+          store.set('apiKeys', apiKeys);
+        } else {
+          store.delete('apiKeys');
+        }
         return { success: true, data: undefined };
       } catch {
-        // Fall through to conf if keyring save fails
+        // Fall through
       }
     }
 
-    // Fallback: encrypted conf file
-    store.set('apiKey', apiKey);
+    const apiKeys = store.get('apiKeys') ?? {};
+    apiKeys[provider] = apiKey;
+    store.set('apiKeys', apiKeys);
     return { success: true, data: undefined };
   } catch (error) {
     return {
@@ -241,21 +232,26 @@ export function saveApiKey(apiKey: string): Result<void> {
   }
 }
 
-/**
- * Delete API key from all storage locations
- */
-export function deleteApiKey(): Result<void> {
+export function deleteApiKey(provider: AIProvider): Result<void> {
   try {
-    const entry = getKeyringEntry();
+    const entry = getKeyringEntry(provider);
     if (entry) {
       try {
         entry.deleteCredential();
       } catch {
-        // Continue to delete from conf even if keyring delete fails
+        // Continue
       }
     }
 
-    store.delete('apiKey');
+    const apiKeys = store.get('apiKeys');
+    if (apiKeys?.[provider]) {
+      delete apiKeys[provider];
+      if (Object.keys(apiKeys).length > 0) {
+        store.set('apiKeys', apiKeys);
+      } else {
+        store.delete('apiKeys');
+      }
+    }
 
     return { success: true, data: undefined };
   } catch (error) {
@@ -266,61 +262,48 @@ export function deleteApiKey(): Result<void> {
   }
 }
 
-/**
- * Check if API key is configured
- */
-export function hasApiKey(): boolean {
-  const key = getApiKey();
+export function hasApiKey(provider: AIProvider): boolean {
+  const key = getApiKey(provider);
   return key !== null && key.length > 0;
 }
 
-/**
- * Get application configuration
- */
 export function getConfig(): AppConfig {
   const storedConfig = store.get('config') ?? {};
   return { ...DEFAULT_CONFIG, ...storedConfig };
 }
 
-/**
- * Update application configuration
- */
 export function setConfig(config: Partial<AppConfig>): void {
   const current = store.get('config') ?? {};
   store.set('config', { ...current, ...config });
 }
 
-/**
- * Reset configuration to defaults
- */
 export function resetConfig(): void {
   store.delete('config');
 }
 
-/**
- * Validate API key format (Anthropic keys start with sk-ant-)
- */
-export function validateApiKeyFormat(apiKey: string): boolean {
-  return apiKey.startsWith('sk-ant-') && apiKey.length > 20;
+export function validateApiKeyFormat(provider: AIProvider, apiKey: string): boolean {
+  const config = PROVIDER_CONFIG[provider];
+  if (provider === 'openai') {
+    return apiKey.startsWith('sk-') && apiKey.length > 20;
+  }
+  return apiKey.startsWith(config.keyPrefix) && apiKey.length > 20;
 }
 
-/**
- * Get information about current storage method
- */
-export function getStorageInfo(): {
+export function getStorageInfo(provider: AIProvider): {
   method: 'env' | 'keyring' | 'encrypted-file' | 'none';
   secure: boolean;
   description: string;
 } {
-  if (process.env.ANTHROPIC_API_KEY) {
+  const envVar = PROVIDER_CONFIG[provider].envVar;
+  if (process.env[envVar]) {
     return {
       method: 'env',
       secure: false,
-      description: 'Environment variable (visible to other processes)',
+      description: 'Environment variable',
     };
   }
 
-  const entry = getKeyringEntry();
+  const entry = getKeyringEntry(provider);
   if (entry) {
     try {
       const key = entry.getPassword();
@@ -328,7 +311,7 @@ export function getStorageInfo(): {
         return {
           method: 'keyring',
           secure: true,
-          description: 'System keyring (OS-protected)',
+          description: 'System keyring',
         };
       }
     } catch {
@@ -336,11 +319,12 @@ export function getStorageInfo(): {
     }
   }
 
-  if (store.get('apiKey')) {
+  const apiKeys = store.get('apiKeys');
+  if (apiKeys?.[provider]) {
     return {
       method: 'encrypted-file',
       secure: false,
-      description: 'Encrypted file (machine-specific key)',
+      description: 'Encrypted file',
     };
   }
 

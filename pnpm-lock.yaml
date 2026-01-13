@@ -17,6 +17,9 @@ importers:
       '@napi-rs/keyring':
         specifier: ^1.2.0
         version: 1.2.0
+      '@openrouter/sdk':
+        specifier: ^0.3.12
+        version: 0.3.12
       chalk:
         specifier: ^5.3.0
         version: 5.6.2
@@ -32,6 +35,9 @@ importers:
       ink:
         specifier: ^6.0.0
         version: 6.6.0(@types/react@19.2.8)(react@19.2.3)
+      openai:
+        specifier: ^6.16.0
+        version: 6.16.0(ws@8.19.0)(zod@3.25.76)
       react:
         specifier: ^19.0.0
         version: 19.2.3
@@ -484,6 +490,9 @@ packages:
   '@nodelib/fs.walk@1.2.8':
     resolution: {integrity: sha512-oGB+UxlgWcgQkgwo8GcEGwemoTFt3FIO9ababBmaGwXIoBKZ+GTy0pP185beGg7Llih/NSHSV2XAs1lnznocSg==}
     engines: {node: '>= 8'}
+
+  '@openrouter/sdk@0.3.12':
+    resolution: {integrity: sha512-jwWpNyfeBLzHos2TqLIYp574jEkBSb/M46zY4uIJtlfept/3Rni7l6UQAHRqL8gPVdQCmYBaDL6NXR6uJZ0QiA==}
 
   '@rollup/rollup-android-arm-eabi@4.55.1':
     resolution: {integrity: sha512-9R0DM/ykwfGIlNu6+2U09ga0WXeZ9MRC2Ter8jnz8415VbuIykVuc6bhdrbORFZANDmTDvq26mJrEVTl8TdnDg==}
@@ -1799,6 +1808,18 @@ packages:
     resolution: {integrity: sha512-1FlR+gjXK7X+AsAHso35MnyN5KqGwJRi/31ft6x0M194ht7S+rWAvd7PHss9xSKMzE0asv1pyIHaJYq+BbacAQ==}
     engines: {node: '>=12'}
 
+  openai@6.16.0:
+    resolution: {integrity: sha512-fZ1uBqjFUjXzbGc35fFtYKEOxd20kd9fDpFeqWtsOZWiubY8CZ1NAlXHW3iathaFvqmNtCWMIsosCuyeI7Joxg==}
+    hasBin: true
+    peerDependencies:
+      ws: ^8.18.0
+      zod: ^3.25 || ^4.0
+    peerDependenciesMeta:
+      ws:
+        optional: true
+      zod:
+        optional: true
+
   optionator@0.9.4:
     resolution: {integrity: sha512-6IpQ7mKUxRcZNLIObR0hz7lxsapSSIYNZJwXPGeF0mTVqGKFIXj1DQcMoT22S3ROcLyY/rz0PWaWZ9ayWmad9g==}
     engines: {node: '>= 0.8.0'}
@@ -2747,6 +2768,10 @@ snapshots:
     dependencies:
       '@nodelib/fs.scandir': 2.1.5
       fastq: 1.20.1
+
+  '@openrouter/sdk@0.3.12':
+    dependencies:
+      zod: 3.25.76
 
   '@rollup/rollup-android-arm-eabi@4.55.1':
     optional: true
@@ -4244,6 +4269,11 @@ snapshots:
   onetime@6.0.0:
     dependencies:
       mimic-fn: 4.0.0
+
+  openai@6.16.0(ws@8.19.0)(zod@3.25.76):
+    optionalDependencies:
+      ws: 8.19.0
+      zod: 3.25.76
 
   optionator@0.9.4:
     dependencies:

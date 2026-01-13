@@ -1,12 +1,12 @@
 /**
  * Application constants and defaults
  */
-import type { AppConfig } from './types/index.js';
+import type { AIProvider, AppConfig } from './types/index.js';
 
 /**
  * Application version
  */
-export const VERSION = '3.0.4';
+export const VERSION = '3.1.0';
 
 /**
  * Application name
@@ -20,6 +20,7 @@ export const KEYRING_SERVICE = 'cli-ai';
 
 /**
  * Account name for keyring storage
+ * @deprecated Use PROVIDER_CONFIG[provider].keyringAccount instead
  */
 export const KEYRING_ACCOUNT = 'anthropic';
 
@@ -29,14 +30,61 @@ export const KEYRING_ACCOUNT = 'anthropic';
 export const CONFIG_DIR_NAME = '.cli_ai_assistant';
 
 /**
+ * All supported AI providers - single source of truth
+ */
+export const AI_PROVIDERS: readonly AIProvider[] = ['anthropic', 'openrouter', 'openai'] as const;
+
+/**
+ * Default AI provider
+ */
+export const DEFAULT_PROVIDER: AIProvider = 'anthropic';
+
+/**
+ * Provider configuration - single source of truth for all provider settings
+ */
+export const PROVIDER_CONFIG = {
+  anthropic: {
+    name: 'Anthropic',
+    envVar: 'ANTHROPIC_API_KEY',
+    keyringAccount: 'anthropic',
+    keyPrefix: 'sk-ant-',
+    defaultModel: 'claude-sonnet-4-5',
+  },
+  openrouter: {
+    name: 'OpenRouter',
+    envVar: 'OPENROUTER_API_KEY',
+    keyringAccount: 'openrouter',
+    keyPrefix: 'sk-or-',
+    defaultModel: 'anthropic/claude-sonnet-4.5',
+  },
+  openai: {
+    name: 'OpenAI',
+    envVar: 'OPENAI_API_KEY',
+    keyringAccount: 'openai',
+    keyPrefix: 'sk-',
+    defaultModel: 'gpt-5.2',
+  },
+} as const satisfies Record<
+  AIProvider,
+  {
+    name: string;
+    envVar: string;
+    keyringAccount: string;
+    keyPrefix: string;
+    defaultModel: string;
+  }
+>;
+
+/**
  * Default AI model
  */
-export const DEFAULT_MODEL = 'claude-sonnet-4-5';
+export const DEFAULT_MODEL = PROVIDER_CONFIG[DEFAULT_PROVIDER].defaultModel;
 
 /**
  * Default application configuration
  */
 export const DEFAULT_CONFIG: AppConfig = {
+  provider: DEFAULT_PROVIDER,
   model: DEFAULT_MODEL,
   maxHistoryEntries: 5,
   maxOutputLines: 10,

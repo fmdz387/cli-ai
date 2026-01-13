@@ -1,9 +1,6 @@
 /**
  * Session state machine hook
  */
-
-import { useCallback, useReducer } from 'react';
-
 import type { ConfigSection, SlashCommand } from '../commands/types.js';
 import { DEFAULT_CONFIG } from '../constants.js';
 import type {
@@ -13,6 +10,8 @@ import type {
   SessionAction,
   SessionState,
 } from '../types/index.js';
+
+import { useCallback, useReducer } from 'react';
 
 interface SessionStore {
   state: SessionState;
@@ -176,7 +175,7 @@ function sessionReducer(store: SessionStore, action: SessionAction): SessionStor
     case 'OPEN_CONFIG':
       return {
         ...store,
-        state: { status: 'config', section: 'api-key' },
+        state: { status: 'config', section: 'provider' },
         error: null,
       };
 

@@ -2,11 +2,10 @@
  * CLI AI v3 - Entry point
  * Natural language to shell commands with persistent REPL session
  */
-
-import { render } from 'ink';
-
 import { App } from './app.js';
 import { VERSION } from './constants.js';
+
+import { render } from 'ink';
 
 const CLEAR_SCREEN = '\x1bc';
 const SET_TITLE = '\x1b]0;CLI AI\x07';
