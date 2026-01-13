@@ -1,6 +1,6 @@
 {
   "name": "@fmdzc/cli-ai",
-  "version": "3.0.5",
+  "version": "3.0.4",
   "description": "CLI AI Assistant v3 - Natural language to shell commands with persistent REPL session",
   "type": "module",
   "main": "./dist/index.js",
@@ -39,7 +39,10 @@
     "link:global": "pnpm build && pnpm link --global",
     "unlink:global": "pnpm unlink --global",
     "uninstall": "node scripts/uninstall.js",
-    "uninstall:force": "node scripts/uninstall.js --force"
+    "uninstall:force": "node scripts/uninstall.js --force",
+    "version:set": "node scripts/version.js",
+    "tag": "node scripts/tag.js",
+    "tag:repush": "node scripts/tag.js --repush"
   },
   "keywords": [
     "cli",

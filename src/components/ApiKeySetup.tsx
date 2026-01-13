@@ -101,7 +101,10 @@ export function ApiKeySetup({ onComplete, onError, error }: ApiKeySetupProps): R
         </Box>
 
         <Box marginTop={1}>
-          <Text dimColor>Your key will be stored securely in your system keyring.</Text>
+          <Text color='yellow'>
+            🔒 Your key is stored securely on this machine using your system's credential manager
+            (never sent anywhere except Anthropic's API).
+          </Text>
         </Box>
       </Box>
     );
