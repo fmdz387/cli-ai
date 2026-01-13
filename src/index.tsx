@@ -62,7 +62,10 @@ async function main(): Promise<void> {
   // Start interactive session
   process.stdout.write(CLEAR_SCREEN + SET_TITLE);
 
-  const { waitUntilExit } = render(<App />);
+  const { waitUntilExit } = render(<App />, {
+    // Enable incremental rendering to reduce flickering - only updates changed lines
+    incrementalRendering: true,
+  });
 
   // Handle process signals
   process.on('SIGINT', () => {

@@ -37,7 +37,9 @@ import type { AIProvider, AppConfig, HistoryEntry } from './types/index.js';
 import { Box, Static, Text, useApp } from 'ink';
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 
-type StaticItem = { id: string; type: 'history'; entry: HistoryEntry };
+type StaticItem =
+  | { id: string; type: 'welcome' }
+  | { id: string; type: 'history'; entry: HistoryEntry };
 
 export function App(): ReactNode {
   const { exit } = useApp();
@@ -131,6 +133,8 @@ export function App(): ReactNode {
 
   const staticItems = useMemo<StaticItem[]>(() => {
     const items: StaticItem[] = [];
+    // Welcome header is always the first static item
+    items.push({ id: 'welcome', type: 'welcome' });
     const pastHistory = store.history.slice(0, -1);
     pastHistory.forEach((entry, i) => {
       items.push({ id: `history-${i}`, type: 'history', entry });
@@ -633,51 +637,56 @@ export function App(): ReactNode {
 
   return (
     <Box flexDirection='column'>
-      {/* Header is outside Static so it can re-render reactively */}
-      <WelcomeHeader
-        shell={shell}
-        cwd={process.cwd()}
-        provider={currentProvider}
-        model={selectedModel}
-      />
-
       <Static items={staticItems}>
-        {(item) => (
-          <Box key={item.id} flexDirection='column' marginBottom={1}>
-            <Box>
-              <Text color='cyan' bold>
-                ❯{' '}
-              </Text>
-              <Text color='cyan'>{item.entry.query}</Text>
-            </Box>
-            <Box marginLeft={2} flexDirection='column'>
+        {(item) => {
+          if (item.type === 'welcome') {
+            return (
+              <WelcomeHeader
+                key={item.id}
+                shell={shell}
+                cwd={process.cwd()}
+                provider={currentProvider}
+                model={selectedModel}
+              />
+            );
+          }
+          return (
+            <Box key={item.id} flexDirection='column' marginBottom={1}>
               <Box>
-                <Text dimColor>$ {item.entry.command} </Text>
-                <Text color={item.entry.exitCode === 0 ? 'green' : 'red'}>
-                  {item.entry.exitCode === 0 ? '✓' : `✗ ${item.entry.exitCode}`}
+                <Text color='cyan' bold>
+                  ❯{' '}
                 </Text>
+                <Text color='cyan'>{item.entry.query}</Text>
               </Box>
-              {item.entry.output && (
-                <Box flexDirection='column'>
-                  {item.entry.output
-                    .split('\n')
-                    .slice(0, 10)
-                    .map((line, i) => (
-                      <Text key={i}>{line}</Text>
-                    ))}
-                  {item.entry.output.split('\n').length > 10 && (
-                    <Text dimColor>
-                      ... ({item.entry.output.split('\n').length - 10} more lines)
-                    </Text>
-                  )}
+              <Box marginLeft={2} flexDirection='column'>
+                <Box>
+                  <Text dimColor>$ {item.entry.command} </Text>
+                  <Text color={item.entry.exitCode === 0 ? 'green' : 'red'}>
+                    {item.entry.exitCode === 0 ? '✓' : `✗ ${item.entry.exitCode}`}
+                  </Text>
                 </Box>
-              )}
+                {item.entry.output && (
+                  <Box flexDirection='column'>
+                    {item.entry.output
+                      .split('\n')
+                      .slice(0, 10)
+                      .map((line, i) => (
+                        <Text key={i}>{line}</Text>
+                      ))}
+                    {item.entry.output.split('\n').length > 10 && (
+                      <Text dimColor>
+                        ... ({item.entry.output.split('\n').length - 10} more lines)
+                      </Text>
+                    )}
+                  </Box>
+                )}
+              </Box>
+              <Box marginTop={1}>
+                <Text dimColor>{'─'.repeat(50)}</Text>
+              </Box>
             </Box>
-            <Box marginTop={1}>
-              <Text dimColor>{'─'.repeat(50)}</Text>
-            </Box>
-          </Box>
-        )}
+          );
+        }}
       </Static>
 
       {lastHistoryEntry && (
