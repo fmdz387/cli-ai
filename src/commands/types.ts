@@ -1,8 +1,7 @@
 /**
  * Slash command type definitions for CLI AI v3
  */
-
-import type { AppConfig } from '../types/index.js';
+import type { AIProvider, AppConfig } from '../types/index.js';
 
 /**
  * Command categories for organization and filtering
@@ -62,10 +61,7 @@ export interface CommandRegistry {
   register: (command: SlashCommand) => void;
 }
 
-/**
- * Config panel section identifiers
- */
-export type ConfigSection = 'api-key' | 'model' | 'toggles' | 'about';
+export type ConfigSection = 'provider' | 'api-keys' | 'toggles' | 'about';
 
 /**
  * Config panel state
@@ -78,14 +74,39 @@ export interface ConfigPanelState {
   error: string | null;
 }
 
-/**
- * Available models for selection
- */
-export const AVAILABLE_MODELS = [
-  { id: 'claude-sonnet-4-5', name: 'Claude Sonnet 4.5', description: 'Fast and capable' },
-  { id: 'claude-opus-4-5', name: 'Claude Opus 4.5', description: 'Most capable' },
-  { id: 'claude-haiku-4-5', name: 'Claude Haiku 4.5', description: 'Fastest' },
-] as const;
+export interface ModelOption {
+  id: string;
+  name: string;
+  description: string;
+}
+
+export const CUSTOM_MODEL_OPTION: ModelOption = {
+  id: '__custom__',
+  name: 'Custom model...',
+  description: 'Enter any model ID',
+};
+
+export const PROVIDER_MODELS: Record<AIProvider, readonly ModelOption[]> = {
+  anthropic: [
+    { id: 'claude-sonnet-4-5', name: 'Claude Sonnet 4.5', description: 'Fast and capable' },
+    { id: 'claude-opus-4-5', name: 'Claude Opus 4.5', description: 'Most capable' },
+    { id: 'claude-haiku-4-5', name: 'Claude Haiku 4.5', description: 'Fastest' },
+  ],
+  openrouter: [
+    { id: 'anthropic/claude-sonnet-4.5', name: 'Claude Sonnet 4.5', description: 'Anthropic' },
+    { id: 'xiaomi/mimo-v2-flash:free', name: 'MiMo-V2-Flash', description: 'Xiaomi (Free)' },
+    { id: 'x-ai/grok-code-fast-1', name: 'Grok Code Fast 1', description: 'xAI' },
+    { id: 'google/gemini-3-flash-preview', name: 'Gemini 3 Flash Preview', description: 'Google' },
+  ],
+  openai: [
+    { id: 'gpt-5.2', name: 'GPT-5.2', description: 'Most capable' },
+    { id: 'gpt-5-mini', name: 'GPT-5 Mini', description: 'Fast and efficient' },
+    { id: 'gpt-5-nano', name: 'GPT-5 Nano', description: 'Fastest' },
+  ],
+};
+
+/** @deprecated Use PROVIDER_MODELS instead */
+export const AVAILABLE_MODELS = PROVIDER_MODELS.anthropic;
 
 /**
  * Display toggle options

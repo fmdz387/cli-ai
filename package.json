@@ -1,6 +1,6 @@
 {
   "name": "@fmdzc/cli-ai",
-  "version": "3.0.4",
+  "version": "3.1.0",
   "description": "CLI AI Assistant v3 - Natural language to shell commands with persistent REPL session",
   "type": "module",
   "main": "./dist/index.js",
@@ -84,24 +84,26 @@
     "@anthropic-ai/sdk": "^0.71.2",
     "@inkjs/ui": "^2.0.0",
     "@napi-rs/keyring": "^1.2.0",
+    "@openrouter/sdk": "^0.3.12",
     "chalk": "^5.3.0",
     "clipboardy": "^4.0.0",
     "conf": "^13.0.0",
     "execa": "^9.0.0",
     "ink": "^6.0.0",
+    "openai": "^6.16.0",
     "react": "^19.0.0",
     "zod": "^3.23.0"
   },
   "optionalDependencies": {
-    "@napi-rs/keyring-win32-x64-msvc": "^1.2.0",
-    "@napi-rs/keyring-win32-ia32-msvc": "^1.2.0",
-    "@napi-rs/keyring-win32-arm64-msvc": "^1.2.0",
-    "@napi-rs/keyring-darwin-x64": "^1.2.0",
     "@napi-rs/keyring-darwin-arm64": "^1.2.0",
+    "@napi-rs/keyring-darwin-x64": "^1.2.0",
+    "@napi-rs/keyring-linux-arm64-gnu": "^1.2.0",
+    "@napi-rs/keyring-linux-arm64-musl": "^1.2.0",
     "@napi-rs/keyring-linux-x64-gnu": "^1.2.0",
     "@napi-rs/keyring-linux-x64-musl": "^1.2.0",
-    "@napi-rs/keyring-linux-arm64-gnu": "^1.2.0",
-    "@napi-rs/keyring-linux-arm64-musl": "^1.2.0"
+    "@napi-rs/keyring-win32-arm64-msvc": "^1.2.0",
+    "@napi-rs/keyring-win32-ia32-msvc": "^1.2.0",
+    "@napi-rs/keyring-win32-x64-msvc": "^1.2.0"
   },
   "devDependencies": {
     "@eslint/js": "8.57.0",

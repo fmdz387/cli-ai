@@ -62,6 +62,9 @@ export interface ConfigCallbacks {
   onClose: () => void;
   sectionCount: number;
   itemCount: number;
+  isEditingCustomModel?: boolean;
+  onCustomModelSubmit?: (value: string) => void;
+  onCustomModelCancel?: () => void;
 }
 
 export interface HelpCallbacks {
@@ -101,6 +104,10 @@ export interface UseInputControllerReturn {
   configSectionIndex: number;
   /** Config item index within section */
   configItemIndex: number;
+  /** Custom model text input state */
+  customModelState: TextInputState;
+  /** Dispatch action to custom model text input */
+  dispatchCustomModel: React.Dispatch<TextInputAction>;
 }
 
 export function useInputController({
@@ -117,6 +124,11 @@ export function useInputController({
   const [textState, dispatchText] = useReducer(
     textInputReducer,
     createTextInputState(initialTextValue),
+  );
+
+  const [customModelState, dispatchCustomModel] = useReducer(
+    textInputReducer,
+    createTextInputState(''),
   );
 
   const [menuFocusIndex, setMenuFocusIndex] = useState(0);
@@ -214,7 +226,9 @@ export function useInputController({
         if (key.backspace || key.delete) {
           dispatchText({ type: 'delete' });
           // Notify about text change (calculate new value after delete)
-          const newValue = textState.value.slice(0, textState.cursorOffset - 1) + textState.value.slice(textState.cursorOffset);
+          const newValue =
+            textState.value.slice(0, textState.cursorOffset - 1) +
+            textState.value.slice(textState.cursorOffset);
           textCallbacks.onTextChange?.(newValue);
           return;
         }
@@ -239,7 +253,10 @@ export function useInputController({
         if (input && input.length > 0) {
           dispatchText({ type: 'insert', text: input });
           // Notify about text change
-          const newValue = textState.value.slice(0, textState.cursorOffset) + input + textState.value.slice(textState.cursorOffset);
+          const newValue =
+            textState.value.slice(0, textState.cursorOffset) +
+            input +
+            textState.value.slice(textState.cursorOffset);
           textCallbacks.onTextChange?.(newValue);
         }
         return;
@@ -420,6 +437,42 @@ export function useInputController({
         const sectionCount = configCallbacks.sectionCount;
         const itemCount = configCallbacks.itemCount;
 
+        // Custom model editing mode
+        if (configCallbacks.isEditingCustomModel) {
+          if (key.escape) {
+            dispatchCustomModel({ type: 'clear' });
+            configCallbacks.onCustomModelCancel?.();
+            return;
+          }
+          if (key.return) {
+            const value = customModelState.value;
+            if (value.trim()) {
+              configCallbacks.onCustomModelSubmit?.(value.trim());
+            } else {
+              configCallbacks.onCustomModelCancel?.();
+            }
+            dispatchCustomModel({ type: 'clear' });
+            return;
+          }
+          if (key.leftArrow) {
+            dispatchCustomModel({ type: 'move-left' });
+            return;
+          }
+          if (key.rightArrow) {
+            dispatchCustomModel({ type: 'move-right' });
+            return;
+          }
+          if (key.backspace || key.delete) {
+            dispatchCustomModel({ type: 'delete' });
+            return;
+          }
+          if (!key.ctrl && !key.meta && !key.tab && input && input.length > 0) {
+            dispatchCustomModel({ type: 'insert', text: input });
+            return;
+          }
+          return;
+        }
+
         // Tab navigates between sections
         if (key.tab && !key.shift) {
           setConfigSectionIndex((prev) => (prev + 1) % sectionCount);
@@ -490,5 +543,7 @@ export function useInputController({
     paletteFocusIndex,
     configSectionIndex,
     configItemIndex,
+    customModelState,
+    dispatchCustomModel,
   };
 }

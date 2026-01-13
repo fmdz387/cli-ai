@@ -1,7 +1,9 @@
 /**
- * First-run API key setup component
+ * First-run API key setup component with provider selection
  */
-import { APP_NAME, VERSION } from '../constants.js';
+import { AI_PROVIDERS, APP_NAME, PROVIDER_CONFIG, VERSION } from '../constants.js';
+import { validateApiKeyFormat } from '../lib/secure-storage.js';
+import type { AIProvider } from '../types/index.js';
 
 import { Box, Text, useInput } from 'ink';
 import { useState, type ReactNode } from 'react';
@@ -9,25 +11,76 @@ import { useState, type ReactNode } from 'react';
 import { TextInput } from '@inkjs/ui';
 
 interface ApiKeySetupProps {
-  onComplete: (apiKey: string) => void;
+  /** Called when API key is successfully entered */
+  onComplete: (apiKey: string, provider: AIProvider) => void;
   onError?: (error: string) => void;
   error?: string | null;
+  /** If provided, skip provider selection and go directly to key input */
+  provider?: AIProvider;
 }
 
-type SetupStep = 'welcome' | 'input' | 'saving' | 'complete';
+type SetupStep = 'welcome' | 'provider' | 'input' | 'saving' | 'complete';
 
-export function ApiKeySetup({ onComplete, onError, error }: ApiKeySetupProps): ReactNode {
-  const [step, setStep] = useState<SetupStep>('welcome');
+const PROVIDER_URLS: Record<AIProvider, string> = {
+  anthropic: 'https://console.anthropic.com/settings/keys',
+  openai: 'https://platform.openai.com/api-keys',
+  openrouter: 'https://openrouter.ai/keys',
+};
+
+export function ApiKeySetup({
+  onComplete,
+  onError,
+  error,
+  provider: initialProvider,
+}: ApiKeySetupProps): ReactNode {
+  const [step, setStep] = useState<SetupStep>(initialProvider ? 'input' : 'welcome');
+  const [selectedProvider, setSelectedProvider] = useState<AIProvider>(
+    initialProvider ?? 'anthropic',
+  );
+  const [providerIndex, setProviderIndex] = useState(0);
   const [apiKey, setApiKey] = useState('');
   const [localError, setLocalError] = useState<string | null>(null);
 
   useInput(
     (input, key) => {
       if (step === 'welcome' && (key.return || input === ' ')) {
-        setStep('input');
+        setStep('provider');
       }
     },
     { isActive: step === 'welcome' },
+  );
+
+  useInput(
+    (input, key) => {
+      if (step === 'provider') {
+        if (key.upArrow) {
+          setProviderIndex((prev) => (prev - 1 + AI_PROVIDERS.length) % AI_PROVIDERS.length);
+          return;
+        }
+        if (key.downArrow) {
+          setProviderIndex((prev) => (prev + 1) % AI_PROVIDERS.length);
+          return;
+        }
+        if (key.return) {
+          const provider = AI_PROVIDERS[providerIndex];
+          if (provider) {
+            setSelectedProvider(provider);
+            setStep('input');
+          }
+          return;
+        }
+        // Number keys for quick select
+        const num = parseInt(input, 10);
+        if (num >= 1 && num <= AI_PROVIDERS.length) {
+          const provider = AI_PROVIDERS[num - 1];
+          if (provider) {
+            setSelectedProvider(provider);
+            setStep('input');
+          }
+        }
+      }
+    },
+    { isActive: step === 'provider' },
   );
 
   const handleSubmit = (value: string) => {
@@ -38,19 +91,15 @@ export function ApiKeySetup({ onComplete, onError, error }: ApiKeySetupProps): R
       return;
     }
 
-    if (!trimmedKey.startsWith('sk-ant-')) {
-      setLocalError('Invalid key format. Anthropic API keys start with "sk-ant-"');
-      return;
-    }
-
-    if (trimmedKey.length < 20) {
-      setLocalError('API key seems too short');
+    if (!validateApiKeyFormat(selectedProvider, trimmedKey)) {
+      const config = PROVIDER_CONFIG[selectedProvider];
+      setLocalError(`Invalid key format. ${config.name} API keys start with "${config.keyPrefix}"`);
       return;
     }
 
     setLocalError(null);
     setStep('saving');
-    onComplete(trimmedKey);
+    onComplete(trimmedKey, selectedProvider);
   };
 
   if (step === 'welcome') {
@@ -68,8 +117,7 @@ export function ApiKeySetup({ onComplete, onError, error }: ApiKeySetupProps): R
 
         <Box marginBottom={1}>
           <Text dimColor>
-            To get started, you'll need an Anthropic API key.{'\n'}
-            Get one at: <Text color='blue'>https://console.anthropic.com/settings/keys</Text>
+            To get started, you'll need an API key from one of the supported providers.
           </Text>
         </Box>
 
@@ -80,13 +128,49 @@ export function ApiKeySetup({ onComplete, onError, error }: ApiKeySetupProps): R
     );
   }
 
+  if (step === 'provider') {
+    return (
+      <Box flexDirection='column' paddingY={1}>
+        <Box marginBottom={1}>
+          <Text bold>Select your AI provider:</Text>
+        </Box>
+
+        {AI_PROVIDERS.map((provider, index) => {
+          const config = PROVIDER_CONFIG[provider];
+          const isFocused = index === providerIndex;
+          return (
+            <Box key={provider}>
+              <Text color={isFocused ? 'cyan' : 'gray'} bold={isFocused}>
+                {isFocused ? '> ' : '  '}
+              </Text>
+              <Text color={isFocused ? 'cyan' : 'white'}>
+                {index + 1}. {config.name}
+              </Text>
+            </Box>
+          );
+        })}
+
+        <Box marginTop={1}>
+          <Text dimColor>[Up/Down] Navigate [Enter] Select [1-3] Quick select</Text>
+        </Box>
+      </Box>
+    );
+  }
+
   const displayError = error ?? localError;
+  const providerConfig = PROVIDER_CONFIG[selectedProvider];
 
   if (step === 'input') {
     return (
       <Box flexDirection='column' paddingY={1}>
         <Box marginBottom={1}>
-          <Text bold>Enter your Anthropic API key:</Text>
+          <Text bold>Enter your {providerConfig.name} API key:</Text>
+        </Box>
+
+        <Box marginBottom={1}>
+          <Text dimColor>
+            Get one at: <Text color='blue'>{PROVIDER_URLS[selectedProvider]}</Text>
+          </Text>
         </Box>
 
         {displayError && (
@@ -97,13 +181,16 @@ export function ApiKeySetup({ onComplete, onError, error }: ApiKeySetupProps): R
 
         <Box>
           <Text dimColor>{'> '}</Text>
-          <TextInput placeholder='sk-ant-...' onChange={setApiKey} onSubmit={handleSubmit} />
+          <TextInput
+            placeholder={`${providerConfig.keyPrefix}...`}
+            onChange={setApiKey}
+            onSubmit={handleSubmit}
+          />
         </Box>
 
         <Box marginTop={1}>
           <Text color='yellow'>
-            🔒 Your key is stored securely on this machine using your system's credential manager
-            (never sent anywhere except Anthropic's API).
+            🔒 Your key is stored securely on this machine using your system's credential manager.
           </Text>
         </Box>
       </Box>
