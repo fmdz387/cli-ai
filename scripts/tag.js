@@ -28,15 +28,39 @@ function getPackageTag() {
   return `v${pkg.version}`;
 }
 
-function createTag(tag) {
-  const version = tag.slice(1);
-  console.log(`Creating tag ${tag}...`);
+function tagExists(tag) {
+  const result = git(`tag -l ${tag}`, { silent: true });
+  return result && result.trim() === tag;
+}
 
+function remoteTagExists(tag) {
+  const result = git(`ls-remote --tags origin refs/tags/${tag}`, { silent: true, ignoreError: true });
+  return result && result.includes(tag);
+}
+
+function createTag(tag, autoRepush = false) {
+  const version = tag.slice(1);
+
+  // Check if tag already exists
+  const localExists = tagExists(tag);
+  const remoteExists = remoteTagExists(tag);
+
+  if (localExists || remoteExists) {
+    if (autoRepush) {
+      console.log(`Tag ${tag} already exists, re-pushing...`);
+      return repushTag(tag);
+    }
+    console.error(`\n✗ Tag ${tag} already exists${localExists ? ' locally' : ''}${remoteExists ? (localExists ? ' and' : '') + ' on remote' : ''}`);
+    console.error(`\nTo overwrite, run: pnpm tag --force ${tag}`);
+    process.exit(1);
+  }
+
+  console.log(`Creating tag ${tag}...`);
   git(`tag -a ${tag} -m "Release ${version}"`);
   console.log(`✓ Tag ${tag} created locally`);
 
   console.log(`Pushing tag ${tag} to origin...`);
-  git(`push origin ${tag}`);
+  git(`push origin refs/tags/${tag}`);
   console.log(`✓ Tag ${tag} pushed to origin`);
 
   return tag;
@@ -50,7 +74,7 @@ function repushTag(tag) {
   console.log(`✓ Local tag deleted (or didn't exist)`);
 
   console.log(`Deleting remote tag ${tag}...`);
-  git(`push origin --delete ${tag}`, { ignoreError: true, silent: true });
+  git(`push origin --delete refs/tags/${tag}`, { ignoreError: true, silent: true });
   console.log(`✓ Remote tag deleted (or didn't exist)`);
 
   return createTag(tag);
