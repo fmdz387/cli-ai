@@ -22,14 +22,14 @@ function git(args, options = {}) {
   }
 }
 
-function getPackageVersion() {
+function getPackageTag() {
   const pkgPath = join(ROOT_DIR, 'package.json');
   const pkg = JSON.parse(readFileSync(pkgPath, 'utf8'));
-  return pkg.version;
+  return `v${pkg.version}`;
 }
 
-function createTag(version) {
-  const tag = `v${version}`;
+function createTag(tag) {
+  const version = tag.slice(1);
   console.log(`Creating tag ${tag}...`);
 
   git(`tag -a ${tag} -m "Release ${version}"`);
@@ -42,8 +42,7 @@ function createTag(version) {
   return tag;
 }
 
-function repushTag(version) {
-  const tag = `v${version}`;
+function repushTag(tag) {
   console.log(`Re-pushing tag ${tag}...`);
 
   console.log(`Deleting local tag ${tag}...`);
@@ -54,15 +53,15 @@ function repushTag(version) {
   git(`push origin --delete ${tag}`, { ignoreError: true, silent: true });
   console.log(`✓ Remote tag deleted (or didn't exist)`);
 
-  return createTag(version);
+  return createTag(tag);
 }
 
 function showUsage() {
   console.log(`
-Usage: node scripts/tag.js [options] [version]
+Usage: node scripts/tag.js [options] [tag]
 
 Creates and pushes a git tag for the specified version.
-If no version is provided, uses the version from package.json.
+If no tag is provided, uses the version from package.json.
 
 Options:
   --repush, --force    Delete existing tag (local & remote) before creating
@@ -70,9 +69,9 @@ Options:
 
 Examples:
   node scripts/tag.js              # Tag current package.json version
-  node scripts/tag.js 3.0.5        # Tag specific version
+  node scripts/tag.js v3.0.5       # Tag specific version
   node scripts/tag.js --repush     # Re-push current version tag
-  node scripts/tag.js --force 3.0.5  # Re-push specific version tag
+  node scripts/tag.js --force v3.0.5  # Re-push specific version tag
 `);
 }
 
@@ -81,7 +80,7 @@ function main() {
 
   // Parse arguments
   let repush = false;
-  let version = null;
+  let tag = null;
 
   for (const arg of args) {
     if (arg === '--help' || arg === '-h') {
@@ -90,27 +89,28 @@ function main() {
     } else if (arg === '--repush' || arg === '--force') {
       repush = true;
     } else if (!arg.startsWith('-')) {
-      version = arg;
+      tag = arg;
     }
   }
 
   // Use package.json version if not specified
-  if (!version) {
-    version = getPackageVersion();
+  if (!tag) {
+    tag = getPackageTag();
   }
 
-  // Validate version format
-  if (!/^\d+\.\d+\.\d+(-[\w.]+)?(\+[\w.]+)?$/.test(version)) {
-    console.error(`Invalid version format: ${version}`);
+  // Validate tag format (vX.X.X with optional prerelease/build metadata)
+  if (!/^v\d+\.\d+\.\d+(-[\w.]+)?(\+[\w.]+)?$/.test(tag)) {
+    console.error(`Invalid tag format: ${tag}`);
+    console.error(`Expected format: vX.X.X (e.g., v3.0.5)`);
     process.exit(1);
   }
 
-  console.log(`\nVersion: ${version}`);
+  console.log(`\nTag: ${tag}`);
   console.log(`Mode: ${repush ? 're-push (delete + create)' : 'create new'}\n`);
 
   try {
-    const tag = repush ? repushTag(version) : createTag(version);
-    console.log(`\n✓ Successfully ${repush ? 're-pushed' : 'created'} tag ${tag}`);
+    const result = repush ? repushTag(tag) : createTag(tag);
+    console.log(`\n✓ Successfully ${repush ? 're-pushed' : 'created'} tag ${result}`);
   } catch (error) {
     console.error(`\n✗ Failed to ${repush ? 're-push' : 'create'} tag:`, error.message);
     process.exit(1);
