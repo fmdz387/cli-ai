@@ -16,5 +16,5 @@ export const configCommand: SlashCommand = {
     panel: 'config',
   }),
 
-  isAvailable: (status) => status === 'input',
+  isAvailable: (status) => status === 'input' || status === 'palette',
 };

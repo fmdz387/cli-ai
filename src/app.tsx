@@ -32,14 +32,10 @@ import {
   saveApiKey,
   setConfig,
 } from './lib/secure-storage.js';
-import type { AIProvider, AppConfig, HistoryEntry } from './types/index.js';
+import type { AIProvider, AppConfig } from './types/index.js';
 
-import { Box, Static, Text, useApp } from 'ink';
+import { Box, Text, useApp } from 'ink';
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
-
-type StaticItem =
-  | { id: string; type: 'welcome' }
-  | { id: string; type: 'history'; entry: HistoryEntry };
 
 export function App(): ReactNode {
   const { exit } = useApp();
@@ -131,19 +127,8 @@ export function App(): ReactNode {
     onExit: () => exit(),
   });
 
-  const staticItems = useMemo<StaticItem[]>(() => {
-    const items: StaticItem[] = [];
-    // Welcome header is always the first static item
-    items.push({ id: 'welcome', type: 'welcome' });
-    const pastHistory = store.history.slice(0, -1);
-    pastHistory.forEach((entry, i) => {
-      items.push({ id: `history-${i}`, type: 'history', entry });
-    });
-    return items;
-  }, [store.history]);
-
-  const lastHistoryEntry =
-    store.history.length > 0 ? store.history[store.history.length - 1] : null;
+  // All history entries (no longer using Static for history, so clear works properly)
+  const historyEntries = useMemo(() => store.history, [store.history]);
 
   const {
     generate,
@@ -637,103 +622,70 @@ export function App(): ReactNode {
 
   return (
     <Box flexDirection='column'>
-      <Static items={staticItems}>
-        {(item) => {
-          if (item.type === 'welcome') {
-            return (
-              <WelcomeHeader
-                key={item.id}
-                shell={shell}
-                cwd={process.cwd()}
-                provider={currentProvider}
-                model={selectedModel}
-              />
-            );
-          }
-          return (
-            <Box key={item.id} flexDirection='column' marginBottom={1}>
-              <Box>
-                <Text color='cyan' bold>
-                  ❯{' '}
-                </Text>
-                <Text color='cyan'>{item.entry.query}</Text>
-              </Box>
-              <Box marginLeft={2} flexDirection='column'>
-                <Box>
-                  <Text dimColor>$ {item.entry.command} </Text>
-                  <Text color={item.entry.exitCode === 0 ? 'green' : 'red'}>
-                    {item.entry.exitCode === 0 ? '✓' : `✗ ${item.entry.exitCode}`}
-                  </Text>
-                </Box>
-                {item.entry.output && (
-                  <Box flexDirection='column'>
-                    {item.entry.output
-                      .split('\n')
-                      .slice(0, 10)
-                      .map((line, i) => (
-                        <Text key={i}>{line}</Text>
-                      ))}
-                    {item.entry.output.split('\n').length > 10 && (
-                      <Text dimColor>
-                        ... ({item.entry.output.split('\n').length - 10} more lines)
-                      </Text>
-                    )}
-                  </Box>
-                )}
-              </Box>
-              <Box marginTop={1}>
-                <Text dimColor>{'─'.repeat(50)}</Text>
-              </Box>
-            </Box>
-          );
-        }}
-      </Static>
+      {/* Welcome header - always shown */}
+      <WelcomeHeader
+        shell={shell}
+        cwd={process.cwd()}
+        provider={currentProvider}
+        model={selectedModel}
+      />
 
-      {lastHistoryEntry && (
-        <Box flexDirection='column' marginBottom={1}>
-          <Box>
-            <Text color='cyan' bold>
-              ❯{' '}
-            </Text>
-            <Text color='cyan'>{lastHistoryEntry.query}</Text>
-          </Box>
-          <Box marginLeft={2} flexDirection='column'>
+      {/* History entries - rendered as regular components so /clear works */}
+      {historyEntries.map((entry, index) => {
+        const isLast = index === historyEntries.length - 1;
+        return (
+          <Box key={`history-${index}`} flexDirection='column' marginBottom={1}>
             <Box>
-              <Text dimColor>$ {lastHistoryEntry.command} </Text>
-              <Text color={lastHistoryEntry.exitCode === 0 ? 'green' : 'red'}>
-                {lastHistoryEntry.exitCode === 0 ? '✓' : `✗ ${lastHistoryEntry.exitCode}`}
+              <Text color='cyan' bold>
+                ❯{' '}
               </Text>
+              <Text color='cyan'>{entry.query}</Text>
             </Box>
-            {lastHistoryEntry.output && (
-              <Box flexDirection='column'>
-                {(() => {
-                  const lines = lastHistoryEntry.output.split('\n').filter((l) => l.length > 0);
-                  const maxLines = store.outputExpanded ? 500 : 10;
-                  const displayLines = lines.slice(0, maxLines);
-                  const hiddenCount = lines.length - displayLines.length;
-                  return (
-                    <>
-                      {displayLines.map((line, i) => (
-                        <Text key={i}>{line}</Text>
-                      ))}
-                      {hiddenCount > 0 && (
-                        <Box>
-                          <Text dimColor>... ({hiddenCount} more lines, press </Text>
-                          <Text color='blue'>[O]</Text>
-                          <Text dimColor> to expand)</Text>
-                        </Box>
-                      )}
-                    </>
-                  );
-                })()}
+            <Box marginLeft={2} flexDirection='column'>
+              <Box>
+                <Text dimColor>$ {entry.command} </Text>
+                <Text color={entry.exitCode === 0 ? 'green' : 'red'}>
+                  {entry.exitCode === 0 ? '✓' : `✗ ${entry.exitCode}`}
+                </Text>
               </Box>
-            )}
+              {entry.output && (
+                <Box flexDirection='column'>
+                  {(() => {
+                    const lines = entry.output.split('\n').filter((l) => l.length > 0);
+                    // Only the last entry supports expand toggle
+                    const maxLines = isLast && store.outputExpanded ? 500 : 10;
+                    const displayLines = lines.slice(0, maxLines);
+                    const hiddenCount = lines.length - displayLines.length;
+                    return (
+                      <>
+                        {displayLines.map((line, i) => (
+                          <Text key={i}>{line}</Text>
+                        ))}
+                        {hiddenCount > 0 && (
+                          <Box>
+                            <Text dimColor>... ({hiddenCount} more lines</Text>
+                            {isLast && (
+                              <>
+                                <Text dimColor>, press </Text>
+                                <Text color='blue'>[O]</Text>
+                                <Text dimColor> to expand</Text>
+                              </>
+                            )}
+                            <Text dimColor>)</Text>
+                          </Box>
+                        )}
+                      </>
+                    );
+                  })()}
+                </Box>
+              )}
+            </Box>
+            <Box marginTop={1}>
+              <Text dimColor>{'─'.repeat(50)}</Text>
+            </Box>
           </Box>
-          <Box marginTop={1}>
-            <Text dimColor>{'─'.repeat(50)}</Text>
-          </Box>
-        </Box>
-      )}
+        );
+      })}
 
       {store.error && (
         <Box marginY={1}>

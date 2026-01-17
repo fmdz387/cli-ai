@@ -15,5 +15,5 @@ export const clearCommand: SlashCommand = {
     to: 'clear',
   }),
 
-  isAvailable: (status) => status === 'input',
+  isAvailable: (status) => status === 'input' || status === 'palette',
 };
