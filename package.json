@@ -1,6 +1,6 @@
 {
   "name": "@fmdzc/cli-ai",
-  "version": "3.1.1",
+  "version": "3.1.2",
   "description": "CLI AI Assistant v3 - Natural language to shell commands with persistent REPL session",
   "type": "module",
   "main": "./dist/index.js",
