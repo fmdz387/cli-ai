@@ -11,7 +11,7 @@ import { getApiKey, getConfig } from './secure-storage.js';
 
 let cachedProvider: { key: string; instance: Provider } | null = null;
 
-function getProvider(): Provider | null {
+async function getProvider(): Promise<Provider | null> {
   const config = getConfig();
   const apiKey = getApiKey(config.provider);
   if (!apiKey) return null;
@@ -21,7 +21,7 @@ function getProvider(): Provider | null {
     return cachedProvider.instance;
   }
 
-  const instance = createProvider(config.provider, apiKey, config.model);
+  const instance = await createProvider(config.provider, apiKey, config.model);
   cachedProvider = { key: cacheKey, instance };
   return instance;
 }
@@ -34,7 +34,7 @@ export async function generateCommand(
   query: string,
   context: SessionContext,
 ): Promise<Result<CommandProposal>> {
-  const provider = getProvider();
+  const provider = await getProvider();
   if (!provider) {
     return { success: false, error: new Error('No API key configured') };
   }
@@ -47,7 +47,7 @@ export async function generateAlternatives(
   excludeCommand: string,
   count: number = 3,
 ): Promise<Result<CommandProposal[]>> {
-  const provider = getProvider();
+  const provider = await getProvider();
   if (!provider) {
     return { success: false, error: new Error('No API key configured') };
   }
@@ -55,7 +55,7 @@ export async function generateAlternatives(
 }
 
 export async function explainCommand(command: string): Promise<Result<string>> {
-  const provider = getProvider();
+  const provider = await getProvider();
   if (!provider) {
     return { success: false, error: new Error('No API key configured') };
   }

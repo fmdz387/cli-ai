@@ -1,21 +1,28 @@
 import type { AIProvider } from '../../types/index.js';
 import { debug } from '../debug.js';
-import { AnthropicProvider } from './anthropic.js';
-import { OpenAIProvider } from './openai.js';
-import { OpenRouterProvider } from './openrouter.js';
 import type { Provider } from './types.js';
 
 export type { Provider } from './types.js';
 
-export function createProvider(provider: AIProvider, apiKey: string, model: string): Provider {
+export async function createProvider(
+  provider: AIProvider,
+  apiKey: string,
+  model: string,
+): Promise<Provider> {
   debug(`Creating provider: ${provider}/${model}`);
 
   switch (provider) {
-    case 'anthropic':
+    case 'anthropic': {
+      const { AnthropicProvider } = await import('./anthropic.js');
       return new AnthropicProvider(apiKey, model);
-    case 'openai':
+    }
+    case 'openai': {
+      const { OpenAIProvider } = await import('./openai.js');
       return new OpenAIProvider(apiKey, model);
-    case 'openrouter':
+    }
+    case 'openrouter': {
+      const { OpenRouterProvider } = await import('./openrouter.js');
       return new OpenRouterProvider(apiKey, model);
+    }
   }
 }

@@ -2,7 +2,7 @@
  * Command execution hook with live output streaming
  */
 
-import { execa, type ResultPromise } from 'execa';
+import type { ResultPromise } from 'execa';
 import { useCallback, useRef, useState } from 'react';
 
 import { DEFAULT_CONFIG } from '../constants.js';
@@ -56,6 +56,7 @@ export function useExec({
       const { cmd, args } = getShellCommand(shell, command);
 
       try {
+        const { execa } = await import('execa');
         const child = execa(cmd, args, {
           reject: false,
           all: true,

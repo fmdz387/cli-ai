@@ -123,7 +123,14 @@ function migrateToMultiProvider(store: Conf<StoreSchema>): void {
   }
 }
 
-const store = createStore();
+let _store: Conf<StoreSchema> | null = null;
+
+function getStore(): Conf<StoreSchema> {
+  if (_store === null) {
+    _store = createStore();
+  }
+  return _store;
+}
 
 let keyringModule: typeof import('@napi-rs/keyring') | null = null;
 let keyringModuleLoaded = false;
@@ -197,7 +204,7 @@ export function getApiKey(provider: AIProvider): string | null {
     }
   }
 
-  const apiKeys = store.get('apiKeys');
+  const apiKeys = getStore().get('apiKeys');
   return apiKeys?.[provider] ?? null;
 }
 
@@ -207,12 +214,12 @@ export function saveApiKey(provider: AIProvider, apiKey: string): Result<void> {
     if (entry) {
       try {
         entry.setPassword(apiKey);
-        const apiKeys = store.get('apiKeys') ?? {};
+        const apiKeys = getStore().get('apiKeys') ?? {};
         delete apiKeys[provider];
         if (Object.keys(apiKeys).length > 0) {
-          store.set('apiKeys', apiKeys);
+          getStore().set('apiKeys', apiKeys);
         } else {
-          store.delete('apiKeys');
+          getStore().delete('apiKeys');
         }
         return { success: true, data: undefined };
       } catch {
@@ -220,9 +227,9 @@ export function saveApiKey(provider: AIProvider, apiKey: string): Result<void> {
       }
     }
 
-    const apiKeys = store.get('apiKeys') ?? {};
+    const apiKeys = getStore().get('apiKeys') ?? {};
     apiKeys[provider] = apiKey;
-    store.set('apiKeys', apiKeys);
+    getStore().set('apiKeys', apiKeys);
     return { success: true, data: undefined };
   } catch (error) {
     return {
@@ -243,13 +250,13 @@ export function deleteApiKey(provider: AIProvider): Result<void> {
       }
     }
 
-    const apiKeys = store.get('apiKeys');
+    const apiKeys = getStore().get('apiKeys');
     if (apiKeys?.[provider]) {
       delete apiKeys[provider];
       if (Object.keys(apiKeys).length > 0) {
-        store.set('apiKeys', apiKeys);
+        getStore().set('apiKeys', apiKeys);
       } else {
-        store.delete('apiKeys');
+        getStore().delete('apiKeys');
       }
     }
 
@@ -268,17 +275,17 @@ export function hasApiKey(provider: AIProvider): boolean {
 }
 
 export function getConfig(): AppConfig {
-  const storedConfig = store.get('config') ?? {};
+  const storedConfig = getStore().get('config') ?? {};
   return { ...DEFAULT_CONFIG, ...storedConfig };
 }
 
 export function setConfig(config: Partial<AppConfig>): void {
-  const current = store.get('config') ?? {};
-  store.set('config', { ...current, ...config });
+  const current = getStore().get('config') ?? {};
+  getStore().set('config', { ...current, ...config });
 }
 
 export function resetConfig(): void {
-  store.delete('config');
+  getStore().delete('config');
 }
 
 export function validateApiKeyFormat(provider: AIProvider, apiKey: string): boolean {
@@ -319,7 +326,7 @@ export function getStorageInfo(provider: AIProvider): {
     }
   }
 
-  const apiKeys = store.get('apiKeys');
+  const apiKeys = getStore().get('apiKeys');
   if (apiKeys?.[provider]) {
     return {
       method: 'encrypted-file',
