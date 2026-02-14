@@ -3,17 +3,28 @@
  */
 
 import { Box, Text } from 'ink';
-import { Spinner as InkSpinner } from '@inkjs/ui';
-import type { ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
+
+const SPINNER_FRAMES = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
 
 interface SpinnerProps {
   label?: string;
 }
 
 export function Spinner({ label = 'Loading...' }: SpinnerProps): ReactNode {
+  const [frame, setFrame] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setFrame((prev) => (prev + 1) % SPINNER_FRAMES.length);
+    }, 80);
+    return () => clearInterval(timer);
+  }, []);
+
   return (
     <Box>
-      <InkSpinner label={label} />
+      <Text color="green">{SPINNER_FRAMES[frame]}</Text>
+      <Text> {label}</Text>
     </Box>
   );
 }
@@ -26,9 +37,7 @@ interface ThinkingSpinnerProps {
 export function ThinkingSpinner({ query, label = "Thinking..." }: ThinkingSpinnerProps): ReactNode {
   return (
     <Box flexDirection="column" marginY={1}>
-      <Box>
-        <InkSpinner label={label} />
-      </Box>
+      <Spinner label={label} />
       {query && (
         <Box marginTop={1}>
           <Text dimColor>Query: {query}</Text>

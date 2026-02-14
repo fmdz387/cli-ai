@@ -6,9 +6,13 @@ import { validateApiKeyFormat } from '../lib/secure-storage.js';
 import type { AIProvider } from '../types/index.js';
 
 import { Box, Text, useInput } from 'ink';
-import { useState, type ReactNode } from 'react';
+import { useCallback, useReducer, useState, type ReactNode } from 'react';
 
-import { TextInput } from '@inkjs/ui';
+import {
+  ControlledTextInput,
+  textInputReducer,
+  createTextInputState,
+} from './ControlledTextInput.js';
 
 interface ApiKeySetupProps {
   /** Called when API key is successfully entered */
@@ -38,20 +42,44 @@ export function ApiKeySetup({
     initialProvider ?? 'anthropic',
   );
   const [providerIndex, setProviderIndex] = useState(0);
-  const [apiKey, setApiKey] = useState('');
   const [localError, setLocalError] = useState<string | null>(null);
 
+  // Text input state for API key entry (replaces @inkjs/ui TextInput)
+  const [textState, dispatchText] = useReducer(textInputReducer, createTextInputState());
+
+  const handleSubmit = useCallback(() => {
+    const trimmedKey = textState.value.trim();
+
+    if (!trimmedKey) {
+      setLocalError('API key cannot be empty');
+      return;
+    }
+
+    if (!validateApiKeyFormat(selectedProvider, trimmedKey)) {
+      const config = PROVIDER_CONFIG[selectedProvider];
+      setLocalError(`Invalid key format. ${config.name} API keys start with "${config.keyPrefix}"`);
+      return;
+    }
+
+    setLocalError(null);
+    setStep('saving');
+    onComplete(trimmedKey, selectedProvider);
+  }, [textState.value, selectedProvider, onComplete]);
+
+  // NOTE: This component uses local useInput hooks. This is SAFE because:
+  // - ApiKeySetup is only mounted when store.state.status === 'setup'
+  // - During setup, useInputController.mode === 'disabled' (no active listeners)
+  // - Therefore, no stdin race condition exists
+  // - When setup completes, this component unmounts and the controller takes over
   useInput(
     (input, key) => {
+      // Welcome step
       if (step === 'welcome' && (key.return || input === ' ')) {
         setStep('provider');
+        return;
       }
-    },
-    { isActive: step === 'welcome' },
-  );
 
-  useInput(
-    (input, key) => {
+      // Provider selection step
       if (step === 'provider') {
         if (key.upArrow) {
           setProviderIndex((prev) => (prev - 1 + AI_PROVIDERS.length) % AI_PROVIDERS.length);
@@ -69,7 +97,6 @@ export function ApiKeySetup({
           }
           return;
         }
-        // Number keys for quick select
         const num = parseInt(input, 10);
         if (num >= 1 && num <= AI_PROVIDERS.length) {
           const provider = AI_PROVIDERS[num - 1];
@@ -78,29 +105,35 @@ export function ApiKeySetup({
             setStep('input');
           }
         }
+        return;
+      }
+
+      // API key input step
+      if (step === 'input') {
+        if (key.return) {
+          handleSubmit();
+          return;
+        }
+        if (key.backspace || key.delete) {
+          dispatchText({ type: 'delete' });
+          return;
+        }
+        if (key.leftArrow) {
+          dispatchText({ type: 'move-left' });
+          return;
+        }
+        if (key.rightArrow) {
+          dispatchText({ type: 'move-right' });
+          return;
+        }
+        // Regular character input
+        if (input && !key.ctrl && !key.meta) {
+          dispatchText({ type: 'insert', text: input });
+        }
       }
     },
-    { isActive: step === 'provider' },
+    { isActive: step === 'welcome' || step === 'provider' || step === 'input' },
   );
-
-  const handleSubmit = (value: string) => {
-    const trimmedKey = value.trim();
-
-    if (!trimmedKey) {
-      setLocalError('API key cannot be empty');
-      return;
-    }
-
-    if (!validateApiKeyFormat(selectedProvider, trimmedKey)) {
-      const config = PROVIDER_CONFIG[selectedProvider];
-      setLocalError(`Invalid key format. ${config.name} API keys start with "${config.keyPrefix}"`);
-      return;
-    }
-
-    setLocalError(null);
-    setStep('saving');
-    onComplete(trimmedKey, selectedProvider);
-  };
 
   if (step === 'welcome') {
     return (
@@ -181,10 +214,10 @@ export function ApiKeySetup({
 
         <Box>
           <Text dimColor>{'> '}</Text>
-          <TextInput
+          <ControlledTextInput
+            value={textState.value}
+            cursorOffset={textState.cursorOffset}
             placeholder={`${providerConfig.keyPrefix}...`}
-            onChange={setApiKey}
-            onSubmit={handleSubmit}
           />
         </Box>
 
