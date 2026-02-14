@@ -26,6 +26,13 @@ export default defineConfig({
     options.legalComments = 'none';
     options.treeShaking = true;
 
+    // Inject require() for CJS dependencies bundled into ESM output.
+    // Some bundled deps use require('assert'), require('util'), etc.
+    // ESM doesn't have require — createRequire provides it.
+    options.banner = {
+      js: "import { createRequire } from 'node:module'; const require = createRequire(import.meta.url);",
+    };
+
     // Inline NODE_ENV at build time for dead code elimination
     // This allows esbuild to tree-shake React dev-only code paths
     options.define = {
