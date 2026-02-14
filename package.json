@@ -35,7 +35,7 @@
     "audit:fix": "pnpm audit --fix",
     "security": "pnpm audit && pnpm lint:security",
     "prepare": "tsup",
-    "prepublishOnly": "pnpm typecheck && pnpm audit && pnpm build",
+    "prepublishOnly": "pnpm typecheck && pnpm audit --audit-level=high && pnpm build",
     "link:global": "pnpm build && pnpm link --global",
     "unlink:global": "pnpm unlink --global",
     "uninstall": "node scripts/uninstall.js",
