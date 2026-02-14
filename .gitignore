@@ -5,3 +5,4 @@ CLAUDE.md
 .env.local
 debug.log
 *-cwd
+plans/
