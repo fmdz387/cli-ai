@@ -59,7 +59,7 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm lint
       - run: pnpm test
-      - run: pnpm audit --audit-level=moderate
+      - run: pnpm audit --audit-level=high
       - run: pnpm build
 
   publish:
