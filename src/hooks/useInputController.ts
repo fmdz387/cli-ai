@@ -25,6 +25,7 @@ export interface TextCallbacks {
   onNavigateInlinePalette?: (direction: 'up' | 'down') => void;
   onCloseInlinePalette?: () => void;
   hasInlinePalette?: boolean;
+  onExit?: (code?: number) => void;
 }
 
 export interface AgenticCallbacks {
@@ -172,7 +173,7 @@ export function useInputController({
 
         if (key.ctrl && !key.meta && input === 'd') {
           if (textState.value.trim() === '') {
-            process.exit(130);
+            textCallbacks.onExit?.(130);
           }
           return;
         }
@@ -180,7 +181,8 @@ export function useInputController({
         if (key.return) {
           const trimmed = textState.value.trim();
           if (trimmed.toLowerCase() === 'exit' || trimmed.toLowerCase() === 'quit') {
-            process.exit(0);
+            textCallbacks.onExit?.(0);
+            return;
           }
           if (trimmed) {
             textCallbacks.onSubmit(trimmed);
