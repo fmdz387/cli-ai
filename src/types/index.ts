@@ -43,6 +43,24 @@ export interface ExecutionResult {
 }
 
 /**
+ * Tool call info for agentic mode display
+ */
+export interface AgentToolCallInfo {
+  id: string;
+  name: string;
+  input: Record<string, unknown>;
+}
+
+/**
+ * Agent phase - discriminated union for agentic state tracking
+ */
+export type AgentPhase =
+  | { step: 'running'; toolCall?: AgentToolCallInfo }
+  | { step: 'awaiting_permission'; toolCall: AgentToolCallInfo }
+  | { step: 'complete'; summary: string }
+  | { step: 'error'; message: string };
+
+/**
  * Session states - discriminated union for state machine
  */
 export type SessionState =
@@ -55,7 +73,8 @@ export type SessionState =
   | { status: 'output'; result: ExecutionResult }
   | { status: 'palette'; query: string; filteredCommands: SlashCommand[] }
   | { status: 'config'; section: ConfigSection }
-  | { status: 'help' };
+  | { status: 'help' }
+  | { status: 'agentic'; phase: AgentPhase };
 
 /**
  * Session context passed to AI for command generation
@@ -115,7 +134,12 @@ export type SessionAction =
   | { type: 'CLOSE_CONFIG' }
   | { type: 'OPEN_HELP' }
   | { type: 'CLOSE_HELP' }
-  | { type: 'CLEAR_HISTORY' };
+  | { type: 'CLEAR_HISTORY' }
+  | { type: 'AGENT_START'; query: string }
+  | { type: 'AGENT_UPDATE_PHASE'; phase: AgentPhase }
+  | { type: 'AGENT_COMPLETE'; summary: string }
+  | { type: 'AGENT_ERROR'; message: string }
+  | { type: 'AGENT_ABORT' };
 
 /**
  * Application configuration

@@ -4,6 +4,7 @@
 import type { ConfigSection, SlashCommand } from '../commands/types.js';
 import { DEFAULT_CONFIG } from '../constants.js';
 import type {
+  AgentPhase,
   CommandProposal,
   ExecutionResult,
   HistoryEntry,
@@ -215,6 +216,44 @@ function sessionReducer(store: SessionStore, action: SessionAction): SessionStor
         error: null,
       };
 
+    case 'AGENT_START':
+      return {
+        ...store,
+        state: {
+          status: 'agentic',
+          phase: { step: 'running' },
+        },
+        currentQuery: action.query,
+        error: null,
+      };
+
+    case 'AGENT_UPDATE_PHASE':
+      return {
+        ...store,
+        state: { status: 'agentic', phase: action.phase },
+      };
+
+    case 'AGENT_COMPLETE':
+      return {
+        ...store,
+        state: { status: 'input' },
+        error: null,
+      };
+
+    case 'AGENT_ERROR':
+      return {
+        ...store,
+        state: { status: 'input' },
+        error: action.message,
+      };
+
+    case 'AGENT_ABORT':
+      return {
+        ...store,
+        state: { status: 'input' },
+        error: null,
+      };
+
     default:
       return store;
   }
@@ -250,6 +289,12 @@ export interface UseSessionReturn {
   closeHelp: () => void;
   // History methods
   clearHistory: () => void;
+  // Agent methods
+  startAgent: (query: string) => void;
+  updateAgentPhase: (phase: AgentPhase) => void;
+  completeAgent: (summary: string) => void;
+  agentError: (message: string) => void;
+  abortAgent: () => void;
 }
 
 /**
@@ -346,6 +391,26 @@ export function useSession(): UseSessionReturn {
     dispatch({ type: 'CLEAR_HISTORY' });
   }, []);
 
+  const startAgent = useCallback((query: string) => {
+    dispatch({ type: 'AGENT_START', query });
+  }, []);
+
+  const updateAgentPhase = useCallback((phase: AgentPhase) => {
+    dispatch({ type: 'AGENT_UPDATE_PHASE', phase });
+  }, []);
+
+  const completeAgent = useCallback((summary: string) => {
+    dispatch({ type: 'AGENT_COMPLETE', summary });
+  }, []);
+
+  const agentError = useCallback((message: string) => {
+    dispatch({ type: 'AGENT_ERROR', message });
+  }, []);
+
+  const abortAgent = useCallback(() => {
+    dispatch({ type: 'AGENT_ABORT' });
+  }, []);
+
   return {
     store,
     dispatch,
@@ -371,5 +436,10 @@ export function useSession(): UseSessionReturn {
     openHelp,
     closeHelp,
     clearHistory,
+    startAgent,
+    updateAgentPhase,
+    completeAgent,
+    agentError,
+    abortAgent,
   };
 }
