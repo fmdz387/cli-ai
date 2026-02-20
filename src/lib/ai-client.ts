@@ -5,6 +5,7 @@ import type {
   SessionContext,
   ShellType,
 } from '../types/index.js';
+import { createHash } from 'node:crypto';
 import { generateDirectoryTree } from './directory-tree.js';
 import { createProvider, type Provider } from './providers/index.js';
 import { getApiKey, getConfig } from './secure-storage.js';
@@ -16,7 +17,8 @@ async function getProvider(): Promise<Provider | null> {
   const apiKey = getApiKey(config.provider);
   if (!apiKey) return null;
 
-  const cacheKey = `${config.provider}:${config.model}:${apiKey.slice(-4)}`;
+  const keyHash = createHash('sha256').update(apiKey).digest('hex').slice(0, 8);
+  const cacheKey = `${config.provider}:${config.model}:${keyHash}`;
   if (cachedProvider?.key === cacheKey) {
     return cachedProvider.instance;
   }
@@ -62,16 +64,16 @@ export async function explainCommand(command: string): Promise<Result<string>> {
   return provider.explainCommand(command);
 }
 
-export function createSessionContext(
+export async function createSessionContext(
   shell: ShellType,
   history: HistoryEntry[] = [],
-): SessionContext {
+): Promise<SessionContext> {
   const cwd = process.cwd();
   return {
     shell,
     cwd,
     platform: process.platform,
-    directoryTree: generateDirectoryTree(cwd),
+    directoryTree: await generateDirectoryTree(cwd),
     history,
   };
 }

@@ -75,7 +75,9 @@ export type OverlayState =
 export interface ChatStore {
   messages: ChatMessage[];
   apiMessages: AgentMessage[];
+  streamingText: string;
   isAgentRunning: boolean;
+  isCompacting: boolean;
   pendingPermission: PendingPermission | null;
   cumulativeUsage: CumulativeUsage;
   overlay: OverlayState;
@@ -93,8 +95,12 @@ export type ChatAction =
   | { type: 'AGENT_DONE'; text: string; toolCalls?: AgentToolCall[] }
   | { type: 'AGENT_ERROR'; error: string }
   | { type: 'AGENT_ABORT' }
+  | { type: 'FLUSH_STREAMING' }
   | { type: 'SET_PENDING_PERMISSION'; permission: PendingPermission | null }
   | { type: 'CLEAR_CONVERSATION' }
+  | { type: 'COMPACT_START' }
+  | { type: 'COMPACT_DONE'; summary: string; compactedApiMessages: AgentMessage[] }
+  | { type: 'COMPACT_ERROR'; error: string }
   | { type: 'SETUP_COMPLETE' }
   | { type: 'OPEN_PALETTE' }
   | { type: 'UPDATE_PALETTE'; query: string; filteredCommands: SlashCommand[] }

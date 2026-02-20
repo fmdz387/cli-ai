@@ -14,12 +14,15 @@ import type {
 import type { ConfigSection } from '../commands/types.js';
 
 import { useCallback, useReducer } from 'react';
+import { MAX_API_MESSAGES, MAX_UI_MESSAGES } from '../constants.js';
 
 function createInitialStore(): ChatStore {
   return {
     messages: [],
     apiMessages: [],
+    streamingText: '',
     isAgentRunning: false,
+    isCompacting: false,
     pendingPermission: null,
     cumulativeUsage: { totalInputTokens: 0, totalOutputTokens: 0, turns: 0 },
     overlay: { type: 'none' },
@@ -55,6 +58,30 @@ function toolResultToString(result: { kind: string; output?: string; error?: str
   return '';
 }
 
+/**
+ * Trim API messages to keep last maxCount entries.
+ * Preserves the system message at index 0 if present.
+ * Trims at a clean exchange boundary (start of a user message).
+ */
+function trimApiMessages(messages: AgentMessage[], maxCount: number): AgentMessage[] {
+  if (messages.length <= maxCount) return messages;
+
+  const hasSystem = messages.length > 0 && messages[0]!.role === 'system';
+  const systemMsg = hasSystem ? messages[0]! : null;
+  const rest = hasSystem ? messages.slice(1) : messages;
+
+  const budget = systemMsg ? maxCount - 1 : maxCount;
+  let startIndex = rest.length - budget;
+
+  // Walk forward to find the start of a user message (clean exchange boundary)
+  while (startIndex < rest.length && rest[startIndex]!.role !== 'user') {
+    startIndex++;
+  }
+
+  const trimmed = rest.slice(startIndex);
+  return systemMsg ? [systemMsg, ...trimmed] : trimmed;
+}
+
 function chatReducer(state: ChatStore, action: ChatAction): ChatStore {
   switch (action.type) {
     case 'USER_MESSAGE': {
@@ -70,9 +97,13 @@ function chatReducer(state: ChatStore, action: ChatAction): ChatStore {
         isStreaming: true,
         timestamp: Date.now(),
       };
+      const allMessages = [...state.messages, userMsg, assistantMsg];
+      const trimmedMessages = allMessages.length > MAX_UI_MESSAGES
+        ? allMessages.slice(-MAX_UI_MESSAGES)
+        : allMessages;
       return {
         ...state,
-        messages: [...state.messages, userMsg, assistantMsg],
+        messages: trimmedMessages,
         isAgentRunning: true,
         pendingPermission: null,
       };
@@ -81,10 +112,7 @@ function chatReducer(state: ChatStore, action: ChatAction): ChatStore {
     case 'AGENT_TEXT_DELTA': {
       return {
         ...state,
-        messages: updateLastAssistant(state.messages, (msg) => ({
-          ...msg,
-          text: msg.text + action.text,
-        })),
+        streamingText: state.streamingText + action.text,
       };
     }
 
@@ -107,6 +135,10 @@ function chatReducer(state: ChatStore, action: ChatAction): ChatStore {
     }
 
     case 'AGENT_TOOL_RESULT': {
+      const fullResult = toolResultToString(action.result);
+      const truncatedResult = fullResult.length > 200
+        ? fullResult.slice(0, 200) + '...'
+        : fullResult;
       return {
         ...state,
         messages: updateLastAssistant(state.messages, (msg) => ({
@@ -120,7 +152,7 @@ function chatReducer(state: ChatStore, action: ChatAction): ChatStore {
                     : action.result.kind === 'denied'
                       ? 'denied' as const
                       : 'error' as const,
-                  result: toolResultToString(action.result),
+                  result: truncatedResult,
                 }
               : tc,
           ),
@@ -131,7 +163,8 @@ function chatReducer(state: ChatStore, action: ChatAction): ChatStore {
     case 'AGENT_DONE': {
       // Build the assistant API message from the completed turn
       const lastAssistant = getLastAssistant(state.messages);
-      const finalText = lastAssistant?.text ?? action.text;
+      const mergedText = (lastAssistant?.text ?? '') + state.streamingText;
+      const finalText = mergedText || action.text;
 
       const newApiMessages: AgentMessage[] = [...state.apiMessages];
 
@@ -175,35 +208,52 @@ function chatReducer(state: ChatStore, action: ChatAction): ChatStore {
           isStreaming: false,
           text: finalText,
         })),
-        apiMessages: newApiMessages,
+        apiMessages: trimApiMessages(newApiMessages, MAX_API_MESSAGES),
+        streamingText: '',
         isAgentRunning: false,
         pendingPermission: null,
       };
     }
 
     case 'AGENT_ERROR': {
+      const errorText = (getLastAssistant(state.messages)?.text ?? '') + state.streamingText;
       return {
         ...state,
         messages: updateLastAssistant(state.messages, (msg) => ({
           ...msg,
           isStreaming: false,
-          text: msg.text || `Error: ${action.error}`,
+          text: errorText || `Error: ${action.error}`,
         })),
+        streamingText: '',
         isAgentRunning: false,
         pendingPermission: null,
       };
     }
 
     case 'AGENT_ABORT': {
+      const abortText = (getLastAssistant(state.messages)?.text ?? '') + state.streamingText;
       return {
         ...state,
         messages: updateLastAssistant(state.messages, (msg) => ({
           ...msg,
           isStreaming: false,
-          text: msg.text || '(aborted)',
+          text: abortText || '(aborted)',
         })),
+        streamingText: '',
         isAgentRunning: false,
         pendingPermission: null,
+      };
+    }
+
+    case 'FLUSH_STREAMING': {
+      if (!state.streamingText) return state;
+      return {
+        ...state,
+        messages: updateLastAssistant(state.messages, (msg) => ({
+          ...msg,
+          text: msg.text + state.streamingText,
+        })),
+        streamingText: '',
       };
     }
 
@@ -220,6 +270,52 @@ function chatReducer(state: ChatStore, action: ChatAction): ChatStore {
         messages: [],
         apiMessages: [],
         cumulativeUsage: { totalInputTokens: 0, totalOutputTokens: 0, turns: 0 },
+      };
+    }
+
+    case 'COMPACT_START': {
+      const compactingMsg: ChatMessage = {
+        role: 'system',
+        text: 'Compacting conversation...',
+        timestamp: Date.now(),
+      };
+      return {
+        ...state,
+        isCompacting: true,
+        messages: [...state.messages, compactingMsg],
+      };
+    }
+
+    case 'COMPACT_DONE': {
+      // Replace display messages with a single system summary message
+      const summaryMsg: ChatMessage = {
+        role: 'system',
+        text: `[Conversation compacted]\n\n${action.summary}`,
+        timestamp: Date.now(),
+      };
+      return {
+        ...state,
+        isCompacting: false,
+        messages: [summaryMsg],
+        apiMessages: action.compactedApiMessages,
+      };
+    }
+
+    case 'COMPACT_ERROR': {
+      // Remove the "Compacting..." message and show error
+      const errorMsg: ChatMessage = {
+        role: 'system',
+        text: `Compaction failed: ${action.error}`,
+        timestamp: Date.now(),
+      };
+      // Remove the "Compacting conversation..." system message if it's the last one
+      const cleaned = state.messages.filter(
+        (m) => !(m.role === 'system' && m.text === 'Compacting conversation...'),
+      );
+      return {
+        ...state,
+        isCompacting: false,
+        messages: [...cleaned, errorMsg],
       };
     }
 
@@ -278,6 +374,7 @@ export interface UseChatSessionReturn {
   // Convenience methods
   sendMessage: (text: string) => void;
   clearConversation: () => void;
+  startCompact: () => void;
   completeSetup: () => void;
   openPalette: () => void;
   updatePalette: (query: string, filteredCommands: SlashCommand[]) => void;
@@ -298,6 +395,10 @@ export function useChatSession(): UseChatSessionReturn {
 
   const clearConversation = useCallback(() => {
     dispatch({ type: 'CLEAR_CONVERSATION' });
+  }, []);
+
+  const startCompact = useCallback(() => {
+    dispatch({ type: 'COMPACT_START' });
   }, []);
 
   const completeSetup = useCallback(() => {
@@ -341,6 +442,7 @@ export function useChatSession(): UseChatSessionReturn {
     dispatch,
     sendMessage,
     clearConversation,
+    startCompact,
     completeSetup,
     openPalette,
     updatePalette,

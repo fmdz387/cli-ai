@@ -2,7 +2,7 @@
  * Smart-filtered directory tree builder for AI context
  */
 
-import { readdirSync, statSync } from 'node:fs';
+import { readdir, stat } from 'node:fs/promises';
 import { join, relative } from 'node:path';
 
 /**
@@ -63,13 +63,13 @@ interface TreeEntry {
   children?: TreeEntry[];
 }
 
-function buildTree(dirPath: string, depth: number = 0): TreeEntry[] {
+async function buildTree(dirPath: string, depth: number = 0): Promise<TreeEntry[]> {
   if (depth >= MAX_DEPTH) {
     return [];
   }
 
   try {
-    const entries = readdirSync(dirPath);
+    const entries = await readdir(dirPath);
     const result: TreeEntry[] = [];
     let count = 0;
 
@@ -90,14 +90,14 @@ function buildTree(dirPath: string, depth: number = 0): TreeEntry[] {
       const fullPath = join(dirPath, entry);
 
       try {
-        const stats = statSync(fullPath);
+        const stats = await stat(fullPath);
 
         if (stats.isDirectory()) {
           if (IGNORED_DIRS.has(entry)) {
             continue;
           }
 
-          const children = buildTree(fullPath, depth + 1);
+          const children = await buildTree(fullPath, depth + 1);
           result.push({
             name: entry,
             isDirectory: true,
@@ -143,8 +143,8 @@ function formatTree(entries: TreeEntry[], prefix: string = ''): string {
   return lines.join('\n');
 }
 
-export function generateDirectoryTree(rootDir: string): string {
-  const tree = buildTree(rootDir);
+export async function generateDirectoryTree(rootDir: string): Promise<string> {
+  const tree = await buildTree(rootDir);
 
   if (tree.length === 0) {
     return '(empty or inaccessible directory)';
@@ -154,26 +154,26 @@ export function generateDirectoryTree(rootDir: string): string {
   return `${dirName}/\n${formatTree(tree)}`;
 }
 
-export function getDirectorySummary(rootDir: string): string {
+export async function getDirectorySummary(rootDir: string): Promise<string> {
   try {
-    const entries = readdirSync(rootDir);
-    const dirs = entries.filter((e) => {
-      if (IGNORED_DIRS.has(e) || e.startsWith('.')) return false;
-      try {
-        return statSync(join(rootDir, e)).isDirectory();
-      } catch {
-        return false;
-      }
-    });
+    const entries = await readdir(rootDir);
+    const results = await Promise.all(
+      entries.map(async (e) => {
+        try {
+          const s = await stat(join(rootDir, e));
+          return { name: e, isDir: s.isDirectory(), isFile: s.isFile() };
+        } catch {
+          return { name: e, isDir: false, isFile: false };
+        }
+      }),
+    );
 
-    const files = entries.filter((e) => {
-      if (IGNORED_FILES.has(e) || e.startsWith('.')) return false;
-      try {
-        return statSync(join(rootDir, e)).isFile();
-      } catch {
-        return false;
-      }
-    });
+    const dirs = results.filter(
+      (r) => r.isDir && !IGNORED_DIRS.has(r.name) && !r.name.startsWith('.'),
+    );
+    const files = results.filter(
+      (r) => r.isFile && !IGNORED_FILES.has(r.name) && !r.name.startsWith('.'),
+    );
 
     return `Directory contains ${dirs.length} folders and ${files.length} files`;
   } catch {

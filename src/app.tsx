@@ -5,16 +5,18 @@
 import { commandRegistry } from './commands/index.js';
 import { PROVIDER_MODELS, type ConfigSection } from './commands/types.js';
 import type { SlashCommand } from './commands/types.js';
+import { buildCompactedMessages, compactConversation } from './agent/compact.js';
 import { createExecutorDeps } from './agent/create-executor.js';
-import { AgentExecutor } from './agent/executor.js';
+import { AgentExecutor, type ExecutorDependencies } from './agent/executor.js';
 import type { AgentConfig, ExecutorResult, ExecutorRunOptions } from './agent/types.js';
 import { ApiKeySetup } from './components/ApiKeySetup.js';
 import { ChatView } from './components/Chat/index.js';
 import { CommandPaletteDisplay } from './components/CommandPalette/index.js';
 import { ConfigPanelDisplay, type StorageInfo } from './components/ConfigPanel/index.js';
+import { FooterBar } from './components/FooterBar.js';
 import { HelpPanelDisplay } from './components/HelpPanel/index.js';
 import { InputPromptDisplay } from './components/InputPromptDisplay.js';
-import { WelcomeHeader } from './components/WelcomeHeader.js';
+import { StatusBar } from './components/StatusBar.js';
 import { AI_PROVIDERS, MAX_AGENT_STEPS, PROVIDER_CONFIG } from './constants.js';
 import { useChatAgent } from './hooks/useChatAgent.js';
 import { useChatSession } from './hooks/useChatSession.js';
@@ -29,10 +31,12 @@ import {
   saveApiKey,
   setConfig,
 } from './lib/secure-storage.js';
+import { ThemeProvider } from './theme/index.js';
 import type { AIProvider, AppConfig } from './types/index.js';
 
 import { Box, Text, useApp } from 'ink';
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { createHash } from 'node:crypto';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
 export function App(): ReactNode {
   const { exit } = useApp();
@@ -49,6 +53,7 @@ export function App(): ReactNode {
     dispatch: chatDispatch,
     sendMessage,
     clearConversation,
+    startCompact,
     completeSetup,
     openPalette,
     updatePalette,
@@ -101,13 +106,23 @@ export function App(): ReactNode {
     [currentProvider, selectedModel, displayToggles.contextEnabled],
   );
 
+  const cachedDepsRef = useRef<{ key: string; deps: ExecutorDependencies } | null>(null);
+
   const runExecutor = useCallback(
     async (options: ExecutorRunOptions): Promise<ExecutorResult> => {
       const apiKey = getApiKey(options.config.provider);
       if (!apiKey) {
         throw new Error(`No API key configured for ${options.config.provider}`);
       }
-      const deps = createExecutorDeps(options.config.provider, options.config.model, apiKey);
+      const keyHash = createHash('sha256').update(apiKey).digest('hex').slice(0, 8);
+      const cacheKey = `${options.config.provider}:${options.config.model}:${keyHash}`;
+      let deps: ExecutorDependencies;
+      if (cachedDepsRef.current?.key === cacheKey) {
+        deps = cachedDepsRef.current.deps;
+      } else {
+        deps = createExecutorDeps(options.config.provider, options.config.model, apiKey);
+        cachedDepsRef.current = { key: cacheKey, deps };
+      }
       const executor = new AgentExecutor(deps);
       return executor.execute(options);
     },
@@ -132,6 +147,35 @@ export function App(): ReactNode {
     [currentProvider, selectedModel, shell],
   );
 
+  const handleCompact = useCallback(() => {
+    if (chatStore.apiMessages.length < 3) return;
+    if (chatStore.isCompacting || chatStore.isAgentRunning) return;
+
+    startCompact();
+
+    const apiKey = getApiKey(currentProvider);
+    if (!apiKey) {
+      chatDispatch({ type: 'COMPACT_ERROR', error: `No API key for ${currentProvider}` });
+      return;
+    }
+
+    const deps = createExecutorDeps(currentProvider, selectedModel, apiKey);
+
+    compactConversation(chatStore.apiMessages, deps.provider)
+      .then((result) => {
+        if (!result.summary) {
+          chatDispatch({ type: 'COMPACT_ERROR', error: 'Conversation too short to compact' });
+          return;
+        }
+        const compactedApiMessages = buildCompactedMessages(chatStore.apiMessages, result.summary);
+        chatDispatch({ type: 'COMPACT_DONE', summary: result.summary, compactedApiMessages });
+      })
+      .catch((err: unknown) => {
+        const message = err instanceof Error ? err.message : String(err);
+        chatDispatch({ type: 'COMPACT_ERROR', error: message });
+      });
+  }, [chatStore.apiMessages, chatStore.isCompacting, chatStore.isAgentRunning, currentProvider, selectedModel, startCompact, chatDispatch]);
+
   const chatAgent = useChatAgent({
     runExecutor,
     buildConfig: buildAgentConfig,
@@ -147,6 +191,7 @@ export function App(): ReactNode {
     onOpenConfig: openConfig,
     onOpenHelp: openHelp,
     onClearHistory: clearConversation,
+    onCompact: handleCompact,
     onExit: () => exit(),
   });
 
@@ -435,6 +480,7 @@ export function App(): ReactNode {
     textCallbacks: {
       onSubmit: handleTextSubmit,
       onTextChange: handleTextChange,
+      onExit: () => exit(),
       onNavigateInlinePalette: (direction) => {
         setInlinePaletteIndex((prev) => {
           const count = inlinePaletteCommands.length;
@@ -498,107 +544,118 @@ export function App(): ReactNode {
 
   if (configLoading) {
     return (
-      <Box flexDirection='column' paddingY={1}>
-        <Text dimColor>Loading configuration...</Text>
-      </Box>
+      <ThemeProvider>
+        <Box flexDirection='column' paddingY={1}>
+          <Text dimColor>Loading configuration...</Text>
+        </Box>
+      </ThemeProvider>
     );
   }
 
   if (isEditingApiKey || (!hasKey && !chatStore.isSetup)) {
     return (
-      <ApiKeySetup
-        onComplete={handleApiKeyComplete}
-        error={configError}
-        provider={editingApiKeyProvider ?? undefined}
-      />
+      <ThemeProvider>
+        <ApiKeySetup
+          onComplete={handleApiKeyComplete}
+          error={configError}
+          provider={editingApiKeyProvider ?? undefined}
+        />
+      </ThemeProvider>
     );
   }
 
   return (
-    <Box flexDirection='column'>
-      {/* Welcome header - always shown */}
-      <WelcomeHeader
-        shell={shell}
-        cwd={process.cwd()}
-        provider={currentProvider}
-        model={selectedModel}
-      />
+    <ThemeProvider>
+      <Box flexDirection='column'>
+        {/* Compact status bar header */}
+        <StatusBar />
 
-      {/* Chat messages */}
-      <ChatView
-        messages={chatStore.messages}
-        pendingPermission={chatStore.pendingPermission}
-      />
+        {/* Chat messages */}
+        <ChatView
+          messages={chatStore.messages}
+          pendingPermission={chatStore.pendingPermission}
+          streamingText={chatStore.streamingText}
+        />
 
-      {/* Command Palette */}
-      <CommandPaletteDisplay
-        query={chatStore.overlay.type === 'palette' ? chatStore.overlay.query : ''}
-        filteredCommands={chatStore.overlay.type === 'palette' ? chatStore.overlay.filteredCommands : []}
-        selectedIndex={paletteFocusIndex}
-        visible={chatStore.overlay.type === 'palette'}
-      />
+        {/* Command Palette */}
+        <CommandPaletteDisplay
+          query={chatStore.overlay.type === 'palette' ? chatStore.overlay.query : ''}
+          filteredCommands={chatStore.overlay.type === 'palette' ? chatStore.overlay.filteredCommands : []}
+          selectedIndex={paletteFocusIndex}
+          visible={chatStore.overlay.type === 'palette'}
+        />
 
-      {/* Config Panel */}
-      <ConfigPanelDisplay
-        visible={chatStore.overlay.type === 'config'}
-        activeSection={chatStore.overlay.type === 'config' ? chatStore.overlay.section : 'provider'}
-        sectionItemIndex={configItemIndex}
-        config={appConfig}
-        hasApiKey={hasKey}
-        storageInfo={storageInfo}
-        maskedKey={maskedKey}
-        toggles={displayToggles}
-        isEditingCustomModel={isEditingCustomModel}
-        customModelState={customModelState}
-      />
+        {/* Config Panel */}
+        <ConfigPanelDisplay
+          visible={chatStore.overlay.type === 'config'}
+          activeSection={chatStore.overlay.type === 'config' ? chatStore.overlay.section : 'provider'}
+          sectionItemIndex={configItemIndex}
+          config={appConfig}
+          hasApiKey={hasKey}
+          storageInfo={storageInfo}
+          maskedKey={maskedKey}
+          toggles={displayToggles}
+          isEditingCustomModel={isEditingCustomModel}
+          customModelState={customModelState}
+        />
 
-      {/* Help Panel */}
-      <HelpPanelDisplay visible={chatStore.overlay.type === 'help'} />
+        {/* Help Panel */}
+        <HelpPanelDisplay visible={chatStore.overlay.type === 'help'} />
 
-      {/* Ctrl+C hint when agent is running */}
-      {chatStore.isAgentRunning && !chatStore.pendingPermission && (
-        <Box>
-          <Text dimColor>Ctrl+C to stop</Text>
-        </Box>
-      )}
-
-      {/* Input prompt - always visible at the bottom */}
-      <InputPromptDisplay
-        textState={textState}
-        placeholder='Type a message... (/ for commands)'
-        disabled={chatStore.isAgentRunning}
-        visible={chatStore.overlay.type === 'none'}
-      />
-
-      {/* Inline Command Palette - shows below input when typing "/" */}
-      {chatStore.overlay.type === 'none' && !chatStore.isAgentRunning && inlinePaletteCommands.length > 0 && (
-        <Box flexDirection='column' marginLeft={2} marginTop={0}>
-          <Box marginBottom={0}>
-            <Text dimColor>{'─'.repeat(50)}</Text>
+        {/* Ctrl+C hint when agent is running */}
+        {chatStore.isAgentRunning && !chatStore.pendingPermission && (
+          <Box>
+            <Text dimColor>Ctrl+C to stop</Text>
           </Box>
-          {inlinePaletteCommands.slice(0, 5).map((cmd, index) => (
-            <Box key={cmd.name}>
-              <Text
-                color={index === inlinePaletteIndex ? 'cyan' : 'gray'}
-                bold={index === inlinePaletteIndex}
-              >
-                {index === inlinePaletteIndex ? '> ' : '  '}
-              </Text>
-              <Text
-                color={index === inlinePaletteIndex ? 'cyan' : 'blue'}
-                bold={index === inlinePaletteIndex}
-              >
-                /{cmd.name}
-              </Text>
-              <Text> </Text>
-              <Text dimColor={index !== inlinePaletteIndex}>{cmd.description}</Text>
+        )}
+
+        {/* Input prompt - always visible at the bottom */}
+        <InputPromptDisplay
+          textState={textState}
+          placeholder='Type a message... (/ for commands)'
+          disabled={chatStore.isAgentRunning || chatStore.isCompacting}
+          visible={chatStore.overlay.type === 'none'}
+          provider={currentProvider}
+          model={selectedModel}
+        />
+
+        {/* Inline Command Palette - shows below input when typing "/" */}
+        {chatStore.overlay.type === 'none' && !chatStore.isAgentRunning && inlinePaletteCommands.length > 0 && (
+          <Box flexDirection='column' marginLeft={2} marginTop={0}>
+            <Box marginBottom={0}>
+              <Text dimColor>{'─'.repeat(50)}</Text>
             </Box>
-          ))}
-          <Box marginTop={0}>
-            <Text dimColor>[Enter] Select [Up/Down] Navigate [Esc] Cancel</Text>
+            {inlinePaletteCommands.slice(0, 5).map((cmd, index) => (
+              <Box key={cmd.name}>
+                <Text
+                  color={index === inlinePaletteIndex ? '#cba6f7' : '#6c7086'}
+                  bold={index === inlinePaletteIndex}
+                >
+                  {index === inlinePaletteIndex ? '> ' : '  '}
+                </Text>
+                <Text
+                  color={index === inlinePaletteIndex ? '#cba6f7' : '#89b4fa'}
+                  bold={index === inlinePaletteIndex}
+                >
+                  /{cmd.name}
+                </Text>
+                <Text> </Text>
+                <Text color={index !== inlinePaletteIndex ? '#6c7086' : '#cdd6f4'}>{cmd.description}</Text>
+              </Box>
+            ))}
+            <Box marginTop={0}>
+              <Text color='#6c7086'>[Enter] Select [Up/Down] Navigate [Esc] Cancel</Text>
+            </Box>
           </Box>
-        </Box>
-      )}
-    </Box>
+        )}
+
+        {/* Footer bar */}
+        <FooterBar
+          cwd={process.cwd()}
+          provider={currentProvider}
+          model={selectedModel}
+        />
+      </Box>
+    </ThemeProvider>
   );
 }

@@ -53,14 +53,14 @@ describe('Risk Assessment', () => {
 });
 
 describe('Directory Tree', () => {
-  it('should generate a directory tree string', () => {
-    const tree = generateDirectoryTree(process.cwd());
+  it('should generate a directory tree string', async () => {
+    const tree = await generateDirectoryTree(process.cwd());
     expect(typeof tree).toBe('string');
     expect(tree.length).toBeGreaterThan(0);
   });
 
-  it('should not include node_modules in tree', () => {
-    const tree = generateDirectoryTree(process.cwd());
+  it('should not include node_modules in tree', async () => {
+    const tree = await generateDirectoryTree(process.cwd());
     expect(tree).not.toContain('node_modules');
   });
 });
