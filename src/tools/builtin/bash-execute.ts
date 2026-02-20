@@ -26,7 +26,31 @@ function truncateOutput(text: string): string {
 
 export const bashExecuteTool = defineTool({
   name: 'bash_execute',
-  description: 'Execute a shell command and return its output',
+  description: `Execute a shell command in the user's terminal with optional timeout.
+
+All commands run in the project working directory by default.
+
+IMPORTANT: This tool is for terminal operations ONLY (git, npm, docker, builds, tests, etc.).
+DO NOT use it for file operations -- use the specialized tools instead:
+- File search: Use glob_search (NOT find or ls)
+- Content search: Use grep_search (NOT grep or rg)
+- Read files: Use file_read (NOT cat, head, or tail)
+- Edit files: Use file_edit (NOT sed or awk)
+- Write files: Use file_write (NOT echo > or cat <<EOF)
+- Communicate: Output text directly (NOT echo or printf)
+
+Usage notes:
+- The command parameter is required.
+- Timeout defaults to 120000ms (2 minutes). Set a longer timeout for slow operations.
+- Output exceeding 50KB will be truncated from the middle.
+- When issuing multiple independent commands, make multiple bash_execute calls in a single response to run them in parallel.
+- For sequential dependencies, chain with && in a single call.
+
+Git safety:
+- NEVER use destructive git commands (force push, reset --hard) unless explicitly requested.
+- NEVER commit changes unless the user explicitly asks you to commit.
+- NEVER skip git hooks (--no-verify) unless explicitly requested.
+- When creating commits, write clear, descriptive commit messages.`,
   inputSchema,
   defaultPermission: 'ask',
   async execute(input, context) {

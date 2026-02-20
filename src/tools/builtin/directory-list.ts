@@ -8,6 +8,7 @@ import path from 'node:path';
 import { z } from 'zod';
 
 import { defineTool } from '../types.js';
+import { isWithinProjectRoot } from './path-utils.js';
 
 const inputSchema = z.object({
   dirPath: z.string().describe('Absolute path to directory'),
@@ -26,12 +27,24 @@ function formatDate(ms: number): string {
 
 export const directoryListTool = defineTool({
   name: 'directory_list',
-  description: 'List directory contents with file sizes and dates',
+  description: `List directory contents with file metadata (size, modification date, type).
+
+Usage notes:
+- dirPath must be an absolute path.
+- Shows file size (formatted: B, KB, MB) and last modified timestamp.
+- Directories are marked as "dir", files as "file".
+- Hidden files (starting with .) are excluded by default. Set showHidden to true to include them.
+- Paths outside the project root are rejected.
+
+When to use:
+- Getting a quick overview of a directory's contents
+- Checking what files exist before other operations
+- Understanding project directory structure`,
   inputSchema,
   defaultPermission: 'allow',
   async execute(input, context) {
     const resolved = path.resolve(input.dirPath);
-    if (!resolved.startsWith(context.projectRoot)) {
+    if (!isWithinProjectRoot(resolved, context.projectRoot)) {
       return { kind: 'error', error: 'Path is outside project root' };
     }
 

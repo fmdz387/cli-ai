@@ -8,6 +8,7 @@ import path from 'node:path';
 import { z } from 'zod';
 
 import { defineTool } from '../types.js';
+import { isWithinProjectRoot } from './path-utils.js';
 
 const MAX_RESULTS = 200;
 const IGNORED_DIRS = new Set([
@@ -79,7 +80,26 @@ async function walkDir(options: WalkOptions): Promise<void> {
 
 export const globSearchTool = defineTool({
   name: 'glob_search',
-  description: 'Find files matching a glob pattern',
+  description: `Find files matching a glob pattern in the project directory.
+
+Supports standard glob syntax:
+- "**/*.ts" matches all TypeScript files recursively
+- "src/**/*.test.ts" matches test files under src/
+- "*.json" matches JSON files in the search directory
+- "**/*.{ts,tsx}" matches .ts and .tsx files
+
+Usage notes:
+- Searches from the project root by default, or from the specified path.
+- Automatically excludes: node_modules, .git, dist, build, __pycache__, .venv, coverage, .cache, .next
+- Results are limited to 200 matches.
+
+When to use:
+- Finding files by name or extension
+- Discovering project structure
+- Locating configuration files
+
+When NOT to use:
+- Searching file contents -- use grep_search instead.`,
   inputSchema,
   defaultPermission: 'allow',
   async execute(input, context) {
@@ -87,7 +107,7 @@ export const globSearchTool = defineTool({
       ? path.resolve(input.path)
       : context.projectRoot;
 
-    if (!searchDir.startsWith(context.projectRoot)) {
+    if (!isWithinProjectRoot(searchDir, context.projectRoot)) {
       return { kind: 'error', error: 'Path is outside project root' };
     }
 

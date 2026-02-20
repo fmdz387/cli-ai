@@ -8,6 +8,7 @@ import path from 'node:path';
 import { z } from 'zod';
 
 import { defineTool } from '../types.js';
+import { isWithinProjectRoot } from './path-utils.js';
 
 const DEFAULT_MAX_RESULTS = 100;
 const BINARY_CHECK_BYTES = 512;
@@ -22,6 +23,31 @@ const inputSchema = z.object({
   filePattern: z.string().optional().describe('File name filter (e.g. "*.ts")'),
   maxResults: z.number().optional().describe('Maximum results to return'),
 });
+
+function hasNestedQuantifiers(pattern: string): boolean {
+  const quantifiers = new Set(['+', '*', '?']);
+  let depth = 0;
+  let hasInnerQuantifier = false;
+  let escaped = false;
+
+  for (let i = 0; i < pattern.length; i++) {
+    const ch = pattern[i]!;
+    if (escaped) { escaped = false; continue; }
+    if (ch === '\\') { escaped = true; continue; }
+    if (ch === '(') { depth++; hasInnerQuantifier = false; }
+    else if (ch === ')') {
+      if (depth > 0 && hasInnerQuantifier) {
+        const next = pattern[i + 1];
+        if (next && (quantifiers.has(next) || next === '{')) return true;
+      }
+      depth = Math.max(0, depth - 1);
+      hasInnerQuantifier = false;
+    } else if (depth > 0 && quantifiers.has(ch)) {
+      hasInnerQuantifier = true;
+    }
+  }
+  return false;
+}
 
 function matchesFilePattern(name: string, pattern: string): boolean {
   const escaped = pattern
@@ -69,10 +95,12 @@ interface WalkSearchOptions {
   filePattern?: string;
   results: string[];
   maxResults: number;
+  signal?: AbortSignal;
 }
 
 async function walkAndSearch(options: WalkSearchOptions): Promise<void> {
   if (options.results.length >= options.maxResults) return;
+  if (options.signal?.aborted) return;
 
   let entries;
   try {
@@ -83,6 +111,7 @@ async function walkAndSearch(options: WalkSearchOptions): Promise<void> {
 
   for (const entry of entries) {
     if (options.results.length >= options.maxResults) break;
+    if (options.signal?.aborted) break;
     const fullPath = path.join(options.dir, entry.name);
 
     if (entry.isDirectory()) {
@@ -105,7 +134,24 @@ async function walkAndSearch(options: WalkSearchOptions): Promise<void> {
 
 export const grepSearchTool = defineTool({
   name: 'grep_search',
-  description: 'Search file contents using a regex pattern',
+  description: `Search file contents using a regex pattern across the project.
+
+Usage notes:
+- pattern uses JavaScript regex syntax.
+- Searches from the project root by default, or from the specified path.
+- Use filePattern to filter by filename (e.g., "*.ts" to search only TypeScript files).
+- Default limit is 100 results. Use maxResults to adjust.
+- Automatically excludes: node_modules, .git, dist, build, __pycache__, .venv, coverage, .cache, .next
+- Results include file path, line number, and matching line content.
+- Binary files are automatically skipped.
+
+When to use:
+- Finding where a function, variable, or pattern is used
+- Searching for specific code patterns across the codebase
+- Locating import statements, string literals, or error messages
+
+When NOT to use:
+- Finding files by name -- use glob_search instead.`,
   inputSchema,
   defaultPermission: 'allow',
   async execute(input, context) {
@@ -113,8 +159,12 @@ export const grepSearchTool = defineTool({
       ? path.resolve(input.path)
       : context.projectRoot;
 
-    if (!searchDir.startsWith(context.projectRoot)) {
+    if (!isWithinProjectRoot(searchDir, context.projectRoot)) {
       return { kind: 'error', error: 'Path is outside project root' };
+    }
+
+    if (hasNestedQuantifiers(input.pattern)) {
+      return { kind: 'error', error: 'Regex rejected: nested quantifiers can cause catastrophic backtracking' };
     }
 
     let regex: RegExp;
@@ -135,6 +185,7 @@ export const grepSearchTool = defineTool({
       filePattern: input.filePattern,
       results,
       maxResults,
+      signal: context.signal,
     });
 
     if (results.length === 0) {

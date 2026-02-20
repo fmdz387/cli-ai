@@ -8,6 +8,7 @@ import path from 'node:path';
 import { z } from 'zod';
 
 import { defineTool } from '../types.js';
+import { isWithinProjectRoot } from './path-utils.js';
 
 const MAX_LINES = 2000;
 const MAX_LINE_LENGTH = 2000;
@@ -21,7 +22,7 @@ const inputSchema = z.object({
 
 function validatePath(filePath: string, projectRoot: string): string | null {
   const resolved = path.resolve(filePath);
-  if (!resolved.startsWith(projectRoot)) {
+  if (!isWithinProjectRoot(resolved, projectRoot)) {
     return `Path "${filePath}" is outside project root`;
   }
   return null;
@@ -47,7 +48,24 @@ function formatLines(lines: string[], start: number): string {
 
 export const fileReadTool = defineTool({
   name: 'file_read',
-  description: 'Read the contents of a file with optional line range',
+  description: `Read the contents of a file with optional line range.
+
+Usage notes:
+- filePath must be an absolute path, not a relative path.
+- By default, reads up to 2000 lines from the start of the file.
+- Use startLine and endLine to read specific ranges of large files.
+- Lines longer than 2000 characters are truncated.
+- Output uses numbered line format (line_number<tab>content) for easy reference.
+
+When to use:
+- Examining source code before making edits
+- Checking configuration files
+- Verifying file contents after modifications
+- Understanding code structure and patterns
+
+Important:
+- Binary files are detected and rejected.
+- Paths outside the project root are rejected for security.`,
   inputSchema,
   defaultPermission: 'allow',
   async execute(input, context) {

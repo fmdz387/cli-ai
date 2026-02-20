@@ -8,6 +8,7 @@ import path from 'node:path';
 import { z } from 'zod';
 
 import { defineTool } from '../types.js';
+import { isWithinProjectRoot } from './path-utils.js';
 
 const inputSchema = z.object({
   filePath: z.string().describe('Absolute path to the file'),
@@ -17,12 +18,27 @@ const inputSchema = z.object({
 
 export const fileEditTool = defineTool({
   name: 'file_edit',
-  description: 'Find and replace an exact string occurrence in a file',
+  description: `Find and replace an exact string occurrence in a file.
+
+Usage notes:
+- filePath must be an absolute path.
+- oldString must appear exactly once in the file. If it appears multiple times, the edit is rejected to prevent unintended changes.
+- The replacement is an exact string match, not regex.
+- ALWAYS use file_read first to see the exact content you want to replace. Copy the exact text from the file to use as oldString.
+
+When to use:
+- Making precise, targeted edits to existing files
+- Changing function signatures, variable names, or specific code blocks
+- Updating configuration values
+
+When NOT to use:
+- Creating new files -- use file_write instead.
+- Replacing the majority of a file's content -- use file_write instead.`,
   inputSchema,
   defaultPermission: 'ask',
   async execute(input, context) {
     const resolved = path.resolve(input.filePath);
-    if (!resolved.startsWith(context.projectRoot)) {
+    if (!isWithinProjectRoot(resolved, context.projectRoot)) {
       return { kind: 'error', error: 'Path is outside project root' };
     }
 
