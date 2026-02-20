@@ -1,39 +1,92 @@
 /**
  * OpenRouter-specific tool call adapter
- * Delegates to OpenAI adapter since OpenRouter uses OpenAI-compatible format
+ * Handles the camelCase response format from the @openrouter/sdk
  */
 
 import type { AgentToolCall, TokenUsage } from '../types.js';
-import { OpenAIToolAdapter } from './openai-adapter.js';
 import type { ToolCallAdapter } from './types.js';
 
 type ToolInput = { name: string; description: string; inputSchema: Record<string, unknown> };
 type ToolResultInput = { toolCallId: string; content: string };
 
-const openaiAdapter = new OpenAIToolAdapter();
+/** OpenRouter SDK response shape (camelCase) */
+interface ORCompletion {
+  choices: Array<{
+    finishReason: string;
+    finish_reason?: string;
+    message: {
+      content?: string | null;
+      toolCalls?: Array<{
+        id: string;
+        type: string;
+        function: { name: string; arguments: string };
+      }>;
+      tool_calls?: Array<{
+        id: string;
+        type: string;
+        function: { name: string; arguments: string };
+      }>;
+    };
+  }>;
+  usage?: {
+    promptTokens?: number;
+    completionTokens?: number;
+    prompt_tokens?: number;
+    completion_tokens?: number;
+  };
+}
 
 export class OpenRouterToolAdapter implements ToolCallAdapter {
   formatTools(tools: ReadonlyArray<ToolInput>): unknown {
-    return openaiAdapter.formatTools(tools);
+    return tools.map((tool) => ({
+      type: 'function' as const,
+      function: {
+        name: tool.name,
+        description: tool.description,
+        parameters: tool.inputSchema,
+      },
+    }));
   }
 
   parseToolCalls(response: unknown): AgentToolCall[] {
-    return openaiAdapter.parseToolCalls(response);
+    const r = response as ORCompletion;
+    const msg = r.choices[0]?.message;
+    const calls = msg?.toolCalls ?? msg?.tool_calls;
+    if (!calls) return [];
+    return calls
+      .filter((tc) => tc.type === 'function')
+      .map((tc) => ({
+        id: tc.id,
+        name: tc.function.name,
+        input: JSON.parse(tc.function.arguments) as Record<string, unknown>,
+      }));
   }
 
   formatToolResults(results: ReadonlyArray<ToolResultInput>): unknown {
-    return openaiAdapter.formatToolResults(results);
+    return results.map((r) => ({
+      role: 'tool' as const,
+      tool_call_id: r.toolCallId,
+      content: r.content,
+    }));
   }
 
   isToolCallResponse(response: unknown): boolean {
-    return openaiAdapter.isToolCallResponse(response);
+    const r = response as ORCompletion;
+    const reason = r.choices[0]?.finishReason ?? r.choices[0]?.finish_reason;
+    return reason === 'tool_calls';
   }
 
   extractTextContent(response: unknown): string {
-    return openaiAdapter.extractTextContent(response);
+    const r = response as ORCompletion;
+    return r.choices[0]?.message?.content ?? '';
   }
 
   extractTokenUsage(response: unknown): TokenUsage {
-    return openaiAdapter.extractTokenUsage(response);
+    const r = response as ORCompletion;
+    const u = r.usage;
+    return {
+      inputTokens: u?.promptTokens ?? u?.prompt_tokens ?? 0,
+      outputTokens: u?.completionTokens ?? u?.completion_tokens ?? 0,
+    };
   }
 }
