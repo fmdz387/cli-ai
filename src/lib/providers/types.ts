@@ -124,8 +124,18 @@ export function parseAlternativesResponse(content: string): CommandProposal[] {
     });
 }
 
-export function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+export function sleep(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(signal.reason instanceof Error ? signal.reason : new DOMException('The operation was aborted', 'AbortError'));
+      return;
+    }
+    const timer = setTimeout(resolve, ms);
+    signal?.addEventListener('abort', () => {
+      clearTimeout(timer);
+      reject(signal.reason instanceof Error ? signal.reason : new DOMException('The operation was aborted', 'AbortError'));
+    }, { once: true });
+  });
 }
 
 export { AI_RETRY_CONFIG };

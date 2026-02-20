@@ -29,8 +29,6 @@ interface UseChatAgentReturn {
   approvePermission: () => void;
   denyPermission: () => void;
   approveForSession: () => void;
-  isRunning: boolean;
-  pendingPermission: PendingPermission | null;
 }
 
 export function useChatAgent({
@@ -77,6 +75,14 @@ export function useChatAgent({
 
   const run = useCallback(
     (text: string) => {
+      if (isRunningRef.current && abortRef.current) {
+        abortRef.current.abort();
+        abortRef.current = null;
+        permissionResolverRef.current = null;
+        pendingPermissionRef.current = null;
+        dispatch({ type: 'SET_PENDING_PERMISSION', permission: null });
+      }
+
       const controller = new AbortController();
       abortRef.current = controller;
       isRunningRef.current = true;
@@ -165,7 +171,5 @@ export function useChatAgent({
     approvePermission,
     denyPermission,
     approveForSession,
-    isRunning: isRunningRef.current,
-    pendingPermission: pendingPermissionRef.current,
   };
 }

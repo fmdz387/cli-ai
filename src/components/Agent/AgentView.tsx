@@ -1,6 +1,7 @@
 /**
  * AgentView container composing all agent sub-components
  */
+import { useTheme } from '../../theme/index.js';
 import type { AgentEvent, AgentToolCall, TokenUsage } from '../../agent/types.js';
 import type { AgentToolCallInfo } from '../../types/index.js';
 
@@ -46,7 +47,9 @@ function deriveToolStatus(
   return 'running';
 }
 
-function renderEvent(event: AgentEvent, allEvents: AgentEvent[]): ReactNode {
+function EventItem({ event, allEvents }: { event: AgentEvent; allEvents: AgentEvent[] }): ReactNode {
+  const theme = useTheme();
+
   switch (event.type) {
     case 'text_delta':
       return null;
@@ -60,13 +63,13 @@ function renderEvent(event: AgentEvent, allEvents: AgentEvent[]): ReactNode {
     case 'error':
       return (
         <Box marginLeft={2}>
-          <Text color='red'>Error: {event.error.message}</Text>
+          <Text color={theme.error}>Error: {event.error.message}</Text>
         </Box>
       );
     case 'doom_loop':
       return (
         <Box marginLeft={2}>
-          <Text color='yellow'>
+          <Text color={theme.warning}>
             Repeated call detected: {event.repeatedCall.name}
           </Text>
         </Box>
@@ -112,11 +115,11 @@ export function AgentView({
       {streamingText && (
         <AgentMessage text={streamingText} isStreaming={isRunning} />
       )}
-      {visibleEvents.map((event, i) => {
-        const rendered = renderEvent(event, events);
-        if (!rendered) return null;
-        return <Box key={i}>{rendered}</Box>;
-      })}
+      {visibleEvents.map((event, i) => (
+        <Box key={i}>
+          <EventItem event={event} allEvents={events} />
+        </Box>
+      ))}
       {pendingPermission && (
         <PermissionPrompt
           toolCall={pendingPermission.toolCall}

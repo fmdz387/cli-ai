@@ -32,11 +32,15 @@ export class OpenAIToolAdapter implements ToolCallAdapter {
     return toolCalls
       .filter((tc): tc is OpenAI.Chat.Completions.ChatCompletionMessageToolCall & { type: 'function' } =>
         tc.type === 'function')
-      .map((tc) => ({
-        id: tc.id,
-        name: tc.function.name,
-        input: JSON.parse(tc.function.arguments) as Record<string, unknown>,
-      }));
+      .map((tc) => {
+        let input: Record<string, unknown> = {};
+        try {
+          input = JSON.parse(tc.function.arguments) as Record<string, unknown>;
+        } catch {
+          // Malformed JSON from model; fall back to empty input
+        }
+        return { id: tc.id, name: tc.function.name, input };
+      });
   }
 
   formatToolResults(results: ReadonlyArray<ToolResultInput>): OpenAI.Chat.Completions.ChatCompletionToolMessageParam[] {
