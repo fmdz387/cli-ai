@@ -4,6 +4,7 @@
 import type {
   AgentConfig,
   AgentEvent,
+  AgentToolCall,
   ExecutorResult,
   ExecutorRunOptions,
   TokenUsage,
@@ -97,11 +98,30 @@ export function useAgentSession({
 
       const config = buildConfig();
 
+      const requestPermission = (
+        toolCall: AgentToolCall,
+      ): Promise<'approve' | 'deny' | 'session'> => {
+        return new Promise<'approve' | 'deny' | 'session'>((resolve) => {
+          permissionResolverRef.current = { resolve };
+          setPendingPermission({
+            toolCall: {
+              id: toolCall.id,
+              name: toolCall.name,
+              input: toolCall.input,
+            },
+            onApprove: () => resolve('approve'),
+            onDeny: () => resolve('deny'),
+            onApproveSession: () => resolve('session'),
+          });
+        });
+      };
+
       runExecutor({
         query,
         config,
         signal: controller.signal,
         onEvent: handleEvent,
+        requestPermission,
       })
         .then(() => {
           setIsRunning(false);
