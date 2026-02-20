@@ -11,7 +11,7 @@ interface AgentMessageProps {
 
 const CURSOR_FRAMES = ['\u2588', ' '];
 
-function formatSegments(text: string): ReactNode[] {
+export function formatSegments(text: string): ReactNode[] {
   const parts = text.split(/(\*\*[^*]+\*\*|`[^`]+`)/g);
   return parts.map((part, i) => {
     if (part.startsWith('**') && part.endsWith('**')) {

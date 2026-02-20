@@ -17,6 +17,7 @@ import type {
   CumulativeUsage,
   ExecutorResult,
   ExecutorRunOptions,
+  RequestPermission,
 } from './types.js';
 
 export interface ExecutorDependencies {
@@ -35,14 +36,16 @@ export class AgentExecutor {
   }
 
   async execute(options: ExecutorRunOptions): Promise<ExecutorResult> {
-    const { query, config, signal, onEvent } = options;
+    const { query, config, signal, onEvent, requestPermission } = options;
     const { provider, adapter, registry, permissions, contextManager } = this.deps;
 
-    const messages: AgentMessage[] = buildInitialMessages(query, {
-      shell: config.context.shell,
-      cwd: config.context.cwd,
-      platform: config.context.platform,
-    });
+    const messages: AgentMessage[] = options.history
+      ? [...options.history, { role: 'user' as const, content: query }]
+      : buildInitialMessages(query, {
+          shell: config.context.shell,
+          cwd: config.context.cwd,
+          platform: config.context.platform,
+        });
 
     const providerTools = registry.toProviderFormat();
     const adapterInput = providerTools.map((t) => ({
@@ -53,8 +56,9 @@ export class AgentExecutor {
     const toolSchemas = adapter.formatTools(adapterInput);
     const usage: CumulativeUsage = { totalInputTokens: 0, totalOutputTokens: 0, turns: 0 };
     const recentCallHashes: string[] = [];
+    const maxTurns = config.maxTurns ?? MAX_AGENT_STEPS;
 
-    for (let step = 0; step < config.maxTurns || MAX_AGENT_STEPS; step++) {
+    for (let step = 0; step < maxTurns; step++) {
       if (signal.aborted) {
         onEvent({ type: 'aborted' });
         break;
@@ -104,7 +108,7 @@ export class AgentExecutor {
         }
 
         onEvent({ type: 'tool_start', toolCall });
-        const result = await this.executeTool(toolCall, config, signal, permissions);
+        const result = await this.executeTool(toolCall, config, signal, permissions, requestPermission);
         onEvent({ type: 'tool_result', toolCallId: toolCall.id, result });
         messages.push({
           role: 'tool_result',
@@ -125,6 +129,7 @@ export class AgentExecutor {
     config: AgentConfig,
     signal: AbortSignal,
     permissions: PermissionGate,
+    requestPermission?: RequestPermission,
   ): Promise<ToolResult> {
     const tool = this.deps.registry.get(toolCall.name);
     if (!tool) {
@@ -135,8 +140,22 @@ export class AgentExecutor {
       toolName: toolCall.name,
       input: toolCall.input,
     });
+
     if (level === 'deny') {
       return { kind: 'denied', reason: `Tool ${toolCall.name} is denied by policy` };
+    }
+
+    if (level === 'ask') {
+      if (requestPermission) {
+        const decision = await requestPermission(toolCall);
+        if (decision === 'deny') {
+          return { kind: 'denied', reason: `User denied ${toolCall.name}` };
+        }
+        if (decision === 'session') {
+          permissions.approveForSession(toolCall.name);
+        }
+      }
+      // Without requestPermission callback (non-interactive), fall through to execute
     }
 
     const toolContext: ToolContext = {

@@ -70,6 +70,14 @@ export interface AgentConfig {
 }
 
 /**
+ * Callback for interactive permission prompts
+ * Returns the user's decision when a tool requires approval
+ */
+export type RequestPermission = (
+  toolCall: AgentToolCall,
+) => Promise<'approve' | 'deny' | 'session'>;
+
+/**
  * Options for the agent executor run method
  */
 export interface ExecutorRunOptions {
@@ -77,6 +85,9 @@ export interface ExecutorRunOptions {
   config: AgentConfig;
   signal: AbortSignal;
   onEvent: (event: AgentEvent) => void;
+  requestPermission?: RequestPermission;
+  /** Conversation history for multi-turn chat. When provided, replaces initial message building. */
+  history?: AgentMessage[];
 }
 
 /**

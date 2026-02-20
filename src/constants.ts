@@ -225,3 +225,4 @@ export const TOOL_FILE_MAX_LINES = 2000;
 export const TOOL_LINE_MAX_CHARS = 2000;
 export const TOOL_RESULTS_MAX = 200;
 export const DEFAULT_TOOL_TIMEOUT = 120000;
+export const MAX_VISIBLE_MESSAGES = 50;
