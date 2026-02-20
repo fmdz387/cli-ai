@@ -2,6 +2,8 @@
  * Agent executor implementing the full agentic loop
  */
 
+import { execSync } from 'node:child_process';
+
 import { DOOM_LOOP_THRESHOLD, MAX_AGENT_STEPS } from '../constants.js';
 import type { PermissionGate } from '../tools/permissions.js';
 import type { ToolRegistry } from '../tools/registry.js';
@@ -41,10 +43,13 @@ export class AgentExecutor {
 
     const messages: AgentMessage[] = options.history
       ? [...options.history, { role: 'user' as const, content: query }]
-      : buildInitialMessages(query, {
+      : await buildInitialMessages(query, {
           shell: config.context.shell,
           cwd: config.context.cwd,
           platform: config.context.platform,
+          model: config.model,
+          provider: config.provider,
+          isGitRepo: detectGitRepo(config.context.cwd),
         });
 
     const providerTools = registry.toProviderFormat();
@@ -121,7 +126,40 @@ export class AgentExecutor {
       onEvent({ type: 'turn_complete', usage: turnUsage });
     }
 
-    return { finalResponse: '', usage };
+    // If aborted, return empty (not max-steps)
+    if (signal.aborted) {
+      return { finalResponse: '', usage };
+    }
+
+    // Max-steps graceful degradation: request a summary instead of returning empty
+    try {
+      const maxStepsMessage = `MAXIMUM STEPS REACHED - Tools are disabled until next user input.
+
+STRICT REQUIREMENTS:
+1. Do NOT make any tool calls
+2. Provide a text response summarizing work done so far
+3. List any remaining tasks that were not completed
+4. Recommendations for what should be done next`;
+
+      messages.push({ role: 'assistant', content: maxStepsMessage });
+      const summaryResponse = await provider.sendWithTools(messages, [], {
+        maxTokens: config.maxTokensPerTurn,
+        signal,
+      });
+      const summaryText = adapter.extractTextContent(summaryResponse);
+      const summaryUsage = adapter.extractTokenUsage(summaryResponse);
+      usage.totalInputTokens += summaryUsage.inputTokens;
+      usage.totalOutputTokens += summaryUsage.outputTokens;
+      usage.turns++;
+
+      const finalText = summaryText || 'Maximum steps reached. Please continue in a new message.';
+      onEvent({ type: 'text_delta', text: finalText });
+      return { finalResponse: finalText, usage };
+    } catch {
+      const fallback = 'Maximum steps reached. Please continue in a new message.';
+      onEvent({ type: 'text_delta', text: fallback });
+      return { finalResponse: fallback, usage };
+    }
   }
 
   private async executeTool(
@@ -179,6 +217,11 @@ export class AgentExecutor {
     const hash = this.hashToolCall(toolCall);
     recentHashes.push(hash);
 
+    const maxHashes = DOOM_LOOP_THRESHOLD * 2;
+    if (recentHashes.length > maxHashes) {
+      recentHashes.splice(0, recentHashes.length - maxHashes);
+    }
+
     if (recentHashes.length < DOOM_LOOP_THRESHOLD) return false;
 
     const tail = recentHashes.slice(-DOOM_LOOP_THRESHOLD);
@@ -188,5 +231,14 @@ export class AgentExecutor {
 
   private hashToolCall(toolCall: AgentToolCall): string {
     return `${toolCall.name}:${JSON.stringify(toolCall.input)}`;
+  }
+}
+
+function detectGitRepo(cwd: string): boolean {
+  try {
+    execSync('git rev-parse --is-inside-work-tree', { cwd, stdio: 'ignore' });
+    return true;
+  } catch {
+    return false;
   }
 }
