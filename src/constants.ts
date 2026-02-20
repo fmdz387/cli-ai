@@ -212,3 +212,16 @@ export const AI_RETRY_CONFIG = {
  * Context token budget for AI calls
  */
 export const CONTEXT_TOKEN_BUDGET = 4000;
+
+/**
+ * Agent mode constants
+ */
+export const MAX_AGENT_STEPS = 25;
+export const AGENT_MAX_TOKENS = 4096;
+export const CONTEXT_COMPACTION_THRESHOLD = 100000;
+export const DOOM_LOOP_THRESHOLD = 3;
+export const TOOL_OUTPUT_MAX_BYTES = 50000;
+export const TOOL_FILE_MAX_LINES = 2000;
+export const TOOL_LINE_MAX_CHARS = 2000;
+export const TOOL_RESULTS_MAX = 200;
+export const DEFAULT_TOOL_TIMEOUT = 120000;

@@ -1,3 +1,4 @@
+import type { AgentMessage } from '../../agent/types.js';
 import { MAX_AI_TOKENS } from '../../constants.js';
 import type { CommandProposal, Result, SessionContext } from '../../types/index.js';
 import {
@@ -8,6 +9,7 @@ import {
   parseCommandResponse,
   sleep,
   type Provider,
+  type SendWithToolsOptions,
 } from './types.js';
 import Anthropic from '@anthropic-ai/sdk';
 
@@ -108,4 +110,64 @@ Output JSON array: [{ "command": "...", "risk": "low|medium|high" }, ...]`;
       return { success: false, error: error instanceof Error ? error : new Error(String(error)) };
     }
   }
+
+  async sendWithTools(
+    messages: AgentMessage[],
+    tools: unknown,
+    options: SendWithToolsOptions,
+  ): Promise<unknown> {
+    const { systemText, apiMessages } = formatAnthropicMessages(messages);
+    return this.client.messages.create({
+      model: this.model,
+      max_tokens: options.maxTokens,
+      system: systemText,
+      messages: apiMessages,
+      tools: tools as Anthropic.Messages.Tool[],
+      ...(options.signal ? { signal: options.signal } : {}),
+    });
+  }
+}
+
+function formatAnthropicMessages(messages: AgentMessage[]): {
+  systemText: string;
+  apiMessages: Anthropic.Messages.MessageParam[];
+} {
+  let systemText = '';
+  const apiMessages: Anthropic.Messages.MessageParam[] = [];
+
+  for (const msg of messages) {
+    if (msg.role === 'system') {
+      systemText = msg.content;
+    } else if (msg.role === 'user') {
+      apiMessages.push({ role: 'user', content: msg.content });
+    } else if (msg.role === 'assistant') {
+      const content: Anthropic.Messages.ContentBlockParam[] = [];
+      if (msg.content) {
+        content.push({ type: 'text', text: msg.content });
+      }
+      if (msg.toolCalls) {
+        for (const tc of msg.toolCalls) {
+          content.push({ type: 'tool_use', id: tc.id, name: tc.name, input: tc.input });
+        }
+      }
+      apiMessages.push({ role: 'assistant', content });
+    } else if (msg.role === 'tool_result') {
+      const resultContent = msg.result.kind === 'success'
+        ? msg.result.output
+        : msg.result.kind === 'error'
+          ? msg.result.error
+          : msg.result.reason;
+      apiMessages.push({
+        role: 'user',
+        content: [{
+          type: 'tool_result',
+          tool_use_id: msg.toolCallId,
+          content: resultContent,
+          is_error: msg.result.kind !== 'success',
+        }],
+      });
+    }
+  }
+
+  return { systemText, apiMessages };
 }

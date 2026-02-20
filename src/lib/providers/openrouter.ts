@@ -1,3 +1,4 @@
+import type { AgentMessage } from '../../agent/types.js';
 import { MAX_AI_TOKENS } from '../../constants.js';
 import type { CommandProposal, Result, SessionContext } from '../../types/index.js';
 import {
@@ -8,9 +9,11 @@ import {
   parseCommandResponse,
   sleep,
   type Provider,
+  type SendWithToolsOptions,
 } from './types.js';
 
 import { OpenRouter } from '@openrouter/sdk';
+import type { Message, ToolDefinitionJson } from '@openrouter/sdk/models';
 
 export class OpenRouterProvider implements Provider {
   private client: OpenRouter;
@@ -113,4 +116,50 @@ Output JSON array: [{ "command": "...", "risk": "low|medium|high" }, ...]`;
       return { success: false, error: error instanceof Error ? error : new Error(String(error)) };
     }
   }
+
+  async sendWithTools(
+    messages: AgentMessage[],
+    tools: unknown,
+    options: SendWithToolsOptions,
+  ): Promise<unknown> {
+    return this.client.chat.send({
+      model: this.model,
+      maxTokens: options.maxTokens,
+      messages: formatOpenRouterMessages(messages),
+      tools: tools as ToolDefinitionJson[],
+      stream: false,
+    });
+  }
+}
+
+function formatOpenRouterMessages(messages: AgentMessage[]): Message[] {
+  const result: Message[] = [];
+
+  for (const msg of messages) {
+    if (msg.role === 'system') {
+      result.push({ role: 'system', content: msg.content });
+    } else if (msg.role === 'user') {
+      result.push({ role: 'user', content: msg.content });
+    } else if (msg.role === 'assistant') {
+      const assistantMsg: Message = {
+        role: 'assistant',
+        content: msg.content || undefined,
+        toolCalls: msg.toolCalls?.map((tc) => ({
+          id: tc.id,
+          type: 'function' as const,
+          function: { name: tc.name, arguments: JSON.stringify(tc.input) },
+        })),
+      };
+      result.push(assistantMsg);
+    } else if (msg.role === 'tool_result') {
+      const content = msg.result.kind === 'success'
+        ? msg.result.output
+        : msg.result.kind === 'error'
+          ? msg.result.error
+          : msg.result.reason;
+      result.push({ role: 'tool', toolCallId: msg.toolCallId, content });
+    }
+  }
+
+  return result;
 }

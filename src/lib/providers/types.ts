@@ -1,4 +1,5 @@
 import { AI_RETRY_CONFIG, MAX_CONTEXT_HISTORY, MAX_CONTEXT_OUTPUT_CHARS } from '../../constants.js';
+import type { AgentMessage } from '../../agent/types.js';
 import type {
   CommandProposal,
   Result,
@@ -7,6 +8,11 @@ import type {
   ShellType,
 } from '../../types/index.js';
 import { combineRiskAssessment } from '../risk-assessment.js';
+
+export interface SendWithToolsOptions {
+  maxTokens: number;
+  signal?: AbortSignal;
+}
 
 export interface Provider {
   generateCommand(query: string, context: SessionContext): Promise<Result<CommandProposal>>;
@@ -17,6 +23,11 @@ export interface Provider {
     count: number,
   ): Promise<Result<CommandProposal[]>>;
   explainCommand(command: string): Promise<Result<string>>;
+  sendWithTools(
+    messages: AgentMessage[],
+    tools: unknown,
+    options: SendWithToolsOptions,
+  ): Promise<unknown>;
 }
 
 export function buildSystemPrompt(shell: ShellType): string {
