@@ -2,17 +2,34 @@ import { CONFIG_DIR_NAME, DEFAULT_CONFIG, KEYRING_SERVICE, PROVIDER_CONFIG } fro
 import type { AIProvider, AppConfig, Result } from '../types/index.js';
 
 import Conf from 'conf';
-import { createHash } from 'node:crypto';
-import { existsSync, unlinkSync } from 'node:fs';
+import { createHash, randomBytes } from 'node:crypto';
+import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import { hostname, userInfo } from 'node:os';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 
 const LEGACY_ENCRYPTION_KEY = 'cli-ai-v3-encryption-key';
 
+function getOrCreateSalt(): string {
+  const saltPath = join(homedir(), CONFIG_DIR_NAME, '.salt');
+  try {
+    const existing = readFileSync(saltPath);
+    if (existing.length === 32) {
+      return existing.toString('hex');
+    }
+  } catch {
+    // Salt file does not exist yet
+  }
+  const salt = randomBytes(32);
+  mkdirSync(join(homedir(), CONFIG_DIR_NAME), { recursive: true });
+  writeFileSync(saltPath, salt, { mode: 0o600 });
+  return salt.toString('hex');
+}
+
 function getMachineEncryptionKey(): string {
+  const salt = getOrCreateSalt();
   const machineId = `${hostname()}-${userInfo().username}-cli-ai-v3-salt`;
-  return createHash('sha256').update(machineId).digest('hex').slice(0, 32);
+  return createHash('sha256').update(machineId + salt).digest('hex').slice(0, 32);
 }
 
 const configDir = join(homedir(), CONFIG_DIR_NAME);
@@ -331,9 +348,20 @@ export function getStorageInfo(provider: AIProvider): {
     return {
       method: 'encrypted-file',
       secure: false,
-      description: 'Encrypted file',
+      description: 'Encrypted file (less secure than system keyring)',
     };
   }
 
   return { method: 'none', secure: false, description: 'Not configured' };
+}
+
+export function getStorageWarning(provider: AIProvider): string | null {
+  const info = getStorageInfo(provider);
+  if (info.method === 'encrypted-file') {
+    return 'API key is stored in an encrypted file. For better security, install a system keyring provider.';
+  }
+  if (info.method === 'env') {
+    return 'API key is loaded from an environment variable. Ensure it is not committed to source control.';
+  }
+  return null;
 }
