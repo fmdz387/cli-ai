@@ -6,19 +6,19 @@
 import type { AgentMessage } from './types.js';
 import type { Provider } from '../lib/providers/types.js';
 
-const COMPACTION_PROMPT = `Summarize the conversation above for a continuation prompt.
-Focus on information needed to continue the work seamlessly.
+const COMPACTION_PROMPT = `Write a structured summary of this conversation so a follow-up session can pick up where this one left off.
 
-Your summary MUST include:
-1. **Goal**: What the user is trying to accomplish
-2. **Key Instructions**: Important constraints or preferences the user specified
-3. **Progress**: What has been completed so far
-4. **In Progress**: What is currently being worked on
-5. **Modified Files**: Files that were read, edited, or created (with brief notes)
-6. **Remaining Work**: What still needs to be done
-7. **Key Decisions**: Important technical decisions and why they were made
+Use the following sections (omit any that have no content):
 
-Be comprehensive but concise. Another agent will use this summary to continue the work seamlessly. Do not respond to any questions in the conversation -- only output the summary.`;
+**Objective** — The user's end goal in one sentence.
+**Constraints** — Preferences, rules, or limits the user set.
+**Done** — Steps or changes already completed.
+**Current** — Work that was in progress when the conversation ended.
+**Files touched** — Paths that were read, created, or edited, with a short note per file.
+**Open items** — Tasks or questions that remain.
+**Design choices** — Non-obvious decisions and the reasoning behind them.
+
+Output only the summary. Ignore any unanswered questions in the conversation.`;
 
 export interface CompactResult {
   summary: string;

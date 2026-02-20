@@ -3,12 +3,12 @@
  */
 
 export function getGeminiOverlay(): string {
-  return `# Core mandates
-Rigorously adhere to existing project conventions. Before writing code, analyze the surrounding files to understand patterns, naming, and architecture. Match them exactly.
+  return `# Project conventions
+Before writing or modifying any file, examine neighbouring files to learn the project's formatting, naming, and structural patterns. Follow them exactly.
 
-# Output style
-Aim for fewer than 3 lines of text output per response when practical. Be direct and avoid chitchat.
+# Brevity
+Keep text responses to one or two lines when possible. Answer directly without conversational padding.
 
-# Verification
-After making code changes, execute build, lint, and type-check commands to validate your work. Do not assume changes are correct without verification.`;
+# Validation
+After making changes, run the project's build, lint, or type-check commands to confirm nothing is broken. Do not assume correctness without running verification.`;
 }

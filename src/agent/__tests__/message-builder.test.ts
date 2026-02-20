@@ -35,7 +35,7 @@ describe('buildAgentSystemPrompt', () => {
     const prompt = await buildAgentSystemPrompt(defaultOptions);
     expect(prompt).toContain('file_read');
     expect(prompt).toContain('grep_search');
-    expect(prompt).toContain('Professional objectivity');
+    expect(prompt).toContain('Accuracy and honesty');
   });
 
   it('returns a non-empty string for all shell types', async () => {
@@ -51,15 +51,15 @@ describe('buildAgentSystemPrompt', () => {
     expect(prompt).toContain('CLI AI');
   });
 
-  it('contains professional objectivity section', async () => {
+  it('contains accuracy section', async () => {
     const prompt = await buildAgentSystemPrompt(defaultOptions);
-    expect(prompt).toContain('Professional objectivity');
-    expect(prompt).toContain('technical accuracy');
+    expect(prompt).toContain('Accuracy and honesty');
+    expect(prompt).toContain('factual answers');
   });
 
   it('contains Anthropic overlay for anthropic provider', async () => {
     const prompt = await buildAgentSystemPrompt(defaultOptions);
-    expect(prompt).toContain('Task management');
+    expect(prompt).toContain('Planning multi-step work');
   });
 
   it('contains OpenAI overlay for openai provider', async () => {
@@ -68,7 +68,7 @@ describe('buildAgentSystemPrompt', () => {
       model: 'gpt-5.2',
       provider: 'openai',
     });
-    expect(prompt).toContain('Keep going until the problem is completely solved');
+    expect(prompt).toContain('Finish the entire task');
   });
 
   it('contains environment context with env tags', async () => {
@@ -84,8 +84,8 @@ describe('buildAgentSystemPrompt', () => {
       provider: 'openrouter',
     });
     expect(prompt).toContain('CLI AI');
-    expect(prompt).not.toContain('Task management');
-    expect(prompt).not.toContain('Keep going');
+    expect(prompt).not.toContain('Planning multi-step work');
+    expect(prompt).not.toContain('Finish the entire task');
   });
 });
 

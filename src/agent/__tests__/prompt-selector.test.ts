@@ -8,22 +8,22 @@ import { assembleSystemPrompt, selectPromptOverlay } from '../prompts/index.js';
 describe('selectPromptOverlay', () => {
   it('returns Anthropic overlay for claude model with anthropic provider', () => {
     const overlay = selectPromptOverlay('claude-sonnet-4-5', 'anthropic');
-    expect(overlay).toContain('Task management');
+    expect(overlay).toContain('Planning multi-step work');
   });
 
   it('returns Anthropic overlay for claude model on openrouter', () => {
     const overlay = selectPromptOverlay('anthropic/claude-sonnet-4.5', 'openrouter');
-    expect(overlay).toContain('Task management');
+    expect(overlay).toContain('Planning multi-step work');
   });
 
   it('returns OpenAI overlay for gpt model with openai provider', () => {
     const overlay = selectPromptOverlay('gpt-5.2', 'openai');
-    expect(overlay).toContain('Keep going until the problem is completely solved');
+    expect(overlay).toContain('Finish the entire task');
   });
 
   it('returns Gemini overlay for gemini model on openrouter', () => {
     const overlay = selectPromptOverlay('gemini-2.0-flash', 'openrouter');
-    expect(overlay).toContain('Core mandates');
+    expect(overlay).toContain('Project conventions');
   });
 
   it('returns empty string for unknown model on openrouter', () => {
@@ -70,7 +70,7 @@ describe('assembleSystemPrompt', () => {
       isGitRepo: false,
       instructions: [],
     });
-    expect(prompt).toContain('Task management');
+    expect(prompt).toContain('Planning multi-step work');
   });
 
   it('contains instruction content when provided', () => {

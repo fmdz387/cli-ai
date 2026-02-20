@@ -133,13 +133,12 @@ export class AgentExecutor {
 
     // Max-steps graceful degradation: request a summary instead of returning empty
     try {
-      const maxStepsMessage = `MAXIMUM STEPS REACHED - Tools are disabled until next user input.
+      const maxStepsMessage = `You have used all available steps for this turn. No more tool calls are allowed until the user sends another message.
 
-STRICT REQUIREMENTS:
-1. Do NOT make any tool calls
-2. Provide a text response summarizing work done so far
-3. List any remaining tasks that were not completed
-4. Recommendations for what should be done next`;
+Reply with a brief text summary covering:
+- What you accomplished
+- Anything left unfinished
+- Suggested next steps for the user`;
 
       messages.push({ role: 'assistant', content: maxStepsMessage });
       const summaryResponse = await provider.sendWithTools(messages, [], {
