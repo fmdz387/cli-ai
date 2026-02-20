@@ -1,6 +1,7 @@
 /**
  * Individual command item in the palette list
  */
+import { useTheme } from '../../theme/index.js';
 
 import { Box, Text } from 'ink';
 import type { ReactNode } from 'react';
@@ -18,24 +19,26 @@ export function CommandPaletteItem({
   index,
   isSelected,
 }: CommandPaletteItemProps): ReactNode {
+  const theme = useTheme();
+
   return (
     <Box>
-      <Text color={isSelected ? 'cyan' : 'gray'} bold={isSelected}>
+      <Text color={isSelected ? theme.primary : theme.textMuted} bold={isSelected}>
         {isSelected ? '> ' : '  '}
       </Text>
-      <Text color={isSelected ? 'cyan' : 'blue'} bold={isSelected}>
+      <Text color={isSelected ? theme.primary : theme.secondary} bold={isSelected}>
         [{index + 1}]
       </Text>
       <Text> </Text>
-      <Text color={isSelected ? 'white' : 'gray'} bold={isSelected}>
+      <Text color={isSelected ? theme.text : theme.textMuted} bold={isSelected}>
         /{command.name}
       </Text>
       <Text>  </Text>
-      <Text dimColor={!isSelected}>{command.description}</Text>
+      <Text color={isSelected ? theme.text : theme.textMuted}>{command.description}</Text>
       {command.shortcut ? (
         <>
           <Text>  </Text>
-          <Text dimColor color="yellow">
+          <Text color={theme.warning}>
             {command.shortcut}
           </Text>
         </>

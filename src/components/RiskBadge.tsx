@@ -1,6 +1,7 @@
 /**
  * Risk level badge component
  */
+import { useTheme } from '../theme/index.js';
 
 import { Box, Text } from 'ink';
 import type { ReactNode } from 'react';
@@ -15,37 +16,38 @@ interface RiskBadgeProps {
   showWarnings?: boolean;
 }
 
-const RISK_COLORS = {
-  low: 'green',
-  medium: 'yellow',
-  high: 'red',
-} as const;
-
-const RISK_ICONS = {
-  low: '✓',
-  medium: '⚠',
-  high: '⚠',
-} as const;
-
 export function RiskBadge({
   risk,
   command,
   showDescription = false,
   showWarnings = true,
 }: RiskBadgeProps): ReactNode {
+  const theme = useTheme();
   const warnings = command && showWarnings ? getWarnings(command) : [];
+
+  const riskColors: Record<RiskLevel, string> = {
+    low: theme.success,
+    medium: theme.warning,
+    high: theme.error,
+  };
+
+  const RISK_ICONS: Record<RiskLevel, string> = {
+    low: '\u2713',
+    medium: '\u26A0',
+    high: '\u26A0',
+  };
 
   return (
     <Box flexDirection="column">
       <Box>
-        <Text color={RISK_COLORS[risk]} bold>
+        <Text color={riskColors[risk]} bold>
           {RISK_ICONS[risk]} {risk.toUpperCase()} RISK
         </Text>
       </Box>
 
       {showDescription && (
         <Box marginTop={1}>
-          <Text dimColor>{getRiskDescription(risk)}</Text>
+          <Text color={theme.textMuted}>{getRiskDescription(risk)}</Text>
         </Box>
       )}
 
@@ -53,7 +55,7 @@ export function RiskBadge({
         <Box flexDirection="column" marginTop={1}>
           {warnings.map((warning, i) => (
             <Box key={i}>
-              <Text color="yellow">  • {warning}</Text>
+              <Text color={theme.warning}>  {'\u2022'} {warning}</Text>
             </Box>
           ))}
         </Box>
@@ -63,8 +65,16 @@ export function RiskBadge({
 }
 
 export function RiskIndicator({ risk }: { risk: RiskLevel }): ReactNode {
+  const theme = useTheme();
+
+  const riskColors: Record<RiskLevel, string> = {
+    low: theme.success,
+    medium: theme.warning,
+    high: theme.error,
+  };
+
   return (
-    <Text color={RISK_COLORS[risk]} bold>
+    <Text color={riskColors[risk]} bold>
       [{risk.toUpperCase()}]
     </Text>
   );

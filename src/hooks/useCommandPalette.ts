@@ -14,6 +14,7 @@ export interface UseCommandPaletteOptions {
   onOpenConfig: () => void;
   onOpenHelp: () => void;
   onClearHistory: () => void;
+  onCompact: () => void;
   onExit: () => void;
 }
 
@@ -48,6 +49,7 @@ export function useCommandPalette({
   onOpenConfig,
   onOpenHelp,
   onClearHistory,
+  onCompact,
   onExit,
 }: UseCommandPaletteOptions): UseCommandPaletteReturn {
   const [query, setQueryState] = useState('');
@@ -103,6 +105,8 @@ export function useCommandPalette({
         case 'navigate':
           if (result.to === 'clear') {
             onClearHistory();
+          } else if (result.to === 'compact') {
+            onCompact();
           }
           break;
         case 'exit':

@@ -1,6 +1,7 @@
 /**
  * Command palette display component - pure rendering, no input handling
  */
+import { useTheme } from '../../theme/index.js';
 
 import { Box, Text } from 'ink';
 import type { ReactNode } from 'react';
@@ -21,6 +22,8 @@ export function CommandPaletteDisplay({
   selectedIndex,
   visible,
 }: CommandPaletteDisplayProps): ReactNode {
+  const theme = useTheme();
+
   if (!visible) {
     return null;
   }
@@ -29,22 +32,22 @@ export function CommandPaletteDisplay({
     <Box
       flexDirection="column"
       borderStyle="round"
-      borderColor="blue"
+      borderColor={theme.border}
       paddingX={1}
       marginTop={1}
     >
       {/* Query input display */}
       <Box>
-        <Text color="blue" bold>
+        <Text color={theme.secondary} bold>
           /
         </Text>
-        <Text color="white">{query}</Text>
-        <Text color="cyan">_</Text>
+        <Text color={theme.text}>{query}</Text>
+        <Text color={theme.primary}>_</Text>
       </Box>
 
       {/* Separator */}
       <Box marginY={0}>
-        <Text dimColor>{'─'.repeat(50)}</Text>
+        <Text color={theme.border}>{'─'.repeat(50)}</Text>
       </Box>
 
       {/* Command list */}
@@ -61,13 +64,13 @@ export function CommandPaletteDisplay({
         </Box>
       ) : (
         <Box>
-          <Text dimColor>No matching commands</Text>
+          <Text color={theme.textMuted}>No matching commands</Text>
         </Box>
       )}
 
       {/* Help hint */}
       <Box marginTop={1}>
-        <Text dimColor>
+        <Text color={theme.textMuted}>
           [Enter] Select  [1-9] Quick select  [Esc] Close
         </Text>
       </Box>

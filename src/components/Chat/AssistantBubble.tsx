@@ -1,8 +1,9 @@
 /**
- * Assistant message bubble with streaming text, tool calls, and permission prompts
+ * Assistant message bubble - tools first, then response text
  */
 import type { AssistantMessage, PendingPermission } from '../../types/chat.js';
-import { formatSegments } from '../Agent/AgentMessage.js';
+import { useTheme } from '../../theme/index.js';
+import { MarkdownText } from '../MarkdownText.js';
 import { PermissionPrompt } from '../Agent/PermissionPrompt.js';
 import { ToolCallStatus } from '../Agent/ToolCallStatus.js';
 import { ThinkingSpinner } from '../Spinner.js';
@@ -21,6 +22,7 @@ export function AssistantBubble({
   message,
   pendingPermission,
 }: AssistantBubbleProps): ReactNode {
+  const theme = useTheme();
   const [cursorFrame, setCursorFrame] = useState(0);
 
   useEffect(() => {
@@ -37,35 +39,41 @@ export function AssistantBubble({
   const termWidth = process.stdout.columns || 80;
 
   return (
-    <Box flexDirection='column' marginBottom={1}>
+    <Box flexDirection='column' marginBottom={1} paddingLeft={3}>
       {isThinking && <ThinkingSpinner label='Thinking...' />}
 
-      {hasText && (
-        <Box flexDirection='column' width={termWidth - 4}>
-          <Box flexWrap='wrap'>
-            {formatSegments(message.text)}
-            {message.isStreaming && <Text color='green'>{CURSOR_FRAMES[cursorFrame]}</Text>}
-          </Box>
+      {/* Tool calls FIRST - logical order: work happens before response */}
+      {hasToolCalls && (
+        <Box flexDirection='column' marginBottom={hasText ? 1 : 0}>
+          {message.toolCalls.map((tc) => (
+            <Box key={tc.id} flexDirection='column'>
+              <ToolCallStatus
+                call={{ name: tc.name, input: tc.input }}
+                status={tc.status}
+                result={tc.result}
+              />
+              {pendingPermission && pendingPermission.toolCall.id === tc.id && (
+                <PermissionPrompt
+                  toolCall={pendingPermission.toolCall}
+                  onApprove={() => {}}
+                  onDeny={() => {}}
+                  onApproveSession={() => {}}
+                />
+              )}
+            </Box>
+          ))}
         </Box>
       )}
 
-      {message.toolCalls.map((tc) => (
-        <Box key={tc.id} flexDirection='column'>
-          <ToolCallStatus
-            call={{ name: tc.name, input: tc.input }}
-            status={tc.status}
-            result={tc.result}
-          />
-          {pendingPermission && pendingPermission.toolCall.id === tc.id && (
-            <PermissionPrompt
-              toolCall={pendingPermission.toolCall}
-              onApprove={() => {}}
-              onDeny={() => {}}
-              onApproveSession={() => {}}
-            />
-          )}
+      {/* Response text AFTER tools */}
+      {hasText && (
+        <Box flexDirection='column' width={termWidth - 6}>
+          <Box flexWrap='wrap'>
+            <MarkdownText>{message.text}</MarkdownText>
+            {message.isStreaming && <Text color={theme.primary}>{CURSOR_FRAMES[cursorFrame]}</Text>}
+          </Box>
         </Box>
-      ))}
+      )}
     </Box>
   );
 }

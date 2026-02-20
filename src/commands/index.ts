@@ -22,6 +22,7 @@ export { commandRegistry, createCommandRegistry } from './registry.js';
 // Import built-in commands
 import {
   clearCommand,
+  compactCommand,
   configCommand,
   exitCommand,
   helpCommand,
@@ -32,4 +33,5 @@ import { commandRegistry } from './registry.js';
 commandRegistry.register(configCommand);
 commandRegistry.register(helpCommand);
 commandRegistry.register(clearCommand);
+commandRegistry.register(compactCommand);
 commandRegistry.register(exitCommand);

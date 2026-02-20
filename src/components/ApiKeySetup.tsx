@@ -3,6 +3,7 @@
  */
 import { AI_PROVIDERS, APP_NAME, PROVIDER_CONFIG, VERSION } from '../constants.js';
 import { validateApiKeyFormat } from '../lib/secure-storage.js';
+import { useTheme } from '../theme/index.js';
 import type { AIProvider } from '../types/index.js';
 
 import { Box, Text, useInput } from 'ink';
@@ -37,6 +38,7 @@ export function ApiKeySetup({
   error,
   provider: initialProvider,
 }: ApiKeySetupProps): ReactNode {
+  const theme = useTheme();
   const [step, setStep] = useState<SetupStep>(initialProvider ? 'input' : 'welcome');
   const [selectedProvider, setSelectedProvider] = useState<AIProvider>(
     initialProvider ?? 'anthropic',
@@ -44,7 +46,7 @@ export function ApiKeySetup({
   const [providerIndex, setProviderIndex] = useState(0);
   const [localError, setLocalError] = useState<string | null>(null);
 
-  // Text input state for API key entry (replaces @inkjs/ui TextInput)
+  // Text input state for API key entry
   const [textState, dispatchText] = useReducer(textInputReducer, createTextInputState());
 
   const handleSubmit = useCallback(() => {
@@ -139,23 +141,23 @@ export function ApiKeySetup({
     return (
       <Box flexDirection='column' paddingY={1}>
         <Box marginBottom={1}>
-          <Text bold color='cyan'>
+          <Text bold color={theme.primary}>
             {APP_NAME} v{VERSION}
           </Text>
         </Box>
 
         <Box marginBottom={1}>
-          <Text>Welcome! This tool translates natural language into shell commands.</Text>
+          <Text color={theme.text}>Welcome! This tool translates natural language into shell commands.</Text>
         </Box>
 
         <Box marginBottom={1}>
-          <Text dimColor>
+          <Text color={theme.textMuted}>
             To get started, you'll need an API key from one of the supported providers.
           </Text>
         </Box>
 
         <Box>
-          <Text color='green'>Press Enter to continue...</Text>
+          <Text color={theme.success}>Press Enter to continue...</Text>
         </Box>
       </Box>
     );
@@ -165,7 +167,7 @@ export function ApiKeySetup({
     return (
       <Box flexDirection='column' paddingY={1}>
         <Box marginBottom={1}>
-          <Text bold>Select your AI provider:</Text>
+          <Text bold color={theme.text}>Select your AI provider:</Text>
         </Box>
 
         {AI_PROVIDERS.map((provider, index) => {
@@ -173,10 +175,10 @@ export function ApiKeySetup({
           const isFocused = index === providerIndex;
           return (
             <Box key={provider}>
-              <Text color={isFocused ? 'cyan' : 'gray'} bold={isFocused}>
+              <Text color={isFocused ? theme.primary : theme.textMuted} bold={isFocused}>
                 {isFocused ? '> ' : '  '}
               </Text>
-              <Text color={isFocused ? 'cyan' : 'white'}>
+              <Text color={isFocused ? theme.primary : theme.text}>
                 {index + 1}. {config.name}
               </Text>
             </Box>
@@ -184,7 +186,7 @@ export function ApiKeySetup({
         })}
 
         <Box marginTop={1}>
-          <Text dimColor>[Up/Down] Navigate [Enter] Select [1-3] Quick select</Text>
+          <Text color={theme.textMuted}>[Up/Down] Navigate [Enter] Select [1-3] Quick select</Text>
         </Box>
       </Box>
     );
@@ -197,23 +199,23 @@ export function ApiKeySetup({
     return (
       <Box flexDirection='column' paddingY={1}>
         <Box marginBottom={1}>
-          <Text bold>Enter your {providerConfig.name} API key:</Text>
+          <Text bold color={theme.text}>Enter your {providerConfig.name} API key:</Text>
         </Box>
 
         <Box marginBottom={1}>
-          <Text dimColor>
-            Get one at: <Text color='blue'>{PROVIDER_URLS[selectedProvider]}</Text>
+          <Text color={theme.textMuted}>
+            Get one at: <Text color={theme.secondary}>{PROVIDER_URLS[selectedProvider]}</Text>
           </Text>
         </Box>
 
         {displayError && (
           <Box marginBottom={1}>
-            <Text color='red'>⚠ {displayError}</Text>
+            <Text color={theme.error}>{displayError}</Text>
           </Box>
         )}
 
         <Box>
-          <Text dimColor>{'> '}</Text>
+          <Text color={theme.textMuted}>{'> '}</Text>
           <ControlledTextInput
             value={textState.value}
             cursorOffset={textState.cursorOffset}
@@ -222,8 +224,8 @@ export function ApiKeySetup({
         </Box>
 
         <Box marginTop={1}>
-          <Text color='yellow'>
-            🔒 Your key is stored securely on this machine using your system's credential manager.
+          <Text color={theme.warning}>
+            Your key is stored securely on this machine using your system's credential manager.
           </Text>
         </Box>
       </Box>
@@ -234,7 +236,7 @@ export function ApiKeySetup({
     return (
       <Box flexDirection='column' paddingY={1}>
         <Box>
-          <Text color='yellow'>⏳ Saving API key...</Text>
+          <Text color={theme.warning}>Saving API key...</Text>
         </Box>
       </Box>
     );
@@ -243,10 +245,10 @@ export function ApiKeySetup({
   return (
     <Box flexDirection='column' paddingY={1}>
       <Box>
-        <Text color='green'>✓ API key saved successfully!</Text>
+        <Text color={theme.success}>{'\u2713'} API key saved successfully!</Text>
       </Box>
       <Box marginTop={1}>
-        <Text>Starting {APP_NAME}...</Text>
+        <Text color={theme.text}>Starting {APP_NAME}...</Text>
       </Box>
     </Box>
   );

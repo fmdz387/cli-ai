@@ -1,6 +1,9 @@
 /**
- * Agent message display with streaming cursor and basic formatting
+ * Agent message display with streaming cursor and markdown rendering
  */
+import { useTheme } from '../../theme/index.js';
+import { MarkdownText } from '../MarkdownText.js';
+
 import { Box, Text } from 'ink';
 import { useEffect, useState, type ReactNode } from 'react';
 
@@ -33,6 +36,7 @@ export function formatSegments(text: string): ReactNode[] {
 }
 
 export function AgentMessage({ text, isStreaming }: AgentMessageProps): ReactNode {
+  const theme = useTheme();
   const [cursorFrame, setCursorFrame] = useState(0);
 
   useEffect(() => {
@@ -50,8 +54,8 @@ export function AgentMessage({ text, isStreaming }: AgentMessageProps): ReactNod
   return (
     <Box flexDirection='column' width={termWidth - 4}>
       <Box flexWrap='wrap'>
-        {formatSegments(text)}
-        {isStreaming && <Text color='green'>{CURSOR_FRAMES[cursorFrame]}</Text>}
+        <MarkdownText>{text}</MarkdownText>
+        {isStreaming && <Text color={theme.primary}>{CURSOR_FRAMES[cursorFrame]}</Text>}
       </Box>
     </Box>
   );

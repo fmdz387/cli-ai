@@ -1,10 +1,11 @@
 /**
- * Chalk-based syntax highlighting for shell commands
+ * Chalk-based syntax highlighting for shell commands with theme support
  */
 
 import chalk from 'chalk';
 
 import { COMMAND_KEYWORDS } from '../constants.js';
+import type { Theme } from '../theme/types.js';
 
 type TokenType = 'keyword' | 'flag' | 'string' | 'pipe' | 'path' | 'variable' | 'default';
 
@@ -69,7 +70,26 @@ function tokenize(command: string): Token[] {
   return tokens;
 }
 
-function colorToken(token: Token): string {
+function colorToken(token: Token, theme?: Theme): string {
+  if (theme) {
+    switch (token.type) {
+      case 'keyword':
+        return chalk.hex(theme.syntaxKeyword).bold(token.value);
+      case 'flag':
+        return chalk.hex(theme.syntaxFlag)(token.value);
+      case 'string':
+        return chalk.hex(theme.syntaxString)(token.value);
+      case 'pipe':
+        return chalk.hex(theme.syntaxPipe)(token.value);
+      case 'path':
+        return chalk.hex(theme.syntaxPath)(token.value);
+      case 'variable':
+        return chalk.hex(theme.syntaxVariable)(token.value);
+      default:
+        return token.value;
+    }
+  }
+
   switch (token.type) {
     case 'keyword':
       return chalk.cyan.bold(token.value);
@@ -88,9 +108,9 @@ function colorToken(token: Token): string {
   }
 }
 
-export function highlightCommand(command: string): string {
+export function highlightCommand(command: string, theme?: Theme): string {
   const tokens = tokenize(command);
-  return tokens.map(colorToken).join('');
+  return tokens.map((t) => colorToken(t, theme)).join('');
 }
 
 export interface StyledSegment {
@@ -99,25 +119,45 @@ export interface StyledSegment {
   bold?: boolean;
 }
 
-export function getCommandSegments(command: string): StyledSegment[] {
-  const tokens = tokenize(command);
-
-  return tokens.map((token): StyledSegment => {
+function tokenToSegment(token: Token, theme?: Theme): StyledSegment {
+  if (theme) {
     switch (token.type) {
       case 'keyword':
-        return { text: token.value, color: 'cyan', bold: true };
+        return { text: token.value, color: theme.syntaxKeyword, bold: true };
       case 'flag':
-        return { text: token.value, color: 'yellow' };
+        return { text: token.value, color: theme.syntaxFlag };
       case 'string':
-        return { text: token.value, color: 'green' };
+        return { text: token.value, color: theme.syntaxString };
       case 'pipe':
-        return { text: token.value, color: 'magenta' };
+        return { text: token.value, color: theme.syntaxPipe };
       case 'path':
-        return { text: token.value, color: 'blue' };
+        return { text: token.value, color: theme.syntaxPath };
       case 'variable':
-        return { text: token.value, color: 'cyan' };
+        return { text: token.value, color: theme.syntaxVariable };
       default:
         return { text: token.value };
     }
-  });
+  }
+
+  switch (token.type) {
+    case 'keyword':
+      return { text: token.value, color: 'cyan', bold: true };
+    case 'flag':
+      return { text: token.value, color: 'yellow' };
+    case 'string':
+      return { text: token.value, color: 'green' };
+    case 'pipe':
+      return { text: token.value, color: 'magenta' };
+    case 'path':
+      return { text: token.value, color: 'blue' };
+    case 'variable':
+      return { text: token.value, color: 'cyan' };
+    default:
+      return { text: token.value };
+  }
+}
+
+export function getCommandSegments(command: string, theme?: Theme): StyledSegment[] {
+  const tokens = tokenize(command);
+  return tokens.map((t) => tokenToSegment(t, theme));
 }

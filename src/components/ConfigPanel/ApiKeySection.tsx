@@ -1,6 +1,7 @@
 /**
  * API key section for config panel
  */
+import { useTheme } from '../../theme/index.js';
 
 import { Box, Text } from 'ink';
 import type { ReactNode } from 'react';
@@ -24,19 +25,21 @@ export function ApiKeySection({
   isSectionActive,
   focusedIndex,
 }: ApiKeySectionProps): ReactNode {
+  const theme = useTheme();
+
   return (
     <Box flexDirection="column">
       {/* Status */}
       <Box>
-        <Text dimColor>Status:  </Text>
-        <Text color={hasApiKey ? 'green' : 'red'}>
+        <Text color={theme.textMuted}>Status:  </Text>
+        <Text color={hasApiKey ? theme.success : theme.error}>
           {hasApiKey ? 'Configured' : 'Not configured'}
         </Text>
         {hasApiKey ? (
           <>
-            <Text dimColor> (</Text>
-            <Text color={isSecure ? 'green' : 'yellow'}>{storageDescription}</Text>
-            <Text dimColor>)</Text>
+            <Text color={theme.textMuted}> (</Text>
+            <Text color={isSecure ? theme.success : theme.warning}>{storageDescription}</Text>
+            <Text color={theme.textMuted}>)</Text>
           </>
         ) : null}
       </Box>
@@ -44,27 +47,27 @@ export function ApiKeySection({
       {/* Masked key */}
       {maskedKey ? (
         <Box>
-          <Text dimColor>Key:     </Text>
-          <Text color="gray">{maskedKey}</Text>
+          <Text color={theme.textMuted}>Key:     </Text>
+          <Text color={theme.textMuted}>{maskedKey}</Text>
         </Box>
       ) : null}
 
       {/* Actions */}
       <Box marginTop={1}>
-        <Text color={isSectionActive && focusedIndex === 0 ? 'cyan' : 'gray'} bold={isSectionActive && focusedIndex === 0}>
+        <Text color={isSectionActive && focusedIndex === 0 ? theme.primary : theme.textMuted} bold={isSectionActive && focusedIndex === 0}>
           {isSectionActive && focusedIndex === 0 ? '> ' : '  '}
         </Text>
-        <Text color={isSectionActive && focusedIndex === 0 ? 'cyan' : 'blue'}>
+        <Text color={isSectionActive && focusedIndex === 0 ? theme.primary : theme.secondary}>
           [{hasApiKey ? 'Change API Key' : 'Set API Key'}]
         </Text>
       </Box>
 
       {hasApiKey ? (
         <Box>
-          <Text color={isSectionActive && focusedIndex === 1 ? 'cyan' : 'gray'} bold={isSectionActive && focusedIndex === 1}>
+          <Text color={isSectionActive && focusedIndex === 1 ? theme.primary : theme.textMuted} bold={isSectionActive && focusedIndex === 1}>
             {isSectionActive && focusedIndex === 1 ? '> ' : '  '}
           </Text>
-          <Text color={isSectionActive && focusedIndex === 1 ? 'red' : 'gray'}>
+          <Text color={isSectionActive && focusedIndex === 1 ? theme.error : theme.textMuted}>
             [Remove API Key]
           </Text>
         </Box>

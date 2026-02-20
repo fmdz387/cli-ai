@@ -1,6 +1,7 @@
 /**
  * Permission prompt for agent tool calls requiring approval
  */
+import { useTheme } from '../../theme/index.js';
 import type { AgentToolCallInfo } from '../../types/index.js';
 
 import { Box, Text } from 'ink';
@@ -22,44 +23,45 @@ function truncateValue(value: unknown, max: number): string {
 export function PermissionPrompt({
   toolCall,
 }: PermissionPromptProps): ReactNode {
+  const theme = useTheme();
   const params = Object.entries(toolCall.input);
 
   return (
     <Box
       flexDirection='column'
       borderStyle='round'
-      borderColor='yellow'
+      borderColor={theme.warning}
       paddingX={1}
       marginY={1}
     >
       <Box>
-        <Text color='yellow' bold>
+        <Text color={theme.warning} bold>
           Permission Required
         </Text>
       </Box>
       <Box marginTop={1}>
-        <Text>
-          Tool: <Text bold color='blue'>{toolCall.name}</Text>
+        <Text color={theme.text}>
+          Tool: <Text bold color={theme.secondary}>{toolCall.name}</Text>
         </Text>
       </Box>
       {params.length > 0 && (
         <Box flexDirection='column' marginTop={1}>
           {params.slice(0, 5).map(([key, value]) => (
             <Box key={key}>
-              <Text dimColor>  {key}: </Text>
-              <Text>{truncateValue(value, 80)}</Text>
+              <Text color={theme.textMuted}>  {key}: </Text>
+              <Text color={theme.text}>{truncateValue(value, 80)}</Text>
             </Box>
           ))}
           {params.length > 5 && (
-            <Text dimColor>  ... {params.length - 5} more</Text>
+            <Text color={theme.textMuted}>  ... {params.length - 5} more</Text>
           )}
         </Box>
       )}
       <Box marginTop={1}>
-        <Text>
-          [<Text color='green'>y</Text>] Allow once{' '}
-          [<Text color='red'>n</Text>] Deny{' '}
-          [<Text color='cyan'>A</Text>] Allow for session
+        <Text color={theme.text}>
+          [<Text color={theme.success}>y</Text>] Allow once{' '}
+          [<Text color={theme.error}>n</Text>] Deny{' '}
+          [<Text color={theme.primary}>A</Text>] Allow for session
         </Text>
       </Box>
     </Box>

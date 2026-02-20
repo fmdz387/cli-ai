@@ -1,6 +1,8 @@
 /**
  * Agent progress display showing step counter, status, and token usage
  */
+import { useTheme } from '../../theme/index.js';
+
 import { Box, Text } from 'ink';
 import type { ReactNode } from 'react';
 
@@ -29,6 +31,7 @@ export function AgentProgress({
   status,
   tokenUsage,
 }: AgentProgressProps): ReactNode {
+  const theme = useTheme();
   const filled = Math.min(stepIndex, maxSteps);
   const barWidth = 20;
   const filledWidth = Math.round((filled / maxSteps) * barWidth);
@@ -38,26 +41,26 @@ export function AgentProgress({
   return (
     <Box flexDirection='column' marginY={1}>
       <Box>
-        <Text color='cyan' bold>
+        <Text color={theme.primary} bold>
           Step {stepIndex}/{maxSteps}
         </Text>
         <Text> </Text>
-        <Text dimColor>{bar}</Text>
+        <Text color={theme.textMuted}>{bar}</Text>
       </Box>
       <Box>
-        <Text dimColor>{status}</Text>
+        <Text color={theme.textMuted}>{status}</Text>
       </Box>
       {tokenUsage && (
         <Box>
-          <Text dimColor>
+          <Text color={theme.textMuted}>
             Tokens: {formatTokenCount(tokenUsage.inputTokens)} in /{' '}
             {formatTokenCount(tokenUsage.outputTokens)} out
           </Text>
         </Box>
       )}
       <Box>
-        <Text dimColor>
-          [<Text color='yellow'>Ctrl+C</Text>] to stop
+        <Text color={theme.textMuted}>
+          [<Text color={theme.warning}>Ctrl+C</Text>] to stop
         </Text>
       </Box>
     </Box>

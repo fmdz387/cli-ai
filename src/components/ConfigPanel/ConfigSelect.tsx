@@ -1,6 +1,7 @@
 /**
  * Selection component for config panel (e.g., model selection)
  */
+import { useTheme } from '../../theme/index.js';
 
 import { Box, Text } from 'ink';
 import type { ReactNode } from 'react';
@@ -24,6 +25,8 @@ export function ConfigSelect({
   focusedIndex,
   isSectionActive,
 }: ConfigSelectProps): ReactNode {
+  const theme = useTheme();
+
   return (
     <Box flexDirection="column">
       {options.map((option, index) => {
@@ -32,19 +35,19 @@ export function ConfigSelect({
 
         return (
           <Box key={option.id}>
-            <Text color={isFocused ? 'cyan' : 'gray'} bold={isFocused}>
+            <Text color={isFocused ? theme.primary : theme.textMuted} bold={isFocused}>
               {isFocused ? '> ' : '  '}
             </Text>
-            <Text color={isSelected ? 'green' : isFocused ? 'white' : 'gray'}>
+            <Text color={isSelected ? theme.success : isFocused ? theme.text : theme.textMuted}>
               {isSelected ? '(*) ' : '( ) '}
             </Text>
-            <Text color={isFocused ? 'white' : 'gray'} bold={isSelected}>
+            <Text color={isFocused ? theme.text : theme.textMuted} bold={isSelected}>
               {option.name}
             </Text>
             {option.description ? (
               <>
-                <Text dimColor> - </Text>
-                <Text dimColor>{option.description}</Text>
+                <Text color={theme.textMuted}> - </Text>
+                <Text color={theme.textMuted}>{option.description}</Text>
               </>
             ) : null}
           </Box>

@@ -1,6 +1,7 @@
 /**
  * Help panel display component - shows keyboard shortcuts and usage info
  */
+import { useTheme } from '../../theme/index.js';
 
 import { Box, Text } from 'ink';
 import type { ReactNode } from 'react';
@@ -49,15 +50,17 @@ const CONFIG_SHORTCUTS: ShortcutItem[] = [
 ];
 
 function ShortcutSection({ title, shortcuts }: { title: string; shortcuts: ShortcutItem[] }): ReactNode {
+  const theme = useTheme();
+
   return (
     <Box flexDirection="column" marginBottom={1}>
-      <Text color="yellow" bold>{title}</Text>
+      <Text color={theme.warning} bold>{title}</Text>
       {shortcuts.map((shortcut) => (
         <Box key={shortcut.key}>
           <Box width={16}>
-            <Text color="cyan">{shortcut.key}</Text>
+            <Text color={theme.primary}>{shortcut.key}</Text>
           </Box>
-          <Text dimColor>{shortcut.description}</Text>
+          <Text color={theme.textMuted}>{shortcut.description}</Text>
         </Box>
       ))}
     </Box>
@@ -65,6 +68,8 @@ function ShortcutSection({ title, shortcuts }: { title: string; shortcuts: Short
 }
 
 export function HelpPanelDisplay({ visible }: HelpPanelDisplayProps): ReactNode {
+  const theme = useTheme();
+
   if (!visible) {
     return null;
   }
@@ -73,25 +78,25 @@ export function HelpPanelDisplay({ visible }: HelpPanelDisplayProps): ReactNode 
     <Box
       flexDirection="column"
       borderStyle="round"
-      borderColor="blue"
+      borderColor={theme.border}
       paddingX={2}
       paddingY={1}
     >
       {/* Header */}
       <Box justifyContent="space-between" marginBottom={1}>
         <Box>
-          <Text color="cyan" bold>
+          <Text color={theme.primary} bold>
             Help - {APP_NAME} v{VERSION}
           </Text>
         </Box>
         <Box>
-          <Text dimColor>[Esc] Close</Text>
+          <Text color={theme.textMuted}>[Esc] Close</Text>
         </Box>
       </Box>
 
       {/* Description */}
       <Box marginBottom={1}>
-        <Text>
+        <Text color={theme.text}>
           Natural language to shell command translator. Describe what you want
           in plain English and get executable commands.
         </Text>
@@ -111,22 +116,22 @@ export function HelpPanelDisplay({ visible }: HelpPanelDisplayProps): ReactNode 
 
       {/* Commands */}
       <Box flexDirection="column" marginTop={1}>
-        <Text color="yellow" bold>Available Commands</Text>
+        <Text color={theme.warning} bold>Available Commands</Text>
         <Box>
-          <Box width={16}><Text color="cyan">/config</Text></Box>
-          <Text dimColor>Open settings panel</Text>
+          <Box width={16}><Text color={theme.primary}>/config</Text></Box>
+          <Text color={theme.textMuted}>Open settings panel</Text>
         </Box>
         <Box>
-          <Box width={16}><Text color="cyan">/help</Text></Box>
-          <Text dimColor>Show this help</Text>
+          <Box width={16}><Text color={theme.primary}>/help</Text></Box>
+          <Text color={theme.textMuted}>Show this help</Text>
         </Box>
         <Box>
-          <Box width={16}><Text color="cyan">/clear</Text></Box>
-          <Text dimColor>Clear command history</Text>
+          <Box width={16}><Text color={theme.primary}>/clear</Text></Box>
+          <Text color={theme.textMuted}>Clear command history</Text>
         </Box>
         <Box>
-          <Box width={16}><Text color="cyan">/exit</Text></Box>
-          <Text dimColor>Exit application</Text>
+          <Box width={16}><Text color={theme.primary}>/exit</Text></Box>
+          <Text color={theme.textMuted}>Exit application</Text>
         </Box>
       </Box>
     </Box>

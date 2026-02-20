@@ -5,6 +5,7 @@ import {
 } from '../../commands/types.js';
 import { AI_PROVIDERS, PROVIDER_CONFIG, VERSION } from '../../constants.js';
 import { hasApiKey as checkHasApiKey } from '../../lib/secure-storage.js';
+import { useTheme } from '../../theme/index.js';
 import type { AppConfig } from '../../types/index.js';
 import { ControlledTextInput, type TextInputState } from '../ControlledTextInput.js';
 import { ConfigSection } from './ConfigSection.js';
@@ -51,6 +52,8 @@ export function ConfigPanelDisplay({
   isEditingCustomModel = false,
   customModelState,
 }: ConfigPanelDisplayProps): ReactNode {
+  const theme = useTheme();
+
   if (!visible) {
     return null;
   }
@@ -61,22 +64,22 @@ export function ConfigPanelDisplay({
   const customModelIndex = AI_PROVIDERS.length + currentModels.length;
 
   return (
-    <Box flexDirection='column' borderStyle='round' borderColor='blue' paddingX={2} paddingY={1}>
+    <Box flexDirection='column' borderStyle='round' borderColor={theme.border} paddingX={2} paddingY={1}>
       <Box justifyContent='space-between' marginBottom={1}>
         <Box>
-          <Text color='cyan' bold>
+          <Text color={theme.primary} bold>
             Settings
           </Text>
         </Box>
         <Box>
-          <Text dimColor>[Esc] Close [Tab] Section [Enter] Select</Text>
+          <Text color={theme.textMuted}>[Esc] Close [Tab] Section [Enter] Select</Text>
         </Box>
       </Box>
 
       <ConfigSection title='Provider & Model' isActive={activeSection === 'provider'}>
         <Box flexDirection='column'>
           <Box marginBottom={1}>
-            <Text dimColor>Provider</Text>
+            <Text color={theme.textMuted}>Provider</Text>
           </Box>
           {AI_PROVIDERS.map((provider, index) => {
             const providerConfig = PROVIDER_CONFIG[provider];
@@ -85,21 +88,21 @@ export function ConfigPanelDisplay({
             const isFocused = activeSection === 'provider' && sectionItemIndex === index;
             return (
               <Box key={provider}>
-                <Text color={isFocused ? 'cyan' : 'gray'} bold={isFocused}>
+                <Text color={isFocused ? theme.primary : theme.textMuted} bold={isFocused}>
                   {isFocused ? '> ' : '  '}
                 </Text>
-                <Text color={isFocused ? 'cyan' : isSelected ? 'green' : 'white'}>
-                  {isSelected ? '●' : '○'} {providerConfig.name}
+                <Text color={isFocused ? theme.primary : isSelected ? theme.success : theme.text}>
+                  {isSelected ? '\u25CF' : '\u25CB'} {providerConfig.name}
                 </Text>
                 <Text> </Text>
-                <Text color={providerHasKey ? 'green' : 'red'} dimColor={!isFocused}>
-                  {providerHasKey ? '✓ Key' : '✗ No key'}
+                <Text color={providerHasKey ? theme.success : theme.error}>
+                  {providerHasKey ? '\u2713 Key' : '\u2717 No key'}
                 </Text>
               </Box>
             );
           })}
           <Box marginTop={1} marginBottom={1}>
-            <Text dimColor>Model</Text>
+            <Text color={theme.textMuted}>Model</Text>
           </Box>
           {currentModels.map((model, index) => {
             const modelIndex = index + AI_PROVIDERS.length;
@@ -107,13 +110,13 @@ export function ConfigPanelDisplay({
             const isFocused = activeSection === 'provider' && sectionItemIndex === modelIndex;
             return (
               <Box key={model.id}>
-                <Text color={isFocused ? 'cyan' : 'gray'} bold={isFocused}>
+                <Text color={isFocused ? theme.primary : theme.textMuted} bold={isFocused}>
                   {isFocused ? '> ' : '  '}
                 </Text>
-                <Text color={isFocused ? 'cyan' : isSelected ? 'green' : 'white'}>
-                  {isSelected ? '●' : '○'} {model.name}
+                <Text color={isFocused ? theme.primary : isSelected ? theme.success : theme.text}>
+                  {isSelected ? '\u25CF' : '\u25CB'} {model.name}
                 </Text>
-                <Text dimColor={!isFocused}> {model.description}</Text>
+                <Text color={theme.textMuted}> {model.description}</Text>
               </Box>
             );
           })}
@@ -121,8 +124,8 @@ export function ConfigPanelDisplay({
             <Text
               color={
                 activeSection === 'provider' && sectionItemIndex === customModelIndex
-                  ? 'cyan'
-                  : 'gray'
+                  ? theme.primary
+                  : theme.textMuted
               }
               bold={activeSection === 'provider' && sectionItemIndex === customModelIndex}
             >
@@ -130,31 +133,29 @@ export function ConfigPanelDisplay({
             </Text>
             {isEditingCustomModel && customModelState ? (
               <>
-                <Text color='cyan'>{'○ '}</Text>
+                <Text color={theme.primary}>{'\u25CB '}</Text>
                 <ControlledTextInput
                   value={customModelState.value}
                   cursorOffset={customModelState.cursorOffset}
                   placeholder='model-id'
                 />
-                <Text dimColor> (Enter to save, Esc to cancel)</Text>
+                <Text color={theme.textMuted}> (Enter to save, Esc to cancel)</Text>
               </>
             ) : (
               <>
                 <Text
                   color={
                     activeSection === 'provider' && sectionItemIndex === customModelIndex
-                      ? 'cyan'
+                      ? theme.primary
                       : isCustomModel
-                        ? 'green'
-                        : 'white'
+                        ? theme.success
+                        : theme.text
                   }
                 >
-                  {isCustomModel ? '●' : '○'} {CUSTOM_MODEL_OPTION.name}
+                  {isCustomModel ? '\u25CF' : '\u25CB'} {CUSTOM_MODEL_OPTION.name}
                 </Text>
                 <Text
-                  dimColor={
-                    !(activeSection === 'provider' && sectionItemIndex === customModelIndex)
-                  }
+                  color={theme.textMuted}
                 >
                   {' '}
                   {isCustomModel ? `(${config.model})` : CUSTOM_MODEL_OPTION.description}
@@ -173,14 +174,14 @@ export function ConfigPanelDisplay({
             const isFocused = activeSection === 'api-keys' && sectionItemIndex === index;
             return (
               <Box key={provider}>
-                <Text color={isFocused ? 'cyan' : 'gray'} bold={isFocused}>
+                <Text color={isFocused ? theme.primary : theme.textMuted} bold={isFocused}>
                   {isFocused ? '> ' : '  '}
                 </Text>
-                <Text color={isFocused ? 'cyan' : 'white'}>{providerConfig.name}: </Text>
-                <Text color={providerHasKey ? 'green' : 'red'}>
-                  {providerHasKey ? '✓ Configured' : '✗ Not set'}
+                <Text color={isFocused ? theme.primary : theme.text}>{providerConfig.name}: </Text>
+                <Text color={providerHasKey ? theme.success : theme.error}>
+                  {providerHasKey ? '\u2713 Configured' : '\u2717 Not set'}
                 </Text>
-                <Text dimColor={!isFocused}> [Enter to {providerHasKey ? 'change' : 'add'}]</Text>
+                <Text color={theme.textMuted}> [Enter to {providerHasKey ? 'change' : 'add'}]</Text>
               </Box>
             );
           })}
@@ -213,20 +214,20 @@ export function ConfigPanelDisplay({
       <ConfigSection title='About' isActive={activeSection === 'about'}>
         <Box flexDirection='column'>
           <Box>
-            <Text dimColor>Version: </Text>
-            <Text>CLI AI v{VERSION}</Text>
+            <Text color={theme.textMuted}>Version: </Text>
+            <Text color={theme.text}>CLI AI v{VERSION}</Text>
           </Box>
           <Box>
-            <Text dimColor>Provider: </Text>
-            <Text color='magenta'>{PROVIDER_CONFIG[config.provider].name}</Text>
+            <Text color={theme.textMuted}>Provider: </Text>
+            <Text color={theme.accent}>{PROVIDER_CONFIG[config.provider].name}</Text>
           </Box>
           <Box>
-            <Text dimColor>Model: </Text>
-            <Text color='magenta'>{config.model}</Text>
+            <Text color={theme.textMuted}>Model: </Text>
+            <Text color={theme.accent}>{config.model}</Text>
           </Box>
           <Box>
-            <Text dimColor>Storage: </Text>
-            <Text color={storageInfo.secure ? 'green' : 'yellow'}>{storageInfo.description}</Text>
+            <Text color={theme.textMuted}>Storage: </Text>
+            <Text color={storageInfo.secure ? theme.success : theme.warning}>{storageInfo.description}</Text>
           </Box>
         </Box>
       </ConfigSection>
@@ -234,7 +235,7 @@ export function ConfigPanelDisplay({
       <Box marginTop={1} justifyContent='center'>
         {SECTIONS.map((section, index) => (
           <Box key={section} marginX={1}>
-            <Text color={index === activeSectionIndex ? 'cyan' : 'gray'}>
+            <Text color={index === activeSectionIndex ? theme.primary : theme.textMuted}>
               {index === activeSectionIndex ? '[' : ' '}
               {index + 1}
               {index === activeSectionIndex ? ']' : ' '}

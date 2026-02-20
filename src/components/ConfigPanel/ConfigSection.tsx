@@ -1,6 +1,7 @@
 /**
  * Section wrapper for config panel
  */
+import { useTheme } from '../../theme/index.js';
 
 import { Box, Text } from 'ink';
 import type { ReactNode } from 'react';
@@ -12,19 +13,21 @@ export interface ConfigSectionProps {
 }
 
 export function ConfigSection({ title, isActive, children }: ConfigSectionProps): ReactNode {
+  const theme = useTheme();
+
   return (
     <Box flexDirection="column" marginBottom={1}>
       {/* Section header */}
       <Box>
-        <Text color={isActive ? 'cyan' : 'white'} bold>
+        <Text color={isActive ? theme.primary : theme.text} bold>
           {title}
         </Text>
-        {isActive ? <Text color="cyan"> *</Text> : null}
+        {isActive ? <Text color={theme.primary}> *</Text> : null}
       </Box>
 
       {/* Separator */}
       <Box>
-        <Text dimColor>{'─'.repeat(50)}</Text>
+        <Text color={theme.border}>{'─'.repeat(50)}</Text>
       </Box>
 
       {/* Section content */}

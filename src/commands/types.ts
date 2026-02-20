@@ -24,7 +24,7 @@ export interface CommandContext {
 export type CommandResult =
   | { type: 'panel'; panel: 'config' | 'help' }
   | { type: 'action'; message: string }
-  | { type: 'navigate'; to: 'input' | 'clear' }
+  | { type: 'navigate'; to: 'input' | 'clear' | 'compact' }
   | { type: 'exit' };
 
 /**
