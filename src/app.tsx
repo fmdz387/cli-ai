@@ -1,32 +1,26 @@
 /**
- * Main application component
+ * Main application component - Chat-first conversational UX
  * Uses single useInput controller pattern - DO NOT add useInput to child components
  */
 import { commandRegistry } from './commands/index.js';
 import { PROVIDER_MODELS, type ConfigSection } from './commands/types.js';
 import type { SlashCommand } from './commands/types.js';
+import { createExecutorDeps } from './agent/create-executor.js';
+import { AgentExecutor } from './agent/executor.js';
 import type { AgentConfig, ExecutorResult, ExecutorRunOptions } from './agent/types.js';
 import { ApiKeySetup } from './components/ApiKeySetup.js';
-import { AgentView } from './components/Agent/index.js';
-import { LiveOutput } from './components/CommandOutput.js';
+import { ChatView } from './components/Chat/index.js';
 import { CommandPaletteDisplay } from './components/CommandPalette/index.js';
-import { CommandProposal } from './components/CommandProposal.js';
-import { AlternativesList } from './components/CommandProposal.js';
 import { ConfigPanelDisplay, type StorageInfo } from './components/ConfigPanel/index.js';
 import { HelpPanelDisplay } from './components/HelpPanel/index.js';
 import { InputPromptDisplay } from './components/InputPromptDisplay.js';
-import { OptionsMenuDisplay, SelectionMenuDisplay } from './components/OptionsMenuDisplay.js';
-import { ThinkingSpinner } from './components/Spinner.js';
 import { WelcomeHeader } from './components/WelcomeHeader.js';
 import { AI_PROVIDERS, MAX_AGENT_STEPS, PROVIDER_CONFIG } from './constants.js';
-import { useAgentSession } from './hooks/useAgentSession.js';
-import { useAI } from './hooks/useAI.js';
+import { useChatAgent } from './hooks/useChatAgent.js';
+import { useChatSession } from './hooks/useChatSession.js';
 import { useCommandPalette } from './hooks/useCommandPalette.js';
 import { useConfig } from './hooks/useConfig.js';
-import { useExec } from './hooks/useExec.js';
 import { useInputController, type InputMode } from './hooks/useInputController.js';
-import { useSession } from './hooks/useSession.js';
-import { copyToClipboard } from './lib/clipboard.js';
 import { detectShell } from './lib/platform.js';
 import {
   getApiKey,
@@ -44,9 +38,6 @@ export function App(): ReactNode {
   const { exit } = useApp();
   const shell = detectShell();
 
-  const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
-  const [explanation, setExplanation] = useState<string | null>(null);
-
   // Inline palette state - shown when user types "/" in input
   const [inlinePaletteCommands, setInlinePaletteCommands] = useState<SlashCommand[]>([]);
   const [inlinePaletteIndex, setInlinePaletteIndex] = useState(0);
@@ -54,18 +45,10 @@ export function App(): ReactNode {
   const { isLoading: configLoading, hasKey, error: configError, refreshKeyStatus } = useConfig();
 
   const {
-    store,
-    submitQuery,
-    handleAIResponse,
-    handleAIAlternatives,
-    handleAIError,
-    execute: executeAction,
-    executeEdited,
-    markExecutionDone,
-    copy,
-    edit,
-    cancel,
-    toggleOutput,
+    store: chatStore,
+    dispatch: chatDispatch,
+    sendMessage,
+    clearConversation,
     completeSetup,
     openPalette,
     updatePalette,
@@ -75,10 +58,7 @@ export function App(): ReactNode {
     closeConfig,
     openHelp,
     closeHelp,
-    clearHistory,
-    startAgent: startAgentSession,
-    abortAgent,
-  } = useSession();
+  } = useChatSession();
 
   // Config panel state
   const [configItemIndex, setConfigItemIndex] = useState(0);
@@ -121,15 +101,15 @@ export function App(): ReactNode {
     [currentProvider, selectedModel, displayToggles.contextEnabled],
   );
 
-  // Agentic mode state
-  const [agenticMode, setAgenticMode] = useState(false);
-
-  const noopExecutor = useCallback(
-    async (_options: ExecutorRunOptions): Promise<ExecutorResult> => {
-      return {
-        finalResponse: '',
-        usage: { totalInputTokens: 0, totalOutputTokens: 0, turns: 0 },
-      };
+  const runExecutor = useCallback(
+    async (options: ExecutorRunOptions): Promise<ExecutorResult> => {
+      const apiKey = getApiKey(options.config.provider);
+      if (!apiKey) {
+        throw new Error(`No API key configured for ${options.config.provider}`);
+      }
+      const deps = createExecutorDeps(options.config.provider, options.config.model, apiKey);
+      const executor = new AgentExecutor(deps);
+      return executor.execute(options);
     },
     [],
   );
@@ -138,7 +118,7 @@ export function App(): ReactNode {
     (): AgentConfig => ({
       provider: currentProvider,
       model: selectedModel,
-      apiKey: '',
+      apiKey: getApiKey(currentProvider) ?? '',
       maxTurns: MAX_AGENT_STEPS,
       maxTokensPerTurn: 4096,
       context: {
@@ -146,73 +126,45 @@ export function App(): ReactNode {
         cwd: process.cwd(),
         platform: process.platform,
         directoryTree: '',
-        history: store.history,
+        history: [],
       },
     }),
-    [currentProvider, selectedModel, shell, store.history],
+    [currentProvider, selectedModel, shell],
   );
 
-  const agentSession = useAgentSession({
-    runExecutor: noopExecutor,
+  const chatAgent = useChatAgent({
+    runExecutor,
     buildConfig: buildAgentConfig,
+    apiMessages: chatStore.apiMessages,
+    dispatch: chatDispatch,
   });
 
   // Command palette hook
   const palette = useCommandPalette({
-    sessionStatus: store.state.status,
+    sessionStatus: chatStore.overlay.type === 'palette' ? 'palette' : 'input',
     config: appConfig,
     updateConfig: () => {},
     onOpenConfig: openConfig,
     onOpenHelp: openHelp,
-    onClearHistory: clearHistory,
+    onClearHistory: clearConversation,
     onExit: () => exit(),
   });
 
-  // All history entries (no longer using Static for history, so clear works properly)
-  const historyEntries = useMemo(() => store.history, [store.history]);
-
-  const {
-    generate,
-    getAlternatives,
-    explain,
-    isLoading: aiLoading,
-  } = useAI({
-    shell,
-    history: store.history,
-    contextEnabled: displayToggles.contextEnabled,
-  });
-
-  const {
-    execute: executeCommand,
-    kill: killCommand,
-    isExecuting,
-    liveOutput,
-  } = useExec({
-    shell,
-    onComplete: markExecutionDone,
-  });
-
+  // Determine input mode
   const inputMode: InputMode = useMemo(() => {
     if (configLoading || !hasKey) return 'disabled';
-    if (store.state.status === 'setup') return 'disabled';
-    if (store.state.status === 'loading') return 'disabled';
-    if (store.state.status === 'executing' || isExecuting) return 'disabled';
-    if (store.state.status === 'palette') return 'palette';
-    if (store.state.status === 'config') return 'config';
-    if (store.state.status === 'help') return 'help';
-    if (store.state.status === 'proposal') return aiLoading ? 'disabled' : 'menu';
-    if (store.state.status === 'alternatives') return aiLoading ? 'disabled' : 'selection';
-    if (store.state.status === 'agentic') return 'agentic';
-    if (store.state.status === 'input') return agenticMode ? 'text' : 'text';
-    return 'disabled';
-  }, [configLoading, hasKey, store.state.status, isExecuting, aiLoading, agenticMode]);
+    if (!chatStore.isSetup) return 'disabled';
+    if (chatStore.overlay.type === 'palette') return 'palette';
+    if (chatStore.overlay.type === 'config') return 'config';
+    if (chatStore.overlay.type === 'help') return 'help';
+    return 'text';
+  }, [configLoading, hasKey, chatStore.isSetup, chatStore.overlay.type]);
 
   const handleApiKeyComplete = useCallback(
     (apiKey: string, provider: AIProvider) => {
       const result = saveApiKey(provider, apiKey);
       if (result.success) {
-        // If this is a first-time setup, also set the provider as default
-        if (!hasKey && store.state.status === 'setup') {
+        if (!hasKey && !chatStore.isSetup) {
           setConfig({ provider, model: PROVIDER_CONFIG[provider].defaultModel });
           setCurrentProvider(provider);
           setSelectedModel(PROVIDER_CONFIG[provider].defaultModel);
@@ -223,14 +175,14 @@ export function App(): ReactNode {
         completeSetup();
       }
     },
-    [hasKey, store.state.status, refreshKeyStatus, completeSetup],
+    [hasKey, chatStore.isSetup, refreshKeyStatus, completeSetup],
   );
 
   useEffect(() => {
-    if (!configLoading && hasKey && store.state.status === 'setup') {
+    if (!configLoading && hasKey && !chatStore.isSetup) {
       completeSetup();
     }
-  }, [configLoading, hasKey, store.state.status, completeSetup]);
+  }, [configLoading, hasKey, chatStore.isSetup, completeSetup]);
 
   // Persist model changes to config
   useEffect(() => {
@@ -253,47 +205,29 @@ export function App(): ReactNode {
     }
   }, []);
 
-  const handleCommandResult = useCallback(
-    (result: import('./commands/types.js').CommandResult) => {
-      if (result.type === 'action' && result.message === 'agent-mode') {
-        setAgenticMode((prev) => !prev);
-      }
-    },
-    [],
-  );
-
   const handleTextSubmit = useCallback(
-    async (input: string) => {
-      // Check for slash command - execute selected from inline palette
+    (input: string) => {
+      // Check for slash command
       if (input.startsWith('/')) {
         const cmdName = input.slice(1).trim();
 
-        // If we have filtered commands and one is selected, execute it
         if (inlinePaletteCommands.length > 0) {
           const selectedCmd = inlinePaletteCommands[inlinePaletteIndex];
           if (selectedCmd) {
-            const result = palette.executeCommand(selectedCmd.name);
-            if (result) {
-              handleCommandResult(result);
-              setInlinePaletteCommands([]);
-              setInlinePaletteIndex(0);
-              return;
-            }
-          }
-        }
-
-        // Try to execute by name if typed exactly
-        if (cmdName) {
-          const result = palette.executeCommand(cmdName);
-          if (result) {
-            handleCommandResult(result);
+            palette.executeCommand(selectedCmd.name);
             setInlinePaletteCommands([]);
             setInlinePaletteIndex(0);
             return;
           }
         }
 
-        // No valid command - clear and show feedback
+        if (cmdName) {
+          palette.executeCommand(cmdName);
+          setInlinePaletteCommands([]);
+          setInlinePaletteIndex(0);
+          return;
+        }
+
         setInlinePaletteCommands([]);
         setInlinePaletteIndex(0);
         return;
@@ -303,110 +237,17 @@ export function App(): ReactNode {
       setInlinePaletteCommands([]);
       setInlinePaletteIndex(0);
 
-      if (store.editingCommand) {
-        executeEdited(input);
-        await executeCommand(input);
-        return;
-      }
-
-      // Route to agent mode if active
-      if (agenticMode) {
-        startAgentSession(input);
-        agentSession.startAgent(input);
-        return;
-      }
-
-      submitQuery(input);
-      setExplanation(null);
-
-      const result = await generate(input);
-
-      if (result.success) {
-        handleAIResponse(result.data);
-      } else {
-        handleAIError(result.error);
-      }
+      // Send message through chat flow
+      sendMessage(input);
+      chatAgent.run(input);
     },
     [
-      store.editingCommand,
-      agenticMode,
-      submitQuery,
-      generate,
-      handleAIResponse,
-      handleAIError,
-      executeEdited,
-      executeCommand,
+      sendMessage,
+      chatAgent,
       palette,
       inlinePaletteCommands,
       inlinePaletteIndex,
-      handleCommandResult,
-      startAgentSession,
-      agentSession,
     ],
-  );
-
-  // Menu action handlers
-  const handleExecute = useCallback(async () => {
-    if (store.state.status !== 'proposal') return;
-    executeAction();
-    await executeCommand(store.state.proposal.command);
-  }, [store.state, executeAction, executeCommand]);
-
-  const handleCopy = useCallback(async () => {
-    if (store.state.status !== 'proposal') return;
-    const result = await copyToClipboard(store.state.proposal.command);
-    if (result.success) {
-      setCopyFeedback('✓ Copied to clipboard');
-      setTimeout(() => setCopyFeedback(null), 2000);
-    } else {
-      setCopyFeedback('✗ Failed to copy');
-      setTimeout(() => setCopyFeedback(null), 2000);
-    }
-    copy();
-  }, [store.state, copy]);
-
-  const handleEdit = useCallback(() => {
-    if (store.state.status !== 'proposal') return;
-    edit(store.state.proposal.command);
-  }, [store.state, edit]);
-
-  const handleAlternatives = useCallback(async () => {
-    if (store.state.status !== 'proposal') return;
-    const result = await getAlternatives(store.currentQuery, store.state.proposal.command);
-    if (result.success) {
-      handleAIAlternatives(result.data);
-    } else {
-      handleAIError(result.error);
-    }
-  }, [store.state, store.currentQuery, getAlternatives, handleAIAlternatives, handleAIError]);
-
-  const handleCancel = useCallback(() => {
-    cancel();
-    setExplanation(null);
-  }, [cancel]);
-
-  const handleExplain = useCallback(async () => {
-    if (store.state.status !== 'proposal') return;
-    const result = await explain(store.state.proposal.command);
-    if (result.success) {
-      setExplanation(result.data);
-    }
-  }, [store.state, explain]);
-
-  const handleToggle = useCallback(() => {
-    toggleOutput();
-  }, [toggleOutput]);
-
-  // Handle alternative selection
-  const handleAlternativeSelect = useCallback(
-    (index: number) => {
-      if (store.state.status !== 'alternatives') return;
-      const proposal = store.state.proposals[index];
-      if (proposal) {
-        handleAIResponse(proposal);
-      }
-    },
-    [store.state, handleAIResponse],
   );
 
   // Palette callbacks
@@ -447,12 +288,11 @@ export function App(): ReactNode {
   const handleConfigNavigateSection = useCallback(
     (direction: 'next' | 'prev') => {
       const sections: ConfigSection[] = ['provider', 'api-keys', 'toggles', 'about'];
-      if (store.state.status !== 'config') return;
-      // Cancel custom model editing when navigating sections
+      if (chatStore.overlay.type !== 'config') return;
       if (isEditingCustomModel) {
         setIsEditingCustomModel(false);
       }
-      const currentIndex = sections.indexOf(store.state.section);
+      const currentIndex = sections.indexOf(chatStore.overlay.section);
       let newIndex: number;
       if (direction === 'next') {
         newIndex = (currentIndex + 1) % sections.length;
@@ -462,23 +302,24 @@ export function App(): ReactNode {
       updateConfigSection(sections[newIndex]!);
       setConfigItemIndex(0);
     },
-    [store.state, updateConfigSection, isEditingCustomModel],
+    [chatStore.overlay, updateConfigSection, isEditingCustomModel],
   );
 
   const handleConfigNavigateItem = useCallback(
     (direction: 'up' | 'down') => {
-      if (store.state.status !== 'config') return;
+      if (chatStore.overlay.type !== 'config') return;
+      const section = chatStore.overlay.section;
       let count: number;
-      if (store.state.section === 'provider') {
+      if (section === 'provider') {
         count = AI_PROVIDERS.length + PROVIDER_MODELS[currentProvider].length + 1;
       } else {
-        const itemCounts: Record<ConfigSection, number> = {
-          provider: 0,
+        const itemCounts = {
+          'provider': 0,
           'api-keys': AI_PROVIDERS.length,
-          toggles: 4,
-          about: 0,
-        };
-        count = itemCounts[store.state.section];
+          'toggles': 4,
+          'about': 0,
+        } as const;
+        count = itemCounts[section];
       }
       if (count === 0) return;
       setConfigItemIndex((prev) => {
@@ -488,13 +329,13 @@ export function App(): ReactNode {
         return (prev + 1) % count;
       });
     },
-    [store.state, currentProvider],
+    [chatStore.overlay, currentProvider],
   );
 
   const handleConfigToggle = useCallback(() => {
-    if (store.state.status !== 'config') return;
+    if (chatStore.overlay.type !== 'config') return;
 
-    if (store.state.section === 'toggles') {
+    if (chatStore.overlay.section === 'toggles') {
       setDisplayToggles((prev) => {
         const toggleKeys = [
           'contextEnabled',
@@ -515,7 +356,7 @@ export function App(): ReactNode {
       return;
     }
 
-    if (store.state.section === 'provider') {
+    if (chatStore.overlay.section === 'provider') {
       const providers = AI_PROVIDERS;
       const models = PROVIDER_MODELS[currentProvider];
       const customModelIndex = AI_PROVIDERS.length + models.length;
@@ -545,7 +386,7 @@ export function App(): ReactNode {
       return;
     }
 
-    if (store.state.section === 'api-keys') {
+    if (chatStore.overlay.section === 'api-keys') {
       const providers = AI_PROVIDERS;
       const provider = providers[configItemIndex];
       if (provider) {
@@ -555,7 +396,7 @@ export function App(): ReactNode {
       }
       return;
     }
-  }, [store.state, configItemIndex, closeConfig, currentProvider, refreshKeyStatus, selectedModel]);
+  }, [chatStore.overlay, configItemIndex, closeConfig, currentProvider, refreshKeyStatus, selectedModel]);
 
   const handleConfigClose = useCallback(() => {
     closeConfig();
@@ -564,53 +405,35 @@ export function App(): ReactNode {
   }, [closeConfig]);
 
   // Get palette query for input controller
-  const paletteQuery = store.state.status === 'palette' ? store.state.query : '';
+  const paletteQuery = chatStore.overlay.type === 'palette' ? chatStore.overlay.query : '';
 
   const configItemCount = useMemo(() => {
-    if (store.state.status !== 'config') return 0;
-    if (store.state.section === 'provider') {
+    if (chatStore.overlay.type !== 'config') return 0;
+    const section = chatStore.overlay.section;
+    if (section === 'provider') {
       return AI_PROVIDERS.length + PROVIDER_MODELS[currentProvider].length + 1;
     }
-    const itemCounts: Record<ConfigSection, number> = {
-      provider: 0,
+    const itemCounts = {
+      'provider': 0,
       'api-keys': AI_PROVIDERS.length,
-      toggles: 4,
-      about: 0,
-    };
-    return itemCounts[store.state.section];
-  }, [store.state, currentProvider]);
+      'toggles': 4,
+      'about': 0,
+    } as const;
+    return itemCounts[section];
+  }, [chatStore.overlay, currentProvider]);
 
   const {
     textState,
     clearText,
     setText,
-    menuFocusIndex,
-    selectionFocusIndex,
     paletteFocusIndex,
-    configSectionIndex,
     customModelState,
     dispatchCustomModel,
   } = useInputController({
     mode: inputMode,
-    initialTextValue: store.editingCommand ?? '',
     paletteQuery,
-    menuCallbacks: {
-      onExecute: handleExecute,
-      onCopy: handleCopy,
-      onEdit: handleEdit,
-      onAlternatives: handleAlternatives,
-      onCancel: handleCancel,
-      onExplain: handleExplain,
-      onToggle: handleToggle,
-    },
-    selectionCallbacks: {
-      onSelect: handleAlternativeSelect,
-      onCancel: cancel,
-      count: store.state.status === 'alternatives' ? store.state.proposals.length : 1,
-    },
     textCallbacks: {
       onSubmit: handleTextSubmit,
-      onToggleOutput: toggleOutput,
       onTextChange: handleTextChange,
       onNavigateInlinePalette: (direction) => {
         setInlinePaletteIndex((prev) => {
@@ -627,14 +450,21 @@ export function App(): ReactNode {
         setInlinePaletteIndex(0);
       },
       hasInlinePalette: inlinePaletteCommands.length > 0,
-      hasHistory: store.history.length > 0,
+    },
+    agenticCallbacks: {
+      onAbort: chatAgent.abort,
+      onApprove: chatAgent.approvePermission,
+      onDeny: chatAgent.denyPermission,
+      onApproveSession: chatAgent.approveForSession,
+      hasPendingPermission: chatStore.pendingPermission !== null,
+      isAgentRunning: chatStore.isAgentRunning,
     },
     paletteCallbacks: {
       onQueryChange: handlePaletteQueryChange,
       onSelect: handlePaletteSelect,
       onNavigate: handlePaletteNavigate,
       onClose: handlePaletteClose,
-      filteredCount: store.state.status === 'palette' ? store.state.filteredCommands.length : 0,
+      filteredCount: chatStore.overlay.type === 'palette' ? chatStore.overlay.filteredCommands.length : 0,
     },
     configCallbacks: {
       onNavigateSection: handleConfigNavigateSection,
@@ -656,16 +486,6 @@ export function App(): ReactNode {
     helpCallbacks: {
       onClose: closeHelp,
     },
-    agenticCallbacks: {
-      onAbort: () => {
-        agentSession.abort();
-        abortAgent();
-      },
-      onApprove: agentSession.approvePermission,
-      onDeny: agentSession.denyPermission,
-      onApproveSession: agentSession.approveForSession,
-      hasPendingPermission: agentSession.pendingPermission !== null,
-    },
   });
 
   // Initialize custom model state when entering edit mode
@@ -684,7 +504,7 @@ export function App(): ReactNode {
     );
   }
 
-  if (isEditingApiKey || (!hasKey && store.state.status === 'setup')) {
+  if (isEditingApiKey || (!hasKey && !chatStore.isSetup)) {
     return (
       <ApiKeySetup
         onComplete={handleApiKeyComplete}
@@ -704,141 +524,24 @@ export function App(): ReactNode {
         model={selectedModel}
       />
 
-      {/* History entries - rendered as regular components so /clear works */}
-      {historyEntries.map((entry, index) => {
-        const isLast = index === historyEntries.length - 1;
-        return (
-          <Box key={`history-${index}`} flexDirection='column' marginBottom={1}>
-            <Box>
-              <Text color='cyan' bold>
-                ❯{' '}
-              </Text>
-              <Text color='cyan'>{entry.query}</Text>
-            </Box>
-            <Box marginLeft={2} flexDirection='column'>
-              <Box>
-                <Text dimColor>$ {entry.command} </Text>
-                <Text color={entry.exitCode === 0 ? 'green' : 'red'}>
-                  {entry.exitCode === 0 ? '✓' : `✗ ${entry.exitCode}`}
-                </Text>
-              </Box>
-              {entry.output && (
-                <Box flexDirection='column'>
-                  {(() => {
-                    const lines = entry.output.split('\n').filter((l) => l.length > 0);
-                    // Only the last entry supports expand toggle
-                    const maxLines = isLast && store.outputExpanded ? 500 : 10;
-                    const displayLines = lines.slice(0, maxLines);
-                    const hiddenCount = lines.length - displayLines.length;
-                    return (
-                      <>
-                        {displayLines.map((line, i) => (
-                          <Text key={i}>{line}</Text>
-                        ))}
-                        {hiddenCount > 0 && (
-                          <Box>
-                            <Text dimColor>... ({hiddenCount} more lines</Text>
-                            {isLast && (
-                              <>
-                                <Text dimColor>, press </Text>
-                                <Text color='blue'>[O]</Text>
-                                <Text dimColor> to expand</Text>
-                              </>
-                            )}
-                            <Text dimColor>)</Text>
-                          </Box>
-                        )}
-                      </>
-                    );
-                  })()}
-                </Box>
-              )}
-            </Box>
-            <Box marginTop={1}>
-              <Text dimColor>{'─'.repeat(50)}</Text>
-            </Box>
-          </Box>
-        );
-      })}
-
-      {store.error && (
-        <Box marginY={1}>
-          <Text color='red'>Error: {store.error}</Text>
-        </Box>
-      )}
-
-      {copyFeedback && (
-        <Box marginY={1}>
-          <Text color='green'>{copyFeedback}</Text>
-        </Box>
-      )}
-
-      {store.state.status === 'loading' && <ThinkingSpinner query={store.state.query} />}
-
-      {store.state.status === 'proposal' && (
-        <Box flexDirection='column' marginY={1}>
-          <CommandProposal proposal={store.state.proposal} showExplanation={!!explanation} />
-
-          {explanation && (
-            <Box marginTop={1} paddingX={1}>
-              <Text dimColor>{explanation}</Text>
-            </Box>
-          )}
-        </Box>
-      )}
-
-      {store.state.status === 'proposal' && aiLoading && (
-        <ThinkingSpinner label='Generating alternatives...' />
-      )}
-
-      <OptionsMenuDisplay
-        focusedIndex={menuFocusIndex}
-        visible={store.state.status === 'proposal' && !aiLoading}
+      {/* Chat messages */}
+      <ChatView
+        messages={chatStore.messages}
+        pendingPermission={chatStore.pendingPermission}
       />
-
-      {store.state.status === 'alternatives' && (
-        <Box flexDirection='column' marginY={1}>
-          <AlternativesList proposals={store.state.proposals} />
-        </Box>
-      )}
-
-      <SelectionMenuDisplay
-        count={store.state.status === 'alternatives' ? store.state.proposals.length : 0}
-        focusedIndex={selectionFocusIndex}
-        visible={store.state.status === 'alternatives' && !aiLoading}
-      />
-
-      {(store.state.status === 'executing' || isExecuting) && (
-        <LiveOutput
-          lines={liveOutput}
-          command={store.state.status === 'executing' ? store.state.command : ''}
-        />
-      )}
-
-      {/* Agent View */}
-      {store.state.status === 'agentic' && (
-        <AgentView
-          events={agentSession.events}
-          pendingPermission={agentSession.pendingPermission}
-          isRunning={agentSession.isRunning}
-          stepIndex={agentSession.stepIndex}
-          maxSteps={MAX_AGENT_STEPS}
-          tokenUsage={agentSession.tokenUsage ?? undefined}
-        />
-      )}
 
       {/* Command Palette */}
       <CommandPaletteDisplay
-        query={store.state.status === 'palette' ? store.state.query : ''}
-        filteredCommands={store.state.status === 'palette' ? store.state.filteredCommands : []}
+        query={chatStore.overlay.type === 'palette' ? chatStore.overlay.query : ''}
+        filteredCommands={chatStore.overlay.type === 'palette' ? chatStore.overlay.filteredCommands : []}
         selectedIndex={paletteFocusIndex}
-        visible={store.state.status === 'palette'}
+        visible={chatStore.overlay.type === 'palette'}
       />
 
       {/* Config Panel */}
       <ConfigPanelDisplay
-        visible={store.state.status === 'config'}
-        activeSection={store.state.status === 'config' ? store.state.section : 'provider'}
+        visible={chatStore.overlay.type === 'config'}
+        activeSection={chatStore.overlay.type === 'config' ? chatStore.overlay.section : 'provider'}
         sectionItemIndex={configItemIndex}
         config={appConfig}
         hasApiKey={hasKey}
@@ -850,26 +553,25 @@ export function App(): ReactNode {
       />
 
       {/* Help Panel */}
-      <HelpPanelDisplay visible={store.state.status === 'help'} />
+      <HelpPanelDisplay visible={chatStore.overlay.type === 'help'} />
 
-      {agenticMode && store.state.status === 'input' && (
+      {/* Ctrl+C hint when agent is running */}
+      {chatStore.isAgentRunning && !chatStore.pendingPermission && (
         <Box>
-          <Text color='magenta' bold>
-            [Agent Mode]
-          </Text>
-          <Text dimColor> /agent to toggle off</Text>
+          <Text dimColor>Ctrl+C to stop</Text>
         </Box>
       )}
 
+      {/* Input prompt - always visible at the bottom */}
       <InputPromptDisplay
         textState={textState}
-        placeholder={agenticMode ? 'Describe a task for the agent...' : 'Describe what you want to do... (type / for commands)'}
-        hasHistory={store.history.length > 0}
-        visible={store.state.status === 'input'}
+        placeholder='Type a message... (/ for commands)'
+        disabled={chatStore.isAgentRunning}
+        visible={chatStore.overlay.type === 'none'}
       />
 
       {/* Inline Command Palette - shows below input when typing "/" */}
-      {store.state.status === 'input' && inlinePaletteCommands.length > 0 && (
+      {chatStore.overlay.type === 'none' && !chatStore.isAgentRunning && inlinePaletteCommands.length > 0 && (
         <Box flexDirection='column' marginLeft={2} marginTop={0}>
           <Box marginBottom={0}>
             <Text dimColor>{'─'.repeat(50)}</Text>

@@ -14,38 +14,26 @@ import { useCallback, useReducer, useRef, useState } from 'react';
 
 export type InputMode =
   | 'disabled' // No input handling (loading, executing)
-  | 'text' // Text input mode (typing queries)
-  | 'menu' // Options menu (1-5, arrows)
-  | 'selection' // Alternative selection (1-N, up/down)
+  | 'text' // Text input mode (typing queries, with agent permission intercepts)
   | 'palette' // Command palette (filter, navigate, select)
   | 'config' // Config panel (navigate sections/items)
-  | 'help' // Help panel (just Escape to close)
-  | 'agentic'; // Agentic mode (permission prompts, abort)
-
-export interface MenuCallbacks {
-  onExecute: () => void;
-  onCopy: () => void;
-  onEdit: () => void;
-  onAlternatives: () => void;
-  onCancel: () => void;
-  onExplain: () => void;
-  onToggle: () => void;
-}
-
-export interface SelectionCallbacks {
-  onSelect: (index: number) => void;
-  onCancel: () => void;
-  count: number;
-}
+  | 'help'; // Help panel (just Escape to close)
 
 export interface TextCallbacks {
   onSubmit: (value: string) => void;
-  onToggleOutput?: () => void;
   onTextChange?: (value: string) => void;
   onNavigateInlinePalette?: (direction: 'up' | 'down') => void;
   onCloseInlinePalette?: () => void;
   hasInlinePalette?: boolean;
-  hasHistory: boolean;
+}
+
+export interface AgenticCallbacks {
+  onAbort: () => void;
+  onApprove: () => void;
+  onDeny: () => void;
+  onApproveSession: () => void;
+  hasPendingPermission: boolean;
+  isAgentRunning: boolean;
 }
 
 export interface PaletteCallbacks {
@@ -72,63 +60,38 @@ export interface HelpCallbacks {
   onClose: () => void;
 }
 
-export interface AgenticCallbacks {
-  onAbort: () => void;
-  onApprove: () => void;
-  onDeny: () => void;
-  onApproveSession: () => void;
-  hasPendingPermission: boolean;
-}
-
 export interface UseInputControllerOptions {
   mode: InputMode;
-  menuCallbacks?: MenuCallbacks;
-  selectionCallbacks?: SelectionCallbacks;
   textCallbacks?: TextCallbacks;
+  agenticCallbacks?: AgenticCallbacks;
   paletteCallbacks?: PaletteCallbacks;
   configCallbacks?: ConfigCallbacks;
   helpCallbacks?: HelpCallbacks;
-  agenticCallbacks?: AgenticCallbacks;
-  /** Initial value for text input (e.g., when editing a command) */
+  /** Initial value for text input */
   initialTextValue?: string;
   /** Current palette query for text state sync */
   paletteQuery?: string;
 }
 
 export interface UseInputControllerReturn {
-  /** Current text input state */
   textState: TextInputState;
-  /** Dispatch action to text input reducer */
   dispatchText: React.Dispatch<TextInputAction>;
-  /** Clear text input */
   clearText: () => void;
-  /** Set text input value */
   setText: (value: string) => void;
-  /** Menu focus index (0-4) */
-  menuFocusIndex: number;
-  /** Selection focus index */
-  selectionFocusIndex: number;
-  /** Palette focus index */
   paletteFocusIndex: number;
-  /** Config section index */
   configSectionIndex: number;
-  /** Config item index within section */
   configItemIndex: number;
-  /** Custom model text input state */
   customModelState: TextInputState;
-  /** Dispatch action to custom model text input */
   dispatchCustomModel: React.Dispatch<TextInputAction>;
 }
 
 export function useInputController({
   mode,
-  menuCallbacks,
-  selectionCallbacks,
   textCallbacks,
+  agenticCallbacks,
   paletteCallbacks,
   configCallbacks,
   helpCallbacks,
-  agenticCallbacks,
   initialTextValue = '',
   paletteQuery = '',
 }: UseInputControllerOptions): UseInputControllerReturn {
@@ -142,8 +105,6 @@ export function useInputController({
     createTextInputState(''),
   );
 
-  const [menuFocusIndex, setMenuFocusIndex] = useState(0);
-  const [selectionFocusIndex, setSelectionFocusIndex] = useState(0);
   const [paletteFocusIndex, setPaletteFocusIndex] = useState(0);
   const [configSectionIndex, setConfigSectionIndex] = useState(0);
   const [configItemIndex, setConfigItemIndex] = useState(0);
@@ -156,11 +117,7 @@ export function useInputController({
 
   const prevModeRef = useRef(mode);
   if (prevModeRef.current !== mode) {
-    if (mode === 'menu') {
-      setMenuFocusIndex(0);
-    } else if (mode === 'selection') {
-      setSelectionFocusIndex(0);
-    } else if (mode === 'palette') {
+    if (mode === 'palette') {
       setPaletteFocusIndex(0);
     } else if (mode === 'config') {
       setConfigSectionIndex(0);
@@ -184,6 +141,35 @@ export function useInputController({
       }
 
       if (mode === 'text' && textCallbacks) {
+        // Ctrl+C: abort running agent
+        if (key.ctrl && input === 'c' && agenticCallbacks?.isAgentRunning) {
+          agenticCallbacks.onAbort();
+          return;
+        }
+
+        // When a permission prompt is pending, intercept y/n/A
+        if (agenticCallbacks?.hasPendingPermission) {
+          if (input === 'y') {
+            agenticCallbacks.onApprove();
+            return;
+          }
+          if (input === 'n') {
+            agenticCallbacks.onDeny();
+            return;
+          }
+          if (input === 'A') {
+            agenticCallbacks.onApproveSession();
+            return;
+          }
+          // Block all other input while permission is pending
+          return;
+        }
+
+        // Don't allow text input while agent is running
+        if (agenticCallbacks?.isAgentRunning) {
+          return;
+        }
+
         if (key.ctrl && !key.meta && input === 'd') {
           if (textState.value.trim() === '') {
             process.exit(130);
@@ -200,16 +186,6 @@ export function useInputController({
             textCallbacks.onSubmit(trimmed);
             dispatchText({ type: 'clear' });
           }
-          return;
-        }
-
-        if (
-          input.toLowerCase() === 'o' &&
-          textState.value.trim() === '' &&
-          textCallbacks.onToggleOutput &&
-          textCallbacks.hasHistory
-        ) {
-          textCallbacks.onToggleOutput();
           return;
         }
 
@@ -236,7 +212,6 @@ export function useInputController({
 
         if (key.backspace || key.delete) {
           dispatchText({ type: 'delete' });
-          // Notify about text change (calculate new value after delete)
           const newValue =
             textState.value.slice(0, textState.cursorOffset - 1) +
             textState.value.slice(textState.cursorOffset);
@@ -263,116 +238,11 @@ export function useInputController({
 
         if (input && input.length > 0) {
           dispatchText({ type: 'insert', text: input });
-          // Notify about text change
           const newValue =
             textState.value.slice(0, textState.cursorOffset) +
             input +
             textState.value.slice(textState.cursorOffset);
           textCallbacks.onTextChange?.(newValue);
-        }
-        return;
-      }
-
-      if (mode === 'menu' && menuCallbacks) {
-        if (key.leftArrow) {
-          setMenuFocusIndex((prev) => (prev - 1 + 5) % 5);
-          return;
-        }
-        if (key.rightArrow) {
-          setMenuFocusIndex((prev) => (prev + 1) % 5);
-          return;
-        }
-
-        if (key.return) {
-          const actions = ['execute', 'copy', 'edit', 'alternatives', 'cancel'] as const;
-          const action = actions[menuFocusIndex];
-          switch (action) {
-            case 'execute':
-              menuCallbacks.onExecute();
-              break;
-            case 'copy':
-              menuCallbacks.onCopy();
-              break;
-            case 'edit':
-              menuCallbacks.onEdit();
-              break;
-            case 'alternatives':
-              menuCallbacks.onAlternatives();
-              break;
-            case 'cancel':
-              menuCallbacks.onCancel();
-              break;
-          }
-          return;
-        }
-
-        if (input >= '1' && input <= '5') {
-          const index = parseInt(input, 10) - 1;
-          const actions = ['execute', 'copy', 'edit', 'alternatives', 'cancel'] as const;
-          const action = actions[index];
-          switch (action) {
-            case 'execute':
-              menuCallbacks.onExecute();
-              break;
-            case 'copy':
-              menuCallbacks.onCopy();
-              break;
-            case 'edit':
-              menuCallbacks.onEdit();
-              break;
-            case 'alternatives':
-              menuCallbacks.onAlternatives();
-              break;
-            case 'cancel':
-              menuCallbacks.onCancel();
-              break;
-          }
-          return;
-        }
-
-        if (input === '?') {
-          menuCallbacks.onExplain();
-          return;
-        }
-
-        if (input.toLowerCase() === 'o') {
-          menuCallbacks.onToggle();
-          return;
-        }
-
-        if (key.escape) {
-          menuCallbacks.onCancel();
-          return;
-        }
-        return;
-      }
-
-      if (mode === 'selection' && selectionCallbacks) {
-        const count = selectionCallbacks.count;
-
-        if (key.upArrow) {
-          setSelectionFocusIndex((prev) => (prev - 1 + count) % count);
-          return;
-        }
-        if (key.downArrow) {
-          setSelectionFocusIndex((prev) => (prev + 1) % count);
-          return;
-        }
-
-        if (key.return) {
-          selectionCallbacks.onSelect(selectionFocusIndex);
-          return;
-        }
-
-        const numKey = parseInt(input, 10);
-        if (numKey >= 1 && numKey <= count) {
-          selectionCallbacks.onSelect(numKey - 1);
-          return;
-        }
-
-        if (input === '5' || input.toLowerCase() === 'c' || key.escape) {
-          selectionCallbacks.onCancel();
-          return;
         }
         return;
       }
@@ -532,29 +402,6 @@ export function useInputController({
         return;
       }
 
-      // Agentic mode: permission prompts and abort
-      if (mode === 'agentic' && agenticCallbacks) {
-        if (key.ctrl && input === 'c') {
-          agenticCallbacks.onAbort();
-          return;
-        }
-        if (agenticCallbacks.hasPendingPermission) {
-          if (input === 'y') {
-            agenticCallbacks.onApprove();
-            return;
-          }
-          if (input === 'n') {
-            agenticCallbacks.onDeny();
-            return;
-          }
-          if (input === 'A') {
-            agenticCallbacks.onApproveSession();
-            return;
-          }
-        }
-        return;
-      }
-
       // Help mode: just Escape to close
       if (mode === 'help' && helpCallbacks) {
         if (key.escape) {
@@ -572,8 +419,6 @@ export function useInputController({
     dispatchText,
     clearText,
     setText,
-    menuFocusIndex,
-    selectionFocusIndex,
     paletteFocusIndex,
     configSectionIndex,
     configItemIndex,
