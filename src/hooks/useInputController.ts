@@ -19,7 +19,8 @@ export type InputMode =
   | 'selection' // Alternative selection (1-N, up/down)
   | 'palette' // Command palette (filter, navigate, select)
   | 'config' // Config panel (navigate sections/items)
-  | 'help'; // Help panel (just Escape to close)
+  | 'help' // Help panel (just Escape to close)
+  | 'agentic'; // Agentic mode (permission prompts, abort)
 
 export interface MenuCallbacks {
   onExecute: () => void;
@@ -71,6 +72,14 @@ export interface HelpCallbacks {
   onClose: () => void;
 }
 
+export interface AgenticCallbacks {
+  onAbort: () => void;
+  onApprove: () => void;
+  onDeny: () => void;
+  onApproveSession: () => void;
+  hasPendingPermission: boolean;
+}
+
 export interface UseInputControllerOptions {
   mode: InputMode;
   menuCallbacks?: MenuCallbacks;
@@ -79,6 +88,7 @@ export interface UseInputControllerOptions {
   paletteCallbacks?: PaletteCallbacks;
   configCallbacks?: ConfigCallbacks;
   helpCallbacks?: HelpCallbacks;
+  agenticCallbacks?: AgenticCallbacks;
   /** Initial value for text input (e.g., when editing a command) */
   initialTextValue?: string;
   /** Current palette query for text state sync */
@@ -118,6 +128,7 @@ export function useInputController({
   paletteCallbacks,
   configCallbacks,
   helpCallbacks,
+  agenticCallbacks,
   initialTextValue = '',
   paletteQuery = '',
 }: UseInputControllerOptions): UseInputControllerReturn {
@@ -517,6 +528,29 @@ export function useInputController({
         if (key.escape) {
           configCallbacks.onClose();
           return;
+        }
+        return;
+      }
+
+      // Agentic mode: permission prompts and abort
+      if (mode === 'agentic' && agenticCallbacks) {
+        if (key.ctrl && input === 'c') {
+          agenticCallbacks.onAbort();
+          return;
+        }
+        if (agenticCallbacks.hasPendingPermission) {
+          if (input === 'y') {
+            agenticCallbacks.onApprove();
+            return;
+          }
+          if (input === 'n') {
+            agenticCallbacks.onDeny();
+            return;
+          }
+          if (input === 'A') {
+            agenticCallbacks.onApproveSession();
+            return;
+          }
         }
         return;
       }

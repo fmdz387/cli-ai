@@ -20,10 +20,17 @@ export { AVAILABLE_MODELS } from './types.js';
 export { commandRegistry, createCommandRegistry } from './registry.js';
 
 // Import built-in commands
-import { clearCommand, configCommand, exitCommand, helpCommand } from './builtin/index.js';
+import {
+  agentCommand,
+  clearCommand,
+  configCommand,
+  exitCommand,
+  helpCommand,
+} from './builtin/index.js';
 import { commandRegistry } from './registry.js';
 
 // Register built-in commands
+commandRegistry.register(agentCommand);
 commandRegistry.register(configCommand);
 commandRegistry.register(helpCommand);
 commandRegistry.register(clearCommand);

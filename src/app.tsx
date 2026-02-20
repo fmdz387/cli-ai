@@ -5,7 +5,9 @@
 import { commandRegistry } from './commands/index.js';
 import { PROVIDER_MODELS, type ConfigSection } from './commands/types.js';
 import type { SlashCommand } from './commands/types.js';
+import type { AgentConfig, ExecutorResult, ExecutorRunOptions } from './agent/types.js';
 import { ApiKeySetup } from './components/ApiKeySetup.js';
+import { AgentView } from './components/Agent/index.js';
 import { LiveOutput } from './components/CommandOutput.js';
 import { CommandPaletteDisplay } from './components/CommandPalette/index.js';
 import { CommandProposal } from './components/CommandProposal.js';
@@ -16,7 +18,8 @@ import { InputPromptDisplay } from './components/InputPromptDisplay.js';
 import { OptionsMenuDisplay, SelectionMenuDisplay } from './components/OptionsMenuDisplay.js';
 import { ThinkingSpinner } from './components/Spinner.js';
 import { WelcomeHeader } from './components/WelcomeHeader.js';
-import { AI_PROVIDERS, PROVIDER_CONFIG } from './constants.js';
+import { AI_PROVIDERS, MAX_AGENT_STEPS, PROVIDER_CONFIG } from './constants.js';
+import { useAgentSession } from './hooks/useAgentSession.js';
 import { useAI } from './hooks/useAI.js';
 import { useCommandPalette } from './hooks/useCommandPalette.js';
 import { useConfig } from './hooks/useConfig.js';
@@ -73,6 +76,8 @@ export function App(): ReactNode {
     openHelp,
     closeHelp,
     clearHistory,
+    startAgent: startAgentSession,
+    abortAgent,
   } = useSession();
 
   // Config panel state
@@ -115,6 +120,42 @@ export function App(): ReactNode {
     }),
     [currentProvider, selectedModel, displayToggles.contextEnabled],
   );
+
+  // Agentic mode state
+  const [agenticMode, setAgenticMode] = useState(false);
+
+  const noopExecutor = useCallback(
+    async (_options: ExecutorRunOptions): Promise<ExecutorResult> => {
+      return {
+        finalResponse: '',
+        usage: { totalInputTokens: 0, totalOutputTokens: 0, turns: 0 },
+      };
+    },
+    [],
+  );
+
+  const buildAgentConfig = useCallback(
+    (): AgentConfig => ({
+      provider: currentProvider,
+      model: selectedModel,
+      apiKey: '',
+      maxTurns: MAX_AGENT_STEPS,
+      maxTokensPerTurn: 4096,
+      context: {
+        shell,
+        cwd: process.cwd(),
+        platform: process.platform,
+        directoryTree: '',
+        history: store.history,
+      },
+    }),
+    [currentProvider, selectedModel, shell, store.history],
+  );
+
+  const agentSession = useAgentSession({
+    runExecutor: noopExecutor,
+    buildConfig: buildAgentConfig,
+  });
 
   // Command palette hook
   const palette = useCommandPalette({
@@ -161,9 +202,10 @@ export function App(): ReactNode {
     if (store.state.status === 'help') return 'help';
     if (store.state.status === 'proposal') return aiLoading ? 'disabled' : 'menu';
     if (store.state.status === 'alternatives') return aiLoading ? 'disabled' : 'selection';
-    if (store.state.status === 'input') return 'text';
+    if (store.state.status === 'agentic') return 'agentic';
+    if (store.state.status === 'input') return agenticMode ? 'text' : 'text';
     return 'disabled';
-  }, [configLoading, hasKey, store.state.status, isExecuting, aiLoading]);
+  }, [configLoading, hasKey, store.state.status, isExecuting, aiLoading, agenticMode]);
 
   const handleApiKeyComplete = useCallback(
     (apiKey: string, provider: AIProvider) => {
@@ -211,6 +253,15 @@ export function App(): ReactNode {
     }
   }, []);
 
+  const handleCommandResult = useCallback(
+    (result: import('./commands/types.js').CommandResult) => {
+      if (result.type === 'action' && result.message === 'agent-mode') {
+        setAgenticMode((prev) => !prev);
+      }
+    },
+    [],
+  );
+
   const handleTextSubmit = useCallback(
     async (input: string) => {
       // Check for slash command - execute selected from inline palette
@@ -223,6 +274,7 @@ export function App(): ReactNode {
           if (selectedCmd) {
             const result = palette.executeCommand(selectedCmd.name);
             if (result) {
+              handleCommandResult(result);
               setInlinePaletteCommands([]);
               setInlinePaletteIndex(0);
               return;
@@ -234,6 +286,7 @@ export function App(): ReactNode {
         if (cmdName) {
           const result = palette.executeCommand(cmdName);
           if (result) {
+            handleCommandResult(result);
             setInlinePaletteCommands([]);
             setInlinePaletteIndex(0);
             return;
@@ -256,6 +309,13 @@ export function App(): ReactNode {
         return;
       }
 
+      // Route to agent mode if active
+      if (agenticMode) {
+        startAgentSession(input);
+        agentSession.startAgent(input);
+        return;
+      }
+
       submitQuery(input);
       setExplanation(null);
 
@@ -269,6 +329,7 @@ export function App(): ReactNode {
     },
     [
       store.editingCommand,
+      agenticMode,
       submitQuery,
       generate,
       handleAIResponse,
@@ -278,6 +339,9 @@ export function App(): ReactNode {
       palette,
       inlinePaletteCommands,
       inlinePaletteIndex,
+      handleCommandResult,
+      startAgentSession,
+      agentSession,
     ],
   );
 
@@ -592,6 +656,16 @@ export function App(): ReactNode {
     helpCallbacks: {
       onClose: closeHelp,
     },
+    agenticCallbacks: {
+      onAbort: () => {
+        agentSession.abort();
+        abortAgent();
+      },
+      onApprove: agentSession.approvePermission,
+      onDeny: agentSession.denyPermission,
+      onApproveSession: agentSession.approveForSession,
+      hasPendingPermission: agentSession.pendingPermission !== null,
+    },
   });
 
   // Initialize custom model state when entering edit mode
@@ -741,6 +815,18 @@ export function App(): ReactNode {
         />
       )}
 
+      {/* Agent View */}
+      {store.state.status === 'agentic' && (
+        <AgentView
+          events={agentSession.events}
+          pendingPermission={agentSession.pendingPermission}
+          isRunning={agentSession.isRunning}
+          stepIndex={agentSession.stepIndex}
+          maxSteps={MAX_AGENT_STEPS}
+          tokenUsage={agentSession.tokenUsage ?? undefined}
+        />
+      )}
+
       {/* Command Palette */}
       <CommandPaletteDisplay
         query={store.state.status === 'palette' ? store.state.query : ''}
@@ -766,9 +852,18 @@ export function App(): ReactNode {
       {/* Help Panel */}
       <HelpPanelDisplay visible={store.state.status === 'help'} />
 
+      {agenticMode && store.state.status === 'input' && (
+        <Box>
+          <Text color='magenta' bold>
+            [Agent Mode]
+          </Text>
+          <Text dimColor> /agent to toggle off</Text>
+        </Box>
+      )}
+
       <InputPromptDisplay
         textState={textState}
-        placeholder='Describe what you want to do... (type / for commands)'
+        placeholder={agenticMode ? 'Describe a task for the agent...' : 'Describe what you want to do... (type / for commands)'}
         hasHistory={store.history.length > 0}
         visible={store.state.status === 'input'}
       />
