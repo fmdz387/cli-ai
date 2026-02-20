@@ -234,4 +234,62 @@ describe('AgentExecutor', () => {
     const firstResult = toolResultEvents[0] as { type: 'tool_result'; result: ToolResult };
     expect(firstResult.result.kind).toBe('error');
   });
+
+  it('returns non-empty summary when maxTurns is reached', async () => {
+    const toolCall: AgentToolCall = { id: 'tc1', name: 'file_read', input: { path: '/a.txt' } };
+    // Create an adapter that always returns tool calls (never completes naturally)
+    const adapter = createMockAdapter([
+      { text: '', toolCalls: [toolCall], isToolCall: true, usage: { inputTokens: 5, outputTokens: 5 } },
+      // Summary call response (after max steps)
+      { text: 'Summary of work done.', toolCalls: [], isToolCall: false, usage: { inputTokens: 10, outputTokens: 10 } },
+    ]);
+    const provider = createMockProvider(2);
+    const registry = new ToolRegistry();
+    registry.register(mockTool('file_read', { kind: 'success', output: 'data' }));
+    const permissions = new PermissionGate();
+    permissions.registerDefaults(registry.list());
+    const contextManager = new ContextManager();
+
+    const executor = new AgentExecutor({ provider, adapter, registry, permissions, contextManager });
+    const events: AgentEvent[] = [];
+    const controller = new AbortController();
+
+    const result = await executor.execute({
+      query: 'do work',
+      config: { ...baseConfig, maxTurns: 1 },
+      signal: controller.signal,
+      onEvent: (e) => events.push(e),
+    });
+
+    expect(result.finalResponse).not.toBe('');
+    expect(result.finalResponse.length).toBeGreaterThan(0);
+  });
+
+  it('makes a final summary call when maxTurns is reached', async () => {
+    const toolCall: AgentToolCall = { id: 'tc1', name: 'file_read', input: { path: '/a.txt' } };
+    const adapter = createMockAdapter([
+      { text: '', toolCalls: [toolCall], isToolCall: true, usage: { inputTokens: 5, outputTokens: 5 } },
+      { text: 'Here is a summary.', toolCalls: [], isToolCall: false, usage: { inputTokens: 10, outputTokens: 10 } },
+    ]);
+    const provider = createMockProvider(2);
+    const registry = new ToolRegistry();
+    registry.register(mockTool('file_read', { kind: 'success', output: 'data' }));
+    const permissions = new PermissionGate();
+    permissions.registerDefaults(registry.list());
+    const contextManager = new ContextManager();
+
+    const executor = new AgentExecutor({ provider, adapter, registry, permissions, contextManager });
+    const events: AgentEvent[] = [];
+    const controller = new AbortController();
+
+    await executor.execute({
+      query: 'do work',
+      config: { ...baseConfig, maxTurns: 1 },
+      signal: controller.signal,
+      onEvent: (e) => events.push(e),
+    });
+
+    // Provider should have been called twice: once for the tool loop, once for the summary
+    expect(provider.sendWithTools).toHaveBeenCalledTimes(2);
+  });
 });
