@@ -117,9 +117,19 @@ function chatReducer(state: ChatStore, action: ChatAction): ChatStore {
     }
 
     case 'AGENT_TOOL_START': {
+      // Flush any accumulated streaming text into the assistant message
+      // before recording the tool call — prevents intermediate turn text
+      // from leaking into the final response.
+      const flushed = state.streamingText
+        ? updateLastAssistant(state.messages, (msg) => ({
+            ...msg,
+            text: msg.text + state.streamingText,
+          }))
+        : state.messages;
       return {
         ...state,
-        messages: updateLastAssistant(state.messages, (msg) => ({
+        streamingText: '',
+        messages: updateLastAssistant(flushed, (msg) => ({
           ...msg,
           toolCalls: [
             ...msg.toolCalls,
