@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.2.0] - 2026-02-21
+
+### Changed
+
+- **Tabbed settings panel**: Config panel now shows one section at a time with a horizontal tab bar instead of a flat scrolling list
+- **Separate Provider and Model tabs**: Split the overloaded Provider & Model section into two focused tabs
+- **Tab navigation**: Left/Right arrows, Tab/Shift+Tab, and number keys 1-5 to switch sections
+
+### Fixed
+
+- **Streaming text leak in multi-turn responses**: Intermediate AI text from tool-call turns no longer bleeds into the final response
+- **Duplicate provider/model in input prompt**: Removed redundant provider info from inside the input border (already shown in footer bar)
+
+### Removed
+
+- Unused config sub-components (ConfigSection, ConfigSelect, ConfigToggle, ApiKeySection) — consolidated into ConfigPanelDisplay
+
 ## [3.1.2] - 2026-01-17
 
 ### Minor bug fixes
