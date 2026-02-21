@@ -19,6 +19,22 @@ export interface ToolCallEntry {
 }
 
 /**
+ * Content parts for interleaved rendering of text and tool calls.
+ * Parts are stored in order and rendered sequentially, so text
+ * segments appear before/after their related tool executions.
+ */
+export type ContentPart =
+  | { type: 'text'; text: string }
+  | {
+      type: 'tool';
+      id: string;
+      name: string;
+      input: Record<string, unknown>;
+      status: ToolCallStatusType;
+      result?: string;
+    };
+
+/**
  * User message in the chat
  */
 export interface UserMessage {
@@ -28,12 +44,12 @@ export interface UserMessage {
 }
 
 /**
- * Assistant message in the chat (may be streaming)
+ * Assistant message in the chat (may be streaming).
+ * Uses ordered parts for interleaved text/tool rendering.
  */
 export interface AssistantMessage {
   role: 'assistant';
-  text: string;
-  toolCalls: ToolCallEntry[];
+  parts: ContentPart[];
   isStreaming: boolean;
   timestamp: number;
 }
@@ -75,7 +91,6 @@ export type OverlayState =
 export interface ChatStore {
   messages: ChatMessage[];
   apiMessages: AgentMessage[];
-  streamingText: string;
   isAgentRunning: boolean;
   isCompacting: boolean;
   pendingPermission: PendingPermission | null;

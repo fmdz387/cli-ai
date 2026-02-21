@@ -581,7 +581,6 @@ export function App(): ReactNode {
         <ChatView
           messages={chatStore.messages}
           pendingPermission={chatStore.pendingPermission}
-          streamingText={chatStore.streamingText}
         />
 
         {/* Command Palette */}

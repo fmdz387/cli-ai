@@ -6,7 +6,7 @@
 
 **Agentic AI assistant for your terminal.** Give it a task in plain language and it reasons, plans and executes across files, commands and code autonomously.
 
-Built for engineers who live in the terminal. CLI AI brings agentic tool-use to DevOps workflows, system administration and everyday shell operations.
+Built for everyone who lives in the terminal. CLI AI brings agentic tool-use to DevOps workflows, system administration and everyday shell operations.
 
 Supports **Anthropic**, **OpenAI** and **OpenRouter** providers.
 

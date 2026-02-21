@@ -13,10 +13,9 @@ import type { ReactNode } from 'react';
 interface ChatViewProps {
   messages: ChatMessage[];
   pendingPermission: PendingPermission | null;
-  streamingText?: string;
 }
 
-export function ChatView({ messages, pendingPermission, streamingText }: ChatViewProps): ReactNode {
+export function ChatView({ messages, pendingPermission }: ChatViewProps): ReactNode {
   const theme = useTheme();
   const visibleMessages = messages.length > MAX_VISIBLE_MESSAGES
     ? messages.slice(-MAX_VISIBLE_MESSAGES)
@@ -38,19 +37,14 @@ export function ChatView({ messages, pendingPermission, streamingText }: ChatVie
         switch (msg.role) {
           case 'user':
             return <UserBubble key={key} message={msg} />;
-          case 'assistant': {
-            const isLast = i === visibleMessages.length - 1;
-            const displayMsg = isLast && streamingText
-              ? { ...msg, text: msg.text + streamingText }
-              : msg;
+          case 'assistant':
             return (
               <AssistantBubble
                 key={key}
-                message={displayMsg}
+                message={msg}
                 pendingPermission={pendingPermission}
               />
             );
-          }
           case 'system':
             return (
               <Box key={key} marginBottom={1}>

@@ -1,6 +1,7 @@
 /**
  * Chat session state management hook
- * Manages chat messages, API message history, agent state, and overlay panels
+ * Manages chat messages, API message history, agent state, and overlay panels.
+ * Uses parts-based architecture for interleaved text/tool rendering.
  */
 import type { AgentMessage } from '../agent/types.js';
 import type { SlashCommand } from '../commands/types.js';
@@ -9,7 +10,7 @@ import type {
   ChatAction,
   ChatMessage,
   ChatStore,
-  PendingPermission,
+  ContentPart,
 } from '../types/chat.js';
 import type { ConfigSection } from '../commands/types.js';
 
@@ -20,7 +21,6 @@ function createInitialStore(): ChatStore {
   return {
     messages: [],
     apiMessages: [],
-    streamingText: '',
     isAgentRunning: false,
     isCompacting: false,
     pendingPermission: null,
@@ -49,6 +49,19 @@ function updateLastAssistant(
     }
   }
   return result;
+}
+
+/** Extract all text from parts, joined together */
+function getTextFromParts(parts: ContentPart[]): string {
+  return parts
+    .filter((p): p is ContentPart & { type: 'text' } => p.type === 'text')
+    .map((p) => p.text)
+    .join('');
+}
+
+/** Extract tool parts from parts array */
+function getToolPartsFromParts(parts: ContentPart[]): Array<ContentPart & { type: 'tool' }> {
+  return parts.filter((p): p is ContentPart & { type: 'tool' } => p.type === 'tool');
 }
 
 function toolResultToString(result: { kind: string; output?: string; error?: string; reason?: string }): string {
@@ -82,6 +95,21 @@ function trimApiMessages(messages: AgentMessage[], maxCount: number): AgentMessa
   return systemMsg ? [systemMsg, ...trimmed] : trimmed;
 }
 
+/**
+ * Append text to the last text part, or add a new text part.
+ * This enables interleaving: text before tools stays as a separate part,
+ * and new text after tools creates a new text part.
+ */
+function appendTextToParts(parts: ContentPart[], text: string): ContentPart[] {
+  const lastPart = parts[parts.length - 1];
+  if (lastPart && lastPart.type === 'text') {
+    const updated = [...parts];
+    updated[updated.length - 1] = { ...lastPart, text: lastPart.text + text };
+    return updated;
+  }
+  return [...parts, { type: 'text' as const, text }];
+}
+
 function chatReducer(state: ChatStore, action: ChatAction): ChatStore {
   switch (action.type) {
     case 'USER_MESSAGE': {
@@ -92,8 +120,7 @@ function chatReducer(state: ChatStore, action: ChatAction): ChatStore {
       };
       const assistantMsg: ChatMessage = {
         role: 'assistant',
-        text: '',
-        toolCalls: [],
+        parts: [],
         isStreaming: true,
         timestamp: Date.now(),
       };
@@ -110,30 +137,29 @@ function chatReducer(state: ChatStore, action: ChatAction): ChatStore {
     }
 
     case 'AGENT_TEXT_DELTA': {
+      // Append text to the current text part, or start a new one.
+      // If the last part is a tool part, a new text part is created,
+      // naturally interleaving text between tool executions.
       return {
         ...state,
-        streamingText: state.streamingText + action.text,
+        messages: updateLastAssistant(state.messages, (msg) => ({
+          ...msg,
+          parts: appendTextToParts(msg.parts, action.text),
+        })),
       };
     }
 
     case 'AGENT_TOOL_START': {
-      // Flush any accumulated streaming text into the assistant message
-      // before recording the tool call — prevents intermediate turn text
-      // from leaking into the final response.
-      const flushed = state.streamingText
-        ? updateLastAssistant(state.messages, (msg) => ({
-            ...msg,
-            text: msg.text + state.streamingText,
-          }))
-        : state.messages;
+      // Add a tool part. If text was emitted before this tool call,
+      // it's already in a text part, preserving the interleaved order.
       return {
         ...state,
-        streamingText: '',
-        messages: updateLastAssistant(flushed, (msg) => ({
+        messages: updateLastAssistant(state.messages, (msg) => ({
           ...msg,
-          toolCalls: [
-            ...msg.toolCalls,
+          parts: [
+            ...msg.parts,
             {
+              type: 'tool' as const,
               id: action.toolCall.id,
               name: action.toolCall.name,
               input: action.toolCall.input,
@@ -153,10 +179,10 @@ function chatReducer(state: ChatStore, action: ChatAction): ChatStore {
         ...state,
         messages: updateLastAssistant(state.messages, (msg) => ({
           ...msg,
-          toolCalls: msg.toolCalls.map((tc) =>
-            tc.id === action.toolCallId
+          parts: msg.parts.map((part) =>
+            part.type === 'tool' && part.id === action.toolCallId
               ? {
-                  ...tc,
+                  ...part,
                   status: action.result.kind === 'success'
                     ? 'success' as const
                     : action.result.kind === 'denied'
@@ -164,17 +190,16 @@ function chatReducer(state: ChatStore, action: ChatAction): ChatStore {
                       : 'error' as const,
                   result: truncatedResult,
                 }
-              : tc,
+              : part,
           ),
         })),
       };
     }
 
     case 'AGENT_DONE': {
-      // Build the assistant API message from the completed turn
       const lastAssistant = getLastAssistant(state.messages);
-      const mergedText = (lastAssistant?.text ?? '') + state.streamingText;
-      const finalText = mergedText || action.text;
+      const partsText = lastAssistant ? getTextFromParts(lastAssistant.parts) : '';
+      const finalText = partsText || action.text;
 
       const newApiMessages: AgentMessage[] = [...state.apiMessages];
 
@@ -193,19 +218,20 @@ function chatReducer(state: ChatStore, action: ChatAction): ChatStore {
         });
       }
 
-      // Add tool results from the completed message
-      if (lastAssistant && lastAssistant.toolCalls.length > 0) {
-        for (const tc of lastAssistant.toolCalls) {
-          const kind = tc.status === 'success' ? 'success' : tc.status === 'denied' ? 'denied' : 'error';
+      // Add tool results from the completed message parts
+      if (lastAssistant) {
+        const toolParts = getToolPartsFromParts(lastAssistant.parts);
+        for (const tp of toolParts) {
+          const kind = tp.status === 'success' ? 'success' : tp.status === 'denied' ? 'denied' : 'error';
           const resultObj = kind === 'success'
-            ? { kind: 'success' as const, output: tc.result ?? '' }
+            ? { kind: 'success' as const, output: tp.result ?? '' }
             : kind === 'denied'
-              ? { kind: 'denied' as const, reason: tc.result ?? 'Denied' }
-              : { kind: 'error' as const, error: tc.result ?? 'Error' };
+              ? { kind: 'denied' as const, reason: tp.result ?? 'Denied' }
+              : { kind: 'error' as const, error: tp.result ?? 'Error' };
           newApiMessages.push({
             role: 'tool_result',
-            toolCallId: tc.id,
-            name: tc.name,
+            toolCallId: tp.id,
+            name: tp.name,
             result: resultObj,
           });
         }
@@ -213,58 +239,53 @@ function chatReducer(state: ChatStore, action: ChatAction): ChatStore {
 
       return {
         ...state,
-        messages: updateLastAssistant(state.messages, (msg) => ({
-          ...msg,
-          isStreaming: false,
-          text: finalText,
-        })),
+        messages: updateLastAssistant(state.messages, (msg) => {
+          // If parts have no text but action.text exists, add a final text part
+          const hasText = msg.parts.some((p) => p.type === 'text' && p.text);
+          const parts = !hasText && action.text
+            ? appendTextToParts(msg.parts, action.text)
+            : msg.parts;
+          return { ...msg, isStreaming: false, parts };
+        }),
         apiMessages: trimApiMessages(newApiMessages, MAX_API_MESSAGES),
-        streamingText: '',
         isAgentRunning: false,
         pendingPermission: null,
       };
     }
 
     case 'AGENT_ERROR': {
-      const errorText = (getLastAssistant(state.messages)?.text ?? '') + state.streamingText;
       return {
         ...state,
-        messages: updateLastAssistant(state.messages, (msg) => ({
-          ...msg,
-          isStreaming: false,
-          text: errorText || `Error: ${action.error}`,
-        })),
-        streamingText: '',
+        messages: updateLastAssistant(state.messages, (msg) => {
+          const hasText = msg.parts.some((p) => p.type === 'text' && p.text);
+          const parts = hasText
+            ? msg.parts
+            : appendTextToParts(msg.parts, `Error: ${action.error}`);
+          return { ...msg, isStreaming: false, parts };
+        }),
         isAgentRunning: false,
         pendingPermission: null,
       };
     }
 
     case 'AGENT_ABORT': {
-      const abortText = (getLastAssistant(state.messages)?.text ?? '') + state.streamingText;
       return {
         ...state,
-        messages: updateLastAssistant(state.messages, (msg) => ({
-          ...msg,
-          isStreaming: false,
-          text: abortText || '(aborted)',
-        })),
-        streamingText: '',
+        messages: updateLastAssistant(state.messages, (msg) => {
+          const hasText = msg.parts.some((p) => p.type === 'text' && p.text);
+          const parts = hasText
+            ? msg.parts
+            : appendTextToParts(msg.parts, '(aborted)');
+          return { ...msg, isStreaming: false, parts };
+        }),
         isAgentRunning: false,
         pendingPermission: null,
       };
     }
 
     case 'FLUSH_STREAMING': {
-      if (!state.streamingText) return state;
-      return {
-        ...state,
-        messages: updateLastAssistant(state.messages, (msg) => ({
-          ...msg,
-          text: msg.text + state.streamingText,
-        })),
-        streamingText: '',
-      };
+      // No-op: text is now stored directly in parts, no buffer to flush
+      return state;
     }
 
     case 'SET_PENDING_PERMISSION': {

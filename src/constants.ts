@@ -6,7 +6,7 @@ import type { AIProvider, AppConfig } from './types/index.js';
 /**
  * Application version
  */
-export const VERSION = '3.2.1';
+export const VERSION = '3.2.2';
 
 /**
  * Application name

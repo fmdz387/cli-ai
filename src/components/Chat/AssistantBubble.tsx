@@ -1,5 +1,5 @@
 /**
- * Assistant message bubble - tools first, then response text
+ * Assistant message bubble - renders parts in order for interleaved text/tool display
  */
 import type { AssistantMessage, PendingPermission } from '../../types/chat.js';
 import { useTheme } from '../../theme/index.js';
@@ -33,26 +33,43 @@ export function AssistantBubble({
     return () => clearInterval(timer);
   }, [message.isStreaming]);
 
-  const hasText = message.text.length > 0;
-  const hasToolCalls = message.toolCalls.length > 0;
-  const isThinking = message.isStreaming && !hasText && !hasToolCalls;
+  const hasParts = message.parts.length > 0;
+  const isThinking = message.isStreaming && !hasParts;
   const termWidth = process.stdout.columns || 80;
+
+  // Check if the last part is a text part (for streaming cursor placement)
+  const lastPart = message.parts[message.parts.length - 1];
+  const lastPartIsText = lastPart?.type === 'text';
 
   return (
     <Box flexDirection='column' marginBottom={1} paddingLeft={3}>
       {isThinking && <ThinkingSpinner label='Thinking...' />}
 
-      {/* Tool calls FIRST - logical order: work happens before response */}
-      {hasToolCalls && (
-        <Box flexDirection='column' marginBottom={hasText ? 1 : 0}>
-          {message.toolCalls.map((tc) => (
-            <Box key={tc.id} flexDirection='column'>
+      {/* Render parts in order - text and tools interleaved */}
+      {message.parts.map((part, i) => {
+        if (part.type === 'text' && part.text) {
+          const isLastTextPart = lastPartIsText && i === message.parts.length - 1;
+          return (
+            <Box key={`text-${i}`} flexDirection='column' width={termWidth - 6}>
+              <Box flexWrap='wrap'>
+                <MarkdownText>{part.text}</MarkdownText>
+                {message.isStreaming && isLastTextPart && (
+                  <Text color={theme.primary}>{CURSOR_FRAMES[cursorFrame]}</Text>
+                )}
+              </Box>
+            </Box>
+          );
+        }
+
+        if (part.type === 'tool') {
+          return (
+            <Box key={part.id} flexDirection='column'>
               <ToolCallStatus
-                call={{ name: tc.name, input: tc.input }}
-                status={tc.status}
-                result={tc.result}
+                call={{ name: part.name, input: part.input }}
+                status={part.status}
+                result={part.result}
               />
-              {pendingPermission && pendingPermission.toolCall.id === tc.id && (
+              {pendingPermission && pendingPermission.toolCall.id === part.id && (
                 <PermissionPrompt
                   toolCall={pendingPermission.toolCall}
                   onApprove={() => {}}
@@ -61,19 +78,11 @@ export function AssistantBubble({
                 />
               )}
             </Box>
-          ))}
-        </Box>
-      )}
+          );
+        }
 
-      {/* Response text AFTER tools */}
-      {hasText && (
-        <Box flexDirection='column' width={termWidth - 6}>
-          <Box flexWrap='wrap'>
-            <MarkdownText>{message.text}</MarkdownText>
-            {message.isStreaming && <Text color={theme.primary}>{CURSOR_FRAMES[cursorFrame]}</Text>}
-          </Box>
-        </Box>
-      )}
+        return null;
+      })}
     </Box>
   );
 }
