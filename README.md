@@ -4,24 +4,28 @@
 [![License: ISC](https://img.shields.io/badge/License-ISC-blue.svg)](https://opensource.org/licenses/ISC)
 [![Node.js](https://img.shields.io/badge/Node.js-20+-green.svg)](https://nodejs.org/)
 
-**Natural language to shell commands. Multi-provider AI support.**
+**Agentic AI assistant for your terminal.** Give it a task in plain language and it reasons, plans and executes across files, commands and code autonomously.
 
-Describe what you want in plain English. Get the right command. Review, execute or copy.
+Built for engineers who live in the terminal. CLI AI brings agentic tool-use to DevOps workflows, system administration and everyday shell operations.
 
 Supports **Anthropic**, **OpenAI** and **OpenRouter** providers.
 
 ![CLI AI Demo](assets/cli-ai.png)
 
+## Why CLI AI
+
+Traditional shell helpers translate a prompt into a single command. CLI AI goes further. It runs a full agentic loop: it reads your files, searches your codebase, writes edits, executes commands and chains multi-step reasoning until the task is done. You stay in control with a built-in permission system that gates every tool call.
+
 ## Features
 
-- **Multi-provider** - Anthropic, OpenAI, OpenRouter with any model support
-- **Natural language** - Just describe what you want to do
-- **Cross-platform** - Windows (PowerShell, CMD, Git Bash), macOS, Linux
-- **Shell-aware** - Commands tailored to your detected shell
-- **Interactive** - Execute, copy, edit or request alternatives
-- **Context-aware** - Remembers your conversation history for smarter suggestions
-- **Secure** - API keys stored in system keyring, never in plain text
-- **Risk assessment** - Color-coded safety levels for every command
+- **Agentic tool-use** - Multi-turn reasoning with 7 built-in tools (bash, file read/write/edit, glob, grep and directory listing)
+- **Permission system** - Allow, ask or deny gates per tool with approve-for-session support
+- **Streaming markdown** - Real-time rendered responses with headings, code blocks, lists and links in the terminal
+- **Multi-provider** - Anthropic, OpenAI and OpenRouter with any model ID
+- **Shell-aware** - Detects your shell and tailors commands to match (bash, zsh, fish, PowerShell, cmd)
+- **Cross-platform** - Windows, macOS and Linux
+- **Secure key storage** - API keys stored in your system keyring, never in plain text
+- **Context compaction** - Automatic conversation summarization when context grows large
 
 ## Quick Start
 
@@ -29,131 +33,91 @@ Supports **Anthropic**, **OpenAI** and **OpenRouter** providers.
 # Install globally
 npm install -g @fmdzc/cli-ai
 
-# Run
+# Launch
 s
 # or
 cli-ai
 ```
 
-On first run, you'll be prompted for an API key. Get one from:
+On first run you will be prompted for an API key. Get one from:
 - [Anthropic](https://console.anthropic.com/settings/keys)
 - [OpenAI](https://platform.openai.com/api-keys)
 - [OpenRouter](https://openrouter.ai/keys)
 
-## Usage
-
-Type what you want in natural language:
+## How It Works
 
 ```
-> find files larger than 100MB
+You: "find all TODO comments in src/ and write a summary to TODO.md"
 
-$ find . -size +100M -type f
-Risk: low
-
-[1] Execute  [2] Copy  [3] Edit  [4] Alternatives  [5] Cancel
+CLI AI:
+  1. grep_search  → scans src/ for TODO patterns
+  2. file_read    → reads matching files for context
+  3. file_write   → creates TODO.md with a structured summary
+  4. Done.
 ```
 
-### Slash Commands
+The agent plans and executes each step. You approve tool calls as they happen or pre-approve tools you trust.
 
-Type `/` to access commands:
+## Built-in Tools
+
+| Tool             | Description                          |
+| ---------------- | ------------------------------------ |
+| `bash_execute`   | Run shell commands                   |
+| `file_read`      | Read file contents                   |
+| `file_write`     | Create or overwrite files            |
+| `file_edit`      | Apply targeted edits to files        |
+| `glob_search`    | Find files by pattern                |
+| `grep_search`    | Search file contents with regex      |
+| `list_directory` | List directory contents              |
+
+## Slash Commands
 
 | Command   | Description             |
 | --------- | ----------------------- |
 | `/config` | Open settings panel     |
 | `/help`   | Show help and shortcuts |
-| `/clear`  | Clear command history   |
+| `/clear`  | Clear conversation      |
 | `/exit`   | Exit application        |
 
-### Keyboard Shortcuts
+## Keyboard Shortcuts
 
 **Input Mode**
-| Key      | Action                  |
-| -------- | ----------------------- |
-| `/`      | Open command palette    |
-| `Enter`  | Submit query            |
-| `O`      | Toggle output expansion |
-| `Ctrl+D` | Exit (when empty)       |
-
-**Command Proposal**
-| Key           | Action            |
-| ------------- | ----------------- |
-| `1` / `Enter` | Execute command   |
-| `2`           | Copy to clipboard |
-| `3`           | Edit command      |
-| `4`           | Show alternatives |
-| `5` / `Esc`   | Cancel            |
-| `?`           | Explain command   |
+| Key      | Action               |
+| -------- | -------------------- |
+| `Enter`  | Submit query         |
+| `/`      | Open command palette |
+| `Ctrl+D` | Exit (when empty)    |
 
 **Settings Panel**
-| Key       | Action         |
-| --------- | -------------- |
-| `Tab`     | Next section   |
-| `Up/Down` | Navigate items |
-| `Enter`   | Toggle/Select  |
-| `Esc`     | Close          |
+| Key         | Action         |
+| ----------- | -------------- |
+| `Tab`       | Next section   |
+| `Up/Down`   | Navigate items |
+| `Enter`     | Toggle/Select  |
+| `1-9`       | Jump to tab    |
+| `Esc`       | Close          |
 
 ## Settings
 
 Access settings with `/config`:
 
-### Provider & Model
+### Provider and Model
 
-Supported AI providers:
 - **Anthropic** - Claude models
 - **OpenAI** - GPT models
 - **OpenRouter** - 100+ models from various providers
 
-Any model from your selected provider is supported. Use the built-in presets or enter a custom model ID.
+Use the built-in presets or enter a custom model ID.
 
 ### API Keys
 
-Manage API keys for each provider separately:
-- View key status (✓ Configured / ✗ Not set)
-- Add or change keys for any provider
-- Keys are stored securely per provider
+Manage API keys per provider. Keys are stored in your system keyring with an encrypted file fallback when the keyring is unavailable.
 
-### Options
-| Setting             | Description                                             |
-| ------------------- | ------------------------------------------------------- |
-| Context             | Pass conversation history to AI for smarter suggestions |
-| Show explanations   | Display command explanations                            |
-| Syntax highlighting | Colorize command output                                 |
-| Simple mode         | Minimal UI mode                                         |
-
-## Risk Assessment
-
-| Level  | Color  | Meaning                        |
-| ------ | ------ | ------------------------------ |
-| Low    | Green  | Safe, read-only commands       |
-| Medium | Yellow | Modifies files or system state |
-| High   | Red    | Potentially destructive        |
-
-## Security
-
-### API Key Storage
-
-Your API keys are stored securely using industry-standard methods. Each provider's key is stored separately.
-
-**Primary: System Keyring**
-
-| Platform | Storage Backend                             |
+| Platform | Keyring Backend                             |
 | -------- | ------------------------------------------- |
 | macOS    | Keychain                                    |
 | Windows  | Credential Manager                          |
 | Linux    | Secret Service API (GNOME Keyring, KWallet) |
-
-The system keyring provides OS-level encryption and access control. API keys are never stored in plain text or environment variables.
-
-**Fallback: Encrypted File**
-
-If the system keyring is unavailable, keys are stored in an encrypted file at `~/.cli_ai_assistant/`. The encryption key is derived from your machine's unique identifiers (hostname + username), making the encrypted file non-portable and machine-specific.
-
-### Key Management
-
-- **View**: See masked keys and storage method per provider in `/config`
-- **Add**: Configure API keys for Anthropic, OpenAI or OpenRouter
-- **Change**: Update any API key anytime through settings
-- **Status**: Green ✓ indicates configured, red ✗ indicates not set
 
 ## Requirements
 

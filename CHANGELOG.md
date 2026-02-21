@@ -7,20 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [3.2.0] - 2026-02-21
 
+### Added
+
+- **Agentic mode**: Full tool-use loop with multi-turn reasoning. The AI can now read files, run commands, search code and chain actions autonomously
+- **7 built-in tools**: bash_execute, file_read, file_write, file_edit, glob_search, grep_search, list_directory
+- **Permission system**: Allow/ask/deny gates per tool with approve-for-session support
+- **Chat-first UX**: Replaced the single command-proposal flow with a persistent conversational interface
+- **Streaming responses**: Real-time markdown rendering with tool call status indicators
+- **Theme system**: Catppuccin Mocha color scheme with semantic tokens
+- **Markdown rendering**: Headings, lists, code blocks, links and blockquotes in the terminal
+- **Context compaction**: Automatic conversation summarization when context grows large
+- **Max-steps summary**: Graceful degradation when the agent hits the turn limit
+- **Model-aware prompts**: Multi-layer prompt system tuned per provider and model
+
 ### Changed
 
-- **Tabbed settings panel**: Config panel now shows one section at a time with a horizontal tab bar instead of a flat scrolling list
-- **Separate Provider and Model tabs**: Split the overloaded Provider & Model section into two focused tabs
-- **Tab navigation**: Left/Right arrows, Tab/Shift+Tab, and number keys 1-5 to switch sections
+- **Tabbed settings panel**: Config panel shows one section at a time with horizontal tab bar, arrow key and number key navigation
+- **Chat components**: New ChatView, UserBubble, and AssistantBubble replace the old proposal display
+- **Prompt system**: Rewritten with original DevOps-focused content
 
 ### Fixed
 
-- **Streaming text leak in multi-turn responses**: Intermediate AI text from tool-call turns no longer bleeds into the final response
-- **Duplicate provider/model in input prompt**: Removed redundant provider info from inside the input border (already shown in footer bar)
-
-### Removed
-
-- Unused config sub-components (ConfigSection, ConfigSelect, ConfigToggle, ApiKeySection) — consolidated into ConfigPanelDisplay
+- **Streaming text leak**: Intermediate AI text from tool-call turns no longer bleeds into the final response
+- **Duplicate provider/model in input**: Removed redundant info from inside the input border
+- **OpenRouter SDK format**: Handle camelCase response format from OpenRouter SDK
+- **Memory safety**: Cap message arrays, cache executor deps, optimize streaming deltas
+- **Security hardening**: Improved encryption key derivation, path validation and regex safety
+- **Process lifecycle**: Replace process.exit with Ink exit, add error boundary
 
 ## [3.1.2] - 2026-01-17
 
