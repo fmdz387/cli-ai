@@ -2,8 +2,6 @@
  * Input prompt display component with panel border and metadata
  */
 import { useTheme } from '../theme/index.js';
-import { PROVIDER_CONFIG } from '../constants.js';
-import type { AIProvider } from '../types/index.js';
 import { Panel, ShadowLine } from './ui/Panel.js';
 
 import { Box, Text } from 'ink';
@@ -16,8 +14,6 @@ interface InputPromptDisplayProps {
   disabled?: boolean;
   hasHistory?: boolean;
   visible?: boolean;
-  provider?: AIProvider;
-  model?: string;
 }
 
 export function InputPromptDisplay({
@@ -26,8 +22,6 @@ export function InputPromptDisplay({
   disabled = false,
   hasHistory = false,
   visible = true,
-  provider,
-  model,
 }: InputPromptDisplayProps): ReactNode {
   const theme = useTheme();
 
@@ -45,24 +39,15 @@ export function InputPromptDisplay({
     );
   }
 
-  const providerName = provider ? PROVIDER_CONFIG[provider].name : undefined;
-
   return (
     <Box flexDirection="column">
       <Panel borderColor={theme.primary} paddingLeft={1}>
-        <Box flexDirection="column">
-          <ControlledTextInput
-            value={textState.value}
-            cursorOffset={textState.cursorOffset}
-            placeholder={placeholder}
-            isDisabled={disabled}
-          />
-          {providerName && model && (
-            <Box>
-              <Text color={theme.textMuted}>{providerName} / {model}</Text>
-            </Box>
-          )}
-        </Box>
+        <ControlledTextInput
+          value={textState.value}
+          cursorOffset={textState.cursorOffset}
+          placeholder={placeholder}
+          isDisabled={disabled}
+        />
       </Panel>
       <ShadowLine color={theme.border} />
     </Box>
