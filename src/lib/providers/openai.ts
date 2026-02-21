@@ -121,13 +121,15 @@ Output JSON array: [{ "command": "...", "risk": "low|medium|high" }, ...]`;
     tools: unknown,
     options: SendWithToolsOptions,
   ): Promise<unknown> {
-    return this.client.chat.completions.create({
-      model: this.model,
-      max_tokens: options.maxTokens,
-      messages: formatOpenAIMessages(messages),
-      tools: tools as OpenAI.Chat.Completions.ChatCompletionTool[],
-      ...(options.signal ? { signal: options.signal } : {}),
-    });
+    return this.client.chat.completions.create(
+      {
+        model: this.model,
+        max_tokens: options.maxTokens,
+        messages: formatOpenAIMessages(messages),
+        tools: tools as OpenAI.Chat.Completions.ChatCompletionTool[],
+      },
+      options.signal ? { signal: options.signal } : {},
+    );
   }
 }
 

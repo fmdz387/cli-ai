@@ -117,14 +117,16 @@ Output JSON array: [{ "command": "...", "risk": "low|medium|high" }, ...]`;
     options: SendWithToolsOptions,
   ): Promise<unknown> {
     const { systemText, apiMessages } = formatAnthropicMessages(messages);
-    return this.client.messages.create({
-      model: this.model,
-      max_tokens: options.maxTokens,
-      system: systemText,
-      messages: apiMessages,
-      tools: tools as Anthropic.Messages.Tool[],
-      ...(options.signal ? { signal: options.signal } : {}),
-    });
+    return this.client.messages.create(
+      {
+        model: this.model,
+        max_tokens: options.maxTokens,
+        system: systemText,
+        messages: apiMessages,
+        tools: tools as Anthropic.Messages.Tool[],
+      },
+      options.signal ? { signal: options.signal } : {},
+    );
   }
 }
 
