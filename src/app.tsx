@@ -38,6 +38,8 @@ import { Box, Text, useApp } from 'ink';
 import { createHash } from 'node:crypto';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
+const CONFIG_SECTIONS: readonly ConfigSection[] = ['provider', 'model', 'api-keys', 'options', 'about'];
+
 export function App(): ReactNode {
   const { exit } = useApp();
   const shell = detectShell();
@@ -332,40 +334,54 @@ export function App(): ReactNode {
   // Config callbacks
   const handleConfigNavigateSection = useCallback(
     (direction: 'next' | 'prev') => {
-      const sections: ConfigSection[] = ['provider', 'api-keys', 'toggles', 'about'];
       if (chatStore.overlay.type !== 'config') return;
       if (isEditingCustomModel) {
         setIsEditingCustomModel(false);
       }
-      const currentIndex = sections.indexOf(chatStore.overlay.section);
+      const currentIndex = CONFIG_SECTIONS.indexOf(chatStore.overlay.section);
       let newIndex: number;
       if (direction === 'next') {
-        newIndex = (currentIndex + 1) % sections.length;
+        newIndex = (currentIndex + 1) % CONFIG_SECTIONS.length;
       } else {
-        newIndex = (currentIndex - 1 + sections.length) % sections.length;
+        newIndex = (currentIndex - 1 + CONFIG_SECTIONS.length) % CONFIG_SECTIONS.length;
       }
-      updateConfigSection(sections[newIndex]!);
+      updateConfigSection(CONFIG_SECTIONS[newIndex]!);
       setConfigItemIndex(0);
     },
     [chatStore.overlay, updateConfigSection, isEditingCustomModel],
   );
 
+  const handleConfigJumpToSection = useCallback(
+    (index: number) => {
+      const section = CONFIG_SECTIONS[index];
+      if (!section) return;
+      if (isEditingCustomModel) {
+        setIsEditingCustomModel(false);
+      }
+      updateConfigSection(section);
+      setConfigItemIndex(0);
+    },
+    [updateConfigSection, isEditingCustomModel],
+  );
+
+  const getItemCount = useCallback(
+    (section: ConfigSection): number => {
+      const counts: Record<ConfigSection, number> = {
+        'provider': AI_PROVIDERS.length,
+        'model': PROVIDER_MODELS[currentProvider].length + 1,
+        'api-keys': AI_PROVIDERS.length,
+        'options': 4,
+        'about': 0,
+      };
+      return counts[section];
+    },
+    [currentProvider],
+  );
+
   const handleConfigNavigateItem = useCallback(
     (direction: 'up' | 'down') => {
       if (chatStore.overlay.type !== 'config') return;
-      const section = chatStore.overlay.section;
-      let count: number;
-      if (section === 'provider') {
-        count = AI_PROVIDERS.length + PROVIDER_MODELS[currentProvider].length + 1;
-      } else {
-        const itemCounts = {
-          'provider': 0,
-          'api-keys': AI_PROVIDERS.length,
-          'toggles': 4,
-          'about': 0,
-        } as const;
-        count = itemCounts[section];
-      }
+      const count = getItemCount(chatStore.overlay.section);
       if (count === 0) return;
       setConfigItemIndex((prev) => {
         if (direction === 'up') {
@@ -374,13 +390,14 @@ export function App(): ReactNode {
         return (prev + 1) % count;
       });
     },
-    [chatStore.overlay, currentProvider],
+    [chatStore.overlay, getItemCount],
   );
 
   const handleConfigToggle = useCallback(() => {
     if (chatStore.overlay.type !== 'config') return;
+    const section = chatStore.overlay.section;
 
-    if (chatStore.overlay.section === 'toggles') {
+    if (section === 'options') {
       setDisplayToggles((prev) => {
         const toggleKeys = [
           'contextEnabled',
@@ -401,27 +418,27 @@ export function App(): ReactNode {
       return;
     }
 
-    if (chatStore.overlay.section === 'provider') {
-      const providers = AI_PROVIDERS;
-      const models = PROVIDER_MODELS[currentProvider];
-      const customModelIndex = AI_PROVIDERS.length + models.length;
+    if (section === 'provider') {
+      const newProvider = AI_PROVIDERS[configItemIndex];
+      if (newProvider && newProvider !== currentProvider) {
+        const newModel = PROVIDER_CONFIG[newProvider].defaultModel;
+        setConfig({ provider: newProvider, model: newModel });
+        setCurrentProvider(newProvider);
+        setSelectedModel(newModel);
+        setIsEditingCustomModel(false);
+        refreshKeyStatus();
+      }
+      return;
+    }
 
-      if (configItemIndex < AI_PROVIDERS.length) {
-        const newProvider = providers[configItemIndex];
-        if (newProvider && newProvider !== currentProvider) {
-          const newModel = PROVIDER_CONFIG[newProvider].defaultModel;
-          setConfig({ provider: newProvider, model: newModel });
-          setCurrentProvider(newProvider);
-          setSelectedModel(newModel);
-          setIsEditingCustomModel(false);
-          setConfigItemIndex(0);
-          refreshKeyStatus();
-        }
-      } else if (configItemIndex === customModelIndex) {
+    if (section === 'model') {
+      const models = PROVIDER_MODELS[currentProvider];
+      const customModelIndex = models.length;
+
+      if (configItemIndex === customModelIndex) {
         setIsEditingCustomModel(true);
       } else {
-        const modelIndex = configItemIndex - AI_PROVIDERS.length;
-        const newModel = models[modelIndex];
+        const newModel = models[configItemIndex];
         if (newModel && newModel.id !== selectedModel) {
           setConfig({ model: newModel.id });
           setSelectedModel(newModel.id);
@@ -431,9 +448,8 @@ export function App(): ReactNode {
       return;
     }
 
-    if (chatStore.overlay.section === 'api-keys') {
-      const providers = AI_PROVIDERS;
-      const provider = providers[configItemIndex];
+    if (section === 'api-keys') {
+      const provider = AI_PROVIDERS[configItemIndex];
       if (provider) {
         closeConfig();
         setEditingApiKeyProvider(provider);
@@ -454,18 +470,8 @@ export function App(): ReactNode {
 
   const configItemCount = useMemo(() => {
     if (chatStore.overlay.type !== 'config') return 0;
-    const section = chatStore.overlay.section;
-    if (section === 'provider') {
-      return AI_PROVIDERS.length + PROVIDER_MODELS[currentProvider].length + 1;
-    }
-    const itemCounts = {
-      'provider': 0,
-      'api-keys': AI_PROVIDERS.length,
-      'toggles': 4,
-      'about': 0,
-    } as const;
-    return itemCounts[section];
-  }, [chatStore.overlay, currentProvider]);
+    return getItemCount(chatStore.overlay.section);
+  }, [chatStore.overlay, getItemCount]);
 
   const {
     textState,
@@ -514,10 +520,11 @@ export function App(): ReactNode {
     },
     configCallbacks: {
       onNavigateSection: handleConfigNavigateSection,
+      onJumpToSection: handleConfigJumpToSection,
       onNavigateItem: handleConfigNavigateItem,
       onToggle: handleConfigToggle,
       onClose: handleConfigClose,
-      sectionCount: 4,
+      sectionCount: CONFIG_SECTIONS.length,
       itemCount: configItemCount,
       isEditingCustomModel,
       onCustomModelSubmit: (value: string) => {
@@ -615,8 +622,6 @@ export function App(): ReactNode {
           placeholder='Type a message... (/ for commands)'
           disabled={chatStore.isAgentRunning || chatStore.isCompacting}
           visible={chatStore.overlay.type === 'none'}
-          provider={currentProvider}
-          model={selectedModel}
         />
 
         {/* Inline Command Palette - shows below input when typing "/" */}

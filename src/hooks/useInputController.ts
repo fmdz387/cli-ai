@@ -47,6 +47,7 @@ export interface PaletteCallbacks {
 
 export interface ConfigCallbacks {
   onNavigateSection: (direction: 'next' | 'prev') => void;
+  onJumpToSection?: (index: number) => void;
   onNavigateItem: (direction: 'up' | 'down') => void;
   onToggle: () => void;
   onClose: () => void;
@@ -356,7 +357,7 @@ export function useInputController({
           return;
         }
 
-        // Tab navigates between sections
+        // Tab or Left/Right arrow navigates between sections
         if (key.tab && !key.shift) {
           setConfigSectionIndex((prev) => (prev + 1) % sectionCount);
           setConfigItemIndex(0);
@@ -368,6 +369,29 @@ export function useInputController({
           setConfigSectionIndex((prev) => (prev - 1 + sectionCount) % sectionCount);
           setConfigItemIndex(0);
           configCallbacks.onNavigateSection('prev');
+          return;
+        }
+
+        if (key.leftArrow) {
+          setConfigSectionIndex((prev) => (prev - 1 + sectionCount) % sectionCount);
+          setConfigItemIndex(0);
+          configCallbacks.onNavigateSection('prev');
+          return;
+        }
+
+        if (key.rightArrow) {
+          setConfigSectionIndex((prev) => (prev + 1) % sectionCount);
+          setConfigItemIndex(0);
+          configCallbacks.onNavigateSection('next');
+          return;
+        }
+
+        // Number keys 1-9 jump directly to a tab
+        const numKey = parseInt(input, 10);
+        if (numKey >= 1 && numKey <= sectionCount && configCallbacks.onJumpToSection) {
+          setConfigSectionIndex(numKey - 1);
+          setConfigItemIndex(0);
+          configCallbacks.onJumpToSection(numKey - 1);
           return;
         }
 

@@ -8,8 +8,6 @@ import { hasApiKey as checkHasApiKey } from '../../lib/secure-storage.js';
 import { useTheme } from '../../theme/index.js';
 import type { AppConfig } from '../../types/index.js';
 import { ControlledTextInput, type TextInputState } from '../ControlledTextInput.js';
-import { ConfigSection } from './ConfigSection.js';
-import { ConfigToggle } from './ConfigToggle.js';
 
 import { Box, Text } from 'ink';
 import type { ReactNode } from 'react';
@@ -38,7 +36,297 @@ export interface ConfigPanelDisplayProps {
   customModelState?: TextInputState;
 }
 
-const SECTIONS: ConfigSectionType[] = ['provider', 'api-keys', 'toggles', 'about'];
+interface TabDef {
+  readonly id: ConfigSectionType;
+  readonly label: string;
+  readonly key: string;
+}
+
+const TABS: readonly TabDef[] = [
+  { id: 'provider', label: 'Provider', key: '1' },
+  { id: 'model', label: 'Model', key: '2' },
+  { id: 'api-keys', label: 'API Keys', key: '3' },
+  { id: 'options', label: 'Options', key: '4' },
+  { id: 'about', label: 'About', key: '5' },
+] as const;
+
+interface ToggleDef {
+  readonly key: string;
+  readonly label: string;
+  readonly description: string;
+}
+
+const TOGGLE_DEFS: readonly ToggleDef[] = [
+  { key: 'contextEnabled', label: 'Context', description: 'Pass conversation history to AI' },
+  { key: 'showExplanations', label: 'Explanations', description: 'Show command explanations' },
+  { key: 'syntaxHighlighting', label: 'Syntax highlighting', description: 'Highlight command syntax' },
+  { key: 'simpleMode', label: 'Simple mode', description: 'Minimal interface' },
+] as const;
+
+// --- Shared layout helpers ---
+
+function Divider(): ReactNode {
+  const theme = useTheme();
+  return (
+    <Box>
+      <Text color={theme.border}>{'\u2500'.repeat(58)}</Text>
+    </Box>
+  );
+}
+
+function SectionDescription({ text }: { text: string }): ReactNode {
+  const theme = useTheme();
+  return (
+    <Box marginBottom={1}>
+      <Text color={theme.textMuted} dimColor>
+        {text}
+      </Text>
+    </Box>
+  );
+}
+
+function ItemRow({
+  isFocused,
+  children,
+}: {
+  isFocused: boolean;
+  children: ReactNode;
+}): ReactNode {
+  const theme = useTheme();
+  return (
+    <Box>
+      <Text color={isFocused ? theme.primary : theme.textMuted} bold={isFocused}>
+        {isFocused ? '> ' : '  '}
+      </Text>
+      {children}
+    </Box>
+  );
+}
+
+// --- Tab content components ---
+
+function ProviderContent({
+  config,
+  focusIndex,
+}: {
+  config: AppConfig;
+  focusIndex: number;
+}): ReactNode {
+  const theme = useTheme();
+
+  return (
+    <Box flexDirection='column'>
+      <SectionDescription text='Select your AI provider' />
+      {AI_PROVIDERS.map((provider, index) => {
+        const providerCfg = PROVIDER_CONFIG[provider];
+        const isSelected = config.provider === provider;
+        const providerHasKey = checkHasApiKey(provider);
+        const isFocused = focusIndex === index;
+
+        return (
+          <ItemRow key={provider} isFocused={isFocused}>
+            <Text
+              color={isSelected ? theme.success : isFocused ? theme.text : theme.textMuted}
+              bold={isSelected}
+            >
+              {isSelected ? '\u25CF' : '\u25CB'} {providerCfg.name}
+            </Text>
+            <Text> </Text>
+            <Text color={providerHasKey ? theme.success : theme.error}>
+              {providerHasKey ? '\u2713 Key' : '\u2717 No key'}
+            </Text>
+          </ItemRow>
+        );
+      })}
+    </Box>
+  );
+}
+
+function ModelContent({
+  config,
+  focusIndex,
+  isEditingCustomModel,
+  customModelState,
+  isCustomModel,
+}: {
+  config: AppConfig;
+  focusIndex: number;
+  isEditingCustomModel: boolean;
+  customModelState?: TextInputState;
+  isCustomModel: boolean;
+}): ReactNode {
+  const theme = useTheme();
+  const currentModels = PROVIDER_MODELS[config.provider];
+  const customIndex = currentModels.length;
+
+  return (
+    <Box flexDirection='column'>
+      <SectionDescription
+        text={`Choose a model for ${PROVIDER_CONFIG[config.provider].name}`}
+      />
+      {currentModels.map((model, index) => {
+        const isSelected = config.model === model.id;
+        const isFocused = focusIndex === index;
+
+        return (
+          <ItemRow key={model.id} isFocused={isFocused}>
+            <Text
+              color={isSelected ? theme.success : isFocused ? theme.text : theme.textMuted}
+              bold={isSelected}
+            >
+              {isSelected ? '\u25CF' : '\u25CB'} {model.name}
+            </Text>
+            <Text color={theme.textMuted} dimColor>
+              {' '}
+              {model.description}
+            </Text>
+          </ItemRow>
+        );
+      })}
+
+      {/* Custom model option */}
+      <ItemRow isFocused={focusIndex === customIndex}>
+        {isEditingCustomModel && customModelState ? (
+          <>
+            <Text color={theme.primary}>{'\u25CB '}</Text>
+            <ControlledTextInput
+              value={customModelState.value}
+              cursorOffset={customModelState.cursorOffset}
+              placeholder='model-id'
+            />
+            <Text color={theme.textMuted} dimColor>
+              {' '}
+              (Enter save, Esc cancel)
+            </Text>
+          </>
+        ) : (
+          <>
+            <Text
+              color={
+                isCustomModel
+                  ? theme.success
+                  : focusIndex === customIndex
+                    ? theme.text
+                    : theme.textMuted
+              }
+              bold={isCustomModel}
+            >
+              {isCustomModel ? '\u25CF' : '\u25CB'} {CUSTOM_MODEL_OPTION.name}
+            </Text>
+            <Text color={theme.textMuted} dimColor>
+              {' '}
+              {isCustomModel ? `(${config.model})` : CUSTOM_MODEL_OPTION.description}
+            </Text>
+          </>
+        )}
+      </ItemRow>
+    </Box>
+  );
+}
+
+function ApiKeysContent({
+  focusIndex,
+}: {
+  focusIndex: number;
+}): ReactNode {
+  const theme = useTheme();
+
+  return (
+    <Box flexDirection='column'>
+      <SectionDescription text='Manage API keys for each provider' />
+      {AI_PROVIDERS.map((provider, index) => {
+        const providerCfg = PROVIDER_CONFIG[provider];
+        const providerHasKey = checkHasApiKey(provider);
+        const isFocused = focusIndex === index;
+
+        return (
+          <ItemRow key={provider} isFocused={isFocused}>
+            <Text color={isFocused ? theme.text : theme.textMuted}>{providerCfg.name}</Text>
+            <Text> </Text>
+            <Text color={providerHasKey ? theme.success : theme.error}>
+              {providerHasKey ? '\u2713 Configured' : '\u2717 Not set'}
+            </Text>
+            <Text color={theme.textMuted} dimColor>
+              {' '}
+              [Enter to {providerHasKey ? 'change' : 'add'}]
+            </Text>
+          </ItemRow>
+        );
+      })}
+    </Box>
+  );
+}
+
+function OptionsContent({
+  toggles,
+  focusIndex,
+}: {
+  toggles: Record<string, boolean>;
+  focusIndex: number;
+}): ReactNode {
+  const theme = useTheme();
+
+  return (
+    <Box flexDirection='column'>
+      <SectionDescription text='Customize your experience' />
+      {TOGGLE_DEFS.map((opt, index) => {
+        const value = toggles[opt.key] ?? false;
+        const isFocused = focusIndex === index;
+
+        return (
+          <ItemRow key={opt.key} isFocused={isFocused}>
+            <Text color={value ? theme.success : theme.textMuted}>
+              {value ? '[\u2713]' : '[ ]'}
+            </Text>
+            <Text color={isFocused ? theme.text : theme.textMuted}> {opt.label}</Text>
+            <Text color={theme.textMuted} dimColor>
+              {'  '}
+              {opt.description}
+            </Text>
+          </ItemRow>
+        );
+      })}
+    </Box>
+  );
+}
+
+function AboutContent({
+  config,
+  storageInfo,
+}: {
+  config: AppConfig;
+  storageInfo: StorageInfo;
+}): ReactNode {
+  const theme = useTheme();
+  const PAD = 12;
+
+  const rows: readonly { label: string; value: string; color: string }[] = [
+    { label: 'Version', value: `CLI AI v${VERSION}`, color: theme.text },
+    { label: 'Provider', value: PROVIDER_CONFIG[config.provider].name, color: theme.accent },
+    { label: 'Model', value: config.model, color: theme.accent },
+    {
+      label: 'Storage',
+      value: storageInfo.description,
+      color: storageInfo.secure ? theme.success : theme.warning,
+    },
+  ];
+
+  return (
+    <Box flexDirection='column'>
+      <SectionDescription text='Application information' />
+      {rows.map((row) => (
+        <Box key={row.label}>
+          <Text color={theme.textMuted} dimColor>
+            {row.label.padEnd(PAD)}
+          </Text>
+          <Text color={row.color}>{row.value}</Text>
+        </Box>
+      ))}
+    </Box>
+  );
+}
+
+// --- Main panel ---
 
 export function ConfigPanelDisplay({
   visible,
@@ -54,194 +342,80 @@ export function ConfigPanelDisplay({
 }: ConfigPanelDisplayProps): ReactNode {
   const theme = useTheme();
 
-  if (!visible) {
-    return null;
-  }
+  if (!visible) return null;
 
-  const activeSectionIndex = SECTIONS.indexOf(activeSection);
   const currentModels = PROVIDER_MODELS[config.provider];
   const isCustomModel = !currentModels.some((m) => m.id === config.model);
-  const customModelIndex = AI_PROVIDERS.length + currentModels.length;
 
   return (
-    <Box flexDirection='column' borderStyle='round' borderColor={theme.border} paddingX={2} paddingY={1}>
+    <Box
+      flexDirection='column'
+      borderStyle='round'
+      borderColor={theme.border}
+      paddingX={2}
+      paddingY={1}
+    >
+      {/* Header */}
       <Box justifyContent='space-between' marginBottom={1}>
-        <Box>
-          <Text color={theme.primary} bold>
-            Settings
-          </Text>
-        </Box>
-        <Box>
-          <Text color={theme.textMuted}>[Esc] Close [Tab] Section [Enter] Select</Text>
-        </Box>
+        <Text color={theme.primary} bold>
+          Settings
+        </Text>
+        <Text color={theme.textMuted} dimColor>
+          Esc to close
+        </Text>
       </Box>
 
-      <ConfigSection title='Provider & Model' isActive={activeSection === 'provider'}>
-        <Box flexDirection='column'>
-          <Box marginBottom={1}>
-            <Text color={theme.textMuted}>Provider</Text>
-          </Box>
-          {AI_PROVIDERS.map((provider, index) => {
-            const providerConfig = PROVIDER_CONFIG[provider];
-            const isSelected = config.provider === provider;
-            const providerHasKey = checkHasApiKey(provider);
-            const isFocused = activeSection === 'provider' && sectionItemIndex === index;
-            return (
-              <Box key={provider}>
-                <Text color={isFocused ? theme.primary : theme.textMuted} bold={isFocused}>
-                  {isFocused ? '> ' : '  '}
-                </Text>
-                <Text color={isFocused ? theme.primary : isSelected ? theme.success : theme.text}>
-                  {isSelected ? '\u25CF' : '\u25CB'} {providerConfig.name}
-                </Text>
-                <Text> </Text>
-                <Text color={providerHasKey ? theme.success : theme.error}>
-                  {providerHasKey ? '\u2713 Key' : '\u2717 No key'}
-                </Text>
-              </Box>
-            );
-          })}
-          <Box marginTop={1} marginBottom={1}>
-            <Text color={theme.textMuted}>Model</Text>
-          </Box>
-          {currentModels.map((model, index) => {
-            const modelIndex = index + AI_PROVIDERS.length;
-            const isSelected = config.model === model.id;
-            const isFocused = activeSection === 'provider' && sectionItemIndex === modelIndex;
-            return (
-              <Box key={model.id}>
-                <Text color={isFocused ? theme.primary : theme.textMuted} bold={isFocused}>
-                  {isFocused ? '> ' : '  '}
-                </Text>
-                <Text color={isFocused ? theme.primary : isSelected ? theme.success : theme.text}>
-                  {isSelected ? '\u25CF' : '\u25CB'} {model.name}
-                </Text>
-                <Text color={theme.textMuted}> {model.description}</Text>
-              </Box>
-            );
-          })}
-          <Box key={CUSTOM_MODEL_OPTION.id}>
-            <Text
-              color={
-                activeSection === 'provider' && sectionItemIndex === customModelIndex
-                  ? theme.primary
-                  : theme.textMuted
-              }
-              bold={activeSection === 'provider' && sectionItemIndex === customModelIndex}
-            >
-              {activeSection === 'provider' && sectionItemIndex === customModelIndex ? '> ' : '  '}
-            </Text>
-            {isEditingCustomModel && customModelState ? (
-              <>
-                <Text color={theme.primary}>{'\u25CB '}</Text>
-                <ControlledTextInput
-                  value={customModelState.value}
-                  cursorOffset={customModelState.cursorOffset}
-                  placeholder='model-id'
-                />
-                <Text color={theme.textMuted}> (Enter to save, Esc to cancel)</Text>
-              </>
-            ) : (
-              <>
-                <Text
-                  color={
-                    activeSection === 'provider' && sectionItemIndex === customModelIndex
-                      ? theme.primary
-                      : isCustomModel
-                        ? theme.success
-                        : theme.text
-                  }
-                >
-                  {isCustomModel ? '\u25CF' : '\u25CB'} {CUSTOM_MODEL_OPTION.name}
-                </Text>
-                <Text
-                  color={theme.textMuted}
-                >
-                  {' '}
-                  {isCustomModel ? `(${config.model})` : CUSTOM_MODEL_OPTION.description}
-                </Text>
-              </>
-            )}
-          </Box>
-        </Box>
-      </ConfigSection>
+      {/* Tab bar */}
+      <Box>
+        {TABS.map((tab) => {
+          const isActive = activeSection === tab.id;
+          return (
+            <Box key={tab.id} marginRight={1}>
+              <Text
+                color={isActive ? theme.primary : theme.textMuted}
+                bold={isActive}
+                dimColor={!isActive}
+              >
+                {tab.key}{'\u00B7'}
+                {tab.label}
+              </Text>
+            </Box>
+          );
+        })}
+      </Box>
 
-      <ConfigSection title='API Keys' isActive={activeSection === 'api-keys'}>
-        <Box flexDirection='column'>
-          {AI_PROVIDERS.map((provider, index) => {
-            const providerConfig = PROVIDER_CONFIG[provider];
-            const providerHasKey = checkHasApiKey(provider);
-            const isFocused = activeSection === 'api-keys' && sectionItemIndex === index;
-            return (
-              <Box key={provider}>
-                <Text color={isFocused ? theme.primary : theme.textMuted} bold={isFocused}>
-                  {isFocused ? '> ' : '  '}
-                </Text>
-                <Text color={isFocused ? theme.primary : theme.text}>{providerConfig.name}: </Text>
-                <Text color={providerHasKey ? theme.success : theme.error}>
-                  {providerHasKey ? '\u2713 Configured' : '\u2717 Not set'}
-                </Text>
-                <Text color={theme.textMuted}> [Enter to {providerHasKey ? 'change' : 'add'}]</Text>
-              </Box>
-            );
-          })}
-        </Box>
-      </ConfigSection>
+      <Divider />
 
-      <ConfigSection title='Options' isActive={activeSection === 'toggles'}>
-        <ConfigToggle
-          label='Context (pass history to AI)'
-          value={toggles.contextEnabled}
-          isSelected={activeSection === 'toggles' && sectionItemIndex === 0}
-        />
-        <ConfigToggle
-          label='Show explanations'
-          value={toggles.showExplanations}
-          isSelected={activeSection === 'toggles' && sectionItemIndex === 1}
-        />
-        <ConfigToggle
-          label='Syntax highlighting'
-          value={toggles.syntaxHighlighting}
-          isSelected={activeSection === 'toggles' && sectionItemIndex === 2}
-        />
-        <ConfigToggle
-          label='Simple mode'
-          value={toggles.simpleMode}
-          isSelected={activeSection === 'toggles' && sectionItemIndex === 3}
-        />
-      </ConfigSection>
+      {/* Active tab content */}
+      <Box flexDirection='column' marginY={1} minHeight={5}>
+        {activeSection === 'provider' && (
+          <ProviderContent config={config} focusIndex={sectionItemIndex} />
+        )}
+        {activeSection === 'model' && (
+          <ModelContent
+            config={config}
+            focusIndex={sectionItemIndex}
+            isEditingCustomModel={isEditingCustomModel}
+            customModelState={customModelState}
+            isCustomModel={isCustomModel}
+          />
+        )}
+        {activeSection === 'api-keys' && <ApiKeysContent focusIndex={sectionItemIndex} />}
+        {activeSection === 'options' && (
+          <OptionsContent toggles={toggles} focusIndex={sectionItemIndex} />
+        )}
+        {activeSection === 'about' && <AboutContent config={config} storageInfo={storageInfo} />}
+      </Box>
 
-      <ConfigSection title='About' isActive={activeSection === 'about'}>
-        <Box flexDirection='column'>
-          <Box>
-            <Text color={theme.textMuted}>Version: </Text>
-            <Text color={theme.text}>CLI AI v{VERSION}</Text>
-          </Box>
-          <Box>
-            <Text color={theme.textMuted}>Provider: </Text>
-            <Text color={theme.accent}>{PROVIDER_CONFIG[config.provider].name}</Text>
-          </Box>
-          <Box>
-            <Text color={theme.textMuted}>Model: </Text>
-            <Text color={theme.accent}>{config.model}</Text>
-          </Box>
-          <Box>
-            <Text color={theme.textMuted}>Storage: </Text>
-            <Text color={storageInfo.secure ? theme.success : theme.warning}>{storageInfo.description}</Text>
-          </Box>
-        </Box>
-      </ConfigSection>
+      <Divider />
 
-      <Box marginTop={1} justifyContent='center'>
-        {SECTIONS.map((section, index) => (
-          <Box key={section} marginX={1}>
-            <Text color={index === activeSectionIndex ? theme.primary : theme.textMuted}>
-              {index === activeSectionIndex ? '[' : ' '}
-              {index + 1}
-              {index === activeSectionIndex ? ']' : ' '}
-            </Text>
-          </Box>
-        ))}
+      {/* Footer key hints */}
+      <Box marginTop={0}>
+        <Text color={theme.textMuted} dimColor>
+          {isEditingCustomModel
+            ? 'Enter Save  Esc Cancel'
+            : '\u2190/\u2192 Tab  \u2191/\u2193 Navigate  Enter Select  Esc Close'}
+        </Text>
       </Box>
     </Box>
   );

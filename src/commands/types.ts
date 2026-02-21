@@ -61,7 +61,7 @@ export interface CommandRegistry {
   register: (command: SlashCommand) => void;
 }
 
-export type ConfigSection = 'provider' | 'api-keys' | 'toggles' | 'about';
+export type ConfigSection = 'provider' | 'model' | 'api-keys' | 'options' | 'about';
 
 /**
  * Config panel state
