@@ -1,0 +1,126 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="880" height="580" viewBox="0 0 880 580">
+  <defs>
+    <style>
+      text { font-family: 'Cascadia Code', 'JetBrains Mono', 'Fira Code', 'SF Mono', 'Consolas', 'DejaVu Sans Mono', monospace; font-size: 13px; }
+      .muted { fill: #6c7086; }
+      .text  { fill: #cdd6f4; }
+      .bold  { fill: #cdd6f4; font-weight: 700; }
+      .blue  { fill: #89b4fa; }
+      .green { fill: #a6e3a1; }
+      .mauve { fill: #cba6f7; }
+      .peach { fill: #fab387; }
+      .sm    { font-size: 12px; }
+      .xs    { font-size: 11px; }
+    </style>
+    <linearGradient id="titlebar" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1e1e2e"/>
+      <stop offset="100%" stop-color="#181825"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Window chrome -->
+  <rect width="880" height="580" rx="10" fill="#1e1e2e"/>
+  <rect width="880" height="38" rx="10" fill="url(#titlebar)"/>
+  <rect y="28" width="880" height="10" fill="#181825"/>
+  <line y1="38" y2="38" x1="0" x2="880" stroke="#313244" stroke-width="1"/>
+
+  <!-- Traffic lights -->
+  <circle cx="22" cy="19" r="6" fill="#f38ba8" opacity="0.9"/>
+  <circle cx="42" cy="19" r="6" fill="#fab387" opacity="0.9"/>
+  <circle cx="62" cy="19" r="6" fill="#a6e3a1" opacity="0.9"/>
+
+  <!-- Title bar text -->
+  <text x="440" y="24" class="muted" font-size="12" text-anchor="middle">CLI AI v3.2.3 — bash</text>
+
+  <!-- Content -->
+  <g transform="translate(22, 52)">
+
+    <!-- ── User query ── -->
+    <text y="18" class="mauve" font-weight="700">❯</text>
+    <text x="16" y="18" class="bold">find all test files, check which ones are failing, and fix the broken import</text>
+
+    <!-- ── Assistant intro ── -->
+    <text x="16" y="50" class="text">I'll locate the tests, run the suite, diagnose the failure and patch it.</text>
+
+    <!-- ── Tool calls ── -->
+    <!-- glob -->
+    <text x="24" y="80" class="green">✱</text>
+    <text x="38" y="80" class="blue">glob_search</text>
+    <text x="156" y="80" class="text">**/*.test.ts</text>
+    <text x="306" y="80" class="muted">8 files</text>
+
+    <!-- bash run tests -->
+    <text x="24" y="104" class="green">$</text>
+    <text x="38" y="104" class="blue">bash_execute</text>
+    <text x="166" y="104" class="text">pnpm vitest run --reporter=verbose</text>
+    <text x="556" y="104" class="muted">47 lines</text>
+
+    <!-- file_read -->
+    <text x="24" y="128" class="green">→</text>
+    <text x="38" y="128" class="blue">file_read</text>
+    <text x="148" y="128" class="text">.../adapters.test.ts</text>
+    <text x="376" y="128" class="muted">190 lines</text>
+
+    <!-- grep -->
+    <text x="24" y="152" class="green">✱</text>
+    <text x="38" y="152" class="blue">grep_search</text>
+    <text x="156" y="152" class="text">AnthropicAdapter in .../src</text>
+    <text x="426" y="152" class="muted">4 matches</text>
+
+    <!-- file_edit -->
+    <text x="24" y="176" class="green">←</text>
+    <text x="38" y="176" class="blue">file_edit</text>
+    <text x="144" y="176" class="text">.../adapters.test.ts</text>
+
+    <!-- bash re-run -->
+    <text x="24" y="200" class="green">$</text>
+    <text x="38" y="200" class="blue">bash_execute</text>
+    <text x="166" y="200" class="text">pnpm vitest run --reporter=verbose</text>
+    <text x="556" y="200" class="muted">42 lines</text>
+
+    <!-- ── Assistant response ── -->
+    <text x="16" y="238" class="bold">Fixed.</text>
+    <text x="64" y="238" class="text">The test was importing</text>
+    <text x="300" y="238" class="blue">AnthropicAdapter</text>
+    <text x="458" y="238" class="text">from a path that was</text>
+
+    <text x="16" y="260" class="text">renamed in the v3.2 refactor. Updated the import to the new location.</text>
+
+    <text x="16" y="292" class="text">All</text>
+    <text x="40" y="292" class="green" font-weight="700">8 test suites pass</text>
+    <text x="208" y="292" class="text">now (</text>
+    <text x="244" y="292" class="green">54 tests</text>
+    <text x="318" y="292" class="text">):</text>
+
+    <!-- Results list -->
+    <text x="28" y="318" class="green">✓</text>
+    <text x="44" y="318" class="muted sm">adapters.test.ts</text>
+    <text x="236" y="318" class="text sm">12 tests</text>
+
+    <text x="28" y="340" class="green">✓</text>
+    <text x="44" y="340" class="muted sm">full-flow.test.ts</text>
+    <text x="244" y="340" class="text sm">9 tests</text>
+
+    <text x="28" y="362" class="green">✓</text>
+    <text x="44" y="362" class="muted sm">message-builder.test.ts</text>
+    <text x="284" y="362" class="text sm">6 tests</text>
+
+    <text x="28" y="384" class="green">✓</text>
+    <text x="44" y="384" class="muted sm">registry.test.ts</text>
+    <text x="236" y="384" class="text sm">8 tests</text>
+
+    <text x="28" y="406" class="muted sm">... and 4 more</text>
+
+    <!-- ── Separator ── -->
+    <line x1="0" y1="428" x2="480" y2="428" stroke="#313244" stroke-width="1"/>
+
+    <!-- ── Prompt ── -->
+    <text y="458" class="mauve" font-weight="700">❯</text>
+    <text x="16" y="458" class="muted">Type a message... (/ for commands)</text>
+
+    <!-- ── Footer ── -->
+    <text y="496" class="muted xs">~/dev/cli-ai</text>
+    <text x="660" y="496" class="muted xs">Anthropic / claude sonnet</text>
+
+  </g>
+</svg>

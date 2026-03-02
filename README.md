@@ -10,7 +10,7 @@ Built for everyone who lives in the terminal. CLI AI brings agentic tool-use to 
 
 Supports **Anthropic**, **OpenAI** and **OpenRouter** providers.
 
-![CLI AI Demo](assets/cli-ai.png)
+![CLI AI Demo](assets/cli-ai-demo.svg)
 
 ## Why CLI AI
 
