@@ -1,12 +1,15 @@
 /**
- * Assistant message bubble - renders parts in order for interleaved text/tool display
+ * Assistant message bubble - renders parts in order for interleaved text/tool display.
+ * Shows a "Thinking..." spinner whenever the agent is streaming but no content
+ * is actively appearing — before any parts arrive, AND after tool completions
+ * while waiting for the next API response.
  */
 import type { AssistantMessage, PendingPermission } from '../../types/chat.js';
 import { useTheme } from '../../theme/index.js';
 import { MarkdownText } from '../MarkdownText.js';
 import { PermissionPrompt } from '../Agent/PermissionPrompt.js';
 import { ToolCallStatus } from '../Agent/ToolCallStatus.js';
-import { ThinkingSpinner } from '../Spinner.js';
+import { Spinner } from '../Spinner.js';
 
 import { Box, Text } from 'ink';
 import { useEffect, useState, type ReactNode } from 'react';
@@ -33,18 +36,20 @@ export function AssistantBubble({
     return () => clearInterval(timer);
   }, [message.isStreaming]);
 
-  const hasParts = message.parts.length > 0;
-  const isThinking = message.isStreaming && !hasParts;
   const termWidth = process.stdout.columns || 80;
-
-  // Check if the last part is a text part (for streaming cursor placement)
   const lastPart = message.parts[message.parts.length - 1];
   const lastPartIsText = lastPart?.type === 'text';
 
+  // Show "Thinking..." whenever streaming but no content is actively appearing:
+  // - No parts yet (initial API call)
+  // - Last part is a completed/errored/denied tool (waiting for next API response)
+  const isWaitingForResponse = message.isStreaming && (
+    message.parts.length === 0 ||
+    (lastPart?.type === 'tool' && lastPart.status !== 'running' && lastPart.status !== 'pending')
+  );
+
   return (
     <Box flexDirection='column' marginBottom={1} paddingLeft={3}>
-      {isThinking && <ThinkingSpinner label='Thinking...' />}
-
       {/* Render parts in order - text and tools interleaved */}
       {message.parts.map((part, i) => {
         if (part.type === 'text' && part.text) {
@@ -83,6 +88,14 @@ export function AssistantBubble({
 
         return null;
       })}
+
+      {/* Spinner shown when waiting for content — covers initial thinking AND
+          the gap after tool completions before the next text/tool arrives */}
+      {isWaitingForResponse && (
+        <Box marginTop={message.parts.length > 0 ? 0 : 1}>
+          <Spinner label='Thinking...' />
+        </Box>
+      )}
     </Box>
   );
 }

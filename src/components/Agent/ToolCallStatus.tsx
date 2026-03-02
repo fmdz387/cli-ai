@@ -1,10 +1,13 @@
 /**
- * Tool call status - compact single-line display with smart result summaries
+ * Tool call status - compact single-line display with smart result summaries.
+ * Running tools show an animated spinner icon to indicate active execution.
  */
 import { useTheme } from '../../theme/index.js';
 
 import { Box, Text } from 'ink';
-import type { ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
+
+const TOOL_SPINNER = ['\u280b', '\u2819', '\u2839', '\u2838', '\u283c', '\u2834', '\u2826', '\u2827', '\u2807', '\u280f'];
 
 export type ToolCallStatusType =
   | 'pending'
@@ -144,6 +147,16 @@ export function ToolCallStatus({
   result,
 }: ToolCallStatusProps): ReactNode {
   const theme = useTheme();
+  const [spinnerFrame, setSpinnerFrame] = useState(0);
+  const isActive = status === 'running' || status === 'pending';
+
+  useEffect(() => {
+    if (!isActive) return;
+    const timer = setInterval(() => {
+      setSpinnerFrame((prev) => (prev + 1) % TOOL_SPINNER.length);
+    }, 80);
+    return () => clearInterval(timer);
+  }, [isActive]);
 
   const statusColorMap: Record<ToolCallStatusType, string> = {
     pending: theme.textMuted,
@@ -154,7 +167,7 @@ export function ToolCallStatus({
   };
 
   const iconColor = statusColorMap[status];
-  const icon = getToolIcon(call.name);
+  const icon = isActive ? TOOL_SPINNER[spinnerFrame]! : getToolIcon(call.name);
   const desc = formatToolDesc(call.name, call.input);
   const summary = result ? formatResultSummary(call.name, result, status) : null;
 
