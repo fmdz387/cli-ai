@@ -5,6 +5,24 @@
 // Saves ~200-400ms startup time and reduces runtime overhead
 process.env.NODE_ENV = 'production';
 
+// ── Node.js version gate ────────────────────────────────────────────────
+// Runs before any imports or modern API usage so the error message is
+// always reachable. Uses only APIs available since Node 0.x (process.versions,
+// parseInt, console, process.exit) so it works on ANY Node version that
+// can parse ESM (>= 12). Cross-platform — no OS-specific code.
+const MIN_NODE_MAJOR = 20;
+const nodeVersion = process.versions.node;
+const nodeMajor = parseInt(nodeVersion.split('.')[0], 10);
+if (Number.isNaN(nodeMajor) || nodeMajor < MIN_NODE_MAJOR) {
+  console.error(
+    '\n  CLI AI requires Node.js >= ' + MIN_NODE_MAJOR + '.0.0' +
+    '\n  Current version: ' + (nodeVersion || 'unknown') +
+    '\n' +
+    '\n  Install the latest LTS: https://nodejs.org\n',
+  );
+  process.exit(1);
+}
+
 // Fast-path: handle --help and --version before loading ANY dependencies
 // These flags should respond instantly, not after 60-120s of import resolution
 const args = process.argv.slice(2);
