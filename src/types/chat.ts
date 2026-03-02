@@ -107,7 +107,7 @@ export type ChatAction =
   | { type: 'AGENT_TEXT_DELTA'; text: string }
   | { type: 'AGENT_TOOL_START'; toolCall: AgentToolCall }
   | { type: 'AGENT_TOOL_RESULT'; toolCallId: string; result: ToolResult }
-  | { type: 'AGENT_DONE'; text: string; toolCalls?: AgentToolCall[] }
+  | { type: 'AGENT_DONE'; text: string }
   | { type: 'AGENT_ERROR'; error: string }
   | { type: 'AGENT_ABORT' }
   | { type: 'FLUSH_STREAMING' }

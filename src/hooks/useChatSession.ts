@@ -209,32 +209,37 @@ function chatReducer(state: ChatStore, action: ChatAction): ChatStore {
         newApiMessages.push({ role: 'user', content: lastUserMsg.text });
       }
 
-      // Add assistant response
-      if (finalText || (action.toolCalls && action.toolCalls.length > 0)) {
+      // Extract tool parts and build toolCalls for the assistant message.
+      // This ensures tool_use blocks are present so tool_result blocks have
+      // matching IDs — required by the Anthropic API.
+      const toolParts = lastAssistant ? getToolPartsFromParts(lastAssistant.parts) : [];
+      const toolCalls = toolParts.length > 0
+        ? toolParts.map((tp) => ({ id: tp.id, name: tp.name, input: tp.input }))
+        : undefined;
+
+      // Add assistant response with toolCalls
+      if (finalText || (toolCalls && toolCalls.length > 0)) {
         newApiMessages.push({
           role: 'assistant',
           content: finalText,
-          toolCalls: action.toolCalls,
+          toolCalls,
         });
       }
 
       // Add tool results from the completed message parts
-      if (lastAssistant) {
-        const toolParts = getToolPartsFromParts(lastAssistant.parts);
-        for (const tp of toolParts) {
-          const kind = tp.status === 'success' ? 'success' : tp.status === 'denied' ? 'denied' : 'error';
-          const resultObj = kind === 'success'
-            ? { kind: 'success' as const, output: tp.result ?? '' }
-            : kind === 'denied'
-              ? { kind: 'denied' as const, reason: tp.result ?? 'Denied' }
-              : { kind: 'error' as const, error: tp.result ?? 'Error' };
-          newApiMessages.push({
-            role: 'tool_result',
-            toolCallId: tp.id,
-            name: tp.name,
-            result: resultObj,
-          });
-        }
+      for (const tp of toolParts) {
+        const kind = tp.status === 'success' ? 'success' : tp.status === 'denied' ? 'denied' : 'error';
+        const resultObj = kind === 'success'
+          ? { kind: 'success' as const, output: tp.result ?? '' }
+          : kind === 'denied'
+            ? { kind: 'denied' as const, reason: tp.result ?? 'Denied' }
+            : { kind: 'error' as const, error: tp.result ?? 'Error' };
+        newApiMessages.push({
+          role: 'tool_result',
+          toolCallId: tp.id,
+          name: tp.name,
+          result: resultObj,
+        });
       }
 
       return {

@@ -159,15 +159,27 @@ function formatAnthropicMessages(messages: AgentMessage[]): {
         : msg.result.kind === 'error'
           ? msg.result.error
           : msg.result.reason;
-      apiMessages.push({
-        role: 'user',
-        content: [{
-          type: 'tool_result',
-          tool_use_id: msg.toolCallId,
-          content: resultContent,
-          is_error: msg.result.kind !== 'success',
-        }],
-      });
+      const block = {
+        type: 'tool_result' as const,
+        tool_use_id: msg.toolCallId,
+        content: resultContent,
+        is_error: msg.result.kind !== 'success',
+      };
+      // Merge consecutive tool_results into a single user message.
+      // The Anthropic API requires all tool_result blocks from one assistant
+      // turn to be in the same user message following the assistant message.
+      const prev = apiMessages[apiMessages.length - 1];
+      if (
+        prev &&
+        prev.role === 'user' &&
+        Array.isArray(prev.content) &&
+        prev.content.length > 0 &&
+        (prev.content[0] as { type?: string }).type === 'tool_result'
+      ) {
+        (prev.content as Anthropic.Messages.ToolResultBlockParam[]).push(block);
+      } else {
+        apiMessages.push({ role: 'user', content: [block] });
+      }
     }
   }
 
