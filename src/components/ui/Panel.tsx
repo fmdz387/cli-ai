@@ -8,16 +8,36 @@ interface PanelProps {
   borderColor: string;
   backgroundColor?: string;
   paddingLeft?: number;
+  paddingRight?: number;
   paddingY?: number;
+  border?: 'left' | 'all' | 'none';
   children: ReactNode;
 }
 
 export function Panel({
   borderColor,
   paddingLeft = 1,
+  paddingRight = 0,
   paddingY = 0,
+  border = 'left',
   children,
 }: PanelProps): ReactNode {
+  if (border === 'all') {
+    return (
+      <Box borderStyle="single" borderColor={borderColor} paddingLeft={paddingLeft} paddingRight={paddingRight} paddingTop={paddingY} paddingBottom={paddingY}>
+        {children}
+      </Box>
+    );
+  }
+
+  if (border === 'none') {
+    return (
+      <Box paddingLeft={paddingLeft} paddingRight={paddingRight} paddingTop={paddingY} paddingBottom={paddingY}>
+        {children}
+      </Box>
+    );
+  }
+
   return (
     <Box>
       <Text color={borderColor}>{'┃'}</Text>

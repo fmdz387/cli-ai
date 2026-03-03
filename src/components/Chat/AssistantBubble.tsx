@@ -7,6 +7,7 @@
 import type { AssistantMessage, PendingPermission } from '../../types/chat.js';
 import { useTheme } from '../../theme/index.js';
 import { MarkdownText } from '../MarkdownText.js';
+import { Divider } from '../ui/Divider.js';
 import { PermissionPrompt } from '../Agent/PermissionPrompt.js';
 import { ToolCallStatus } from '../Agent/ToolCallStatus.js';
 import { Spinner } from '../Spinner.js';
@@ -50,12 +51,20 @@ export function AssistantBubble({
 
   return (
     <Box flexDirection='column' marginBottom={1} paddingLeft={3}>
+      <Text bold color={theme.secondary}>Assistant</Text>
       {/* Render parts in order - text and tools interleaved */}
       {message.parts.map((part, i) => {
+        const prevPart = message.parts[i - 1];
+        const nextPart = message.parts[i + 1];
+
         if (part.type === 'text' && part.text) {
           const isLastTextPart = lastPartIsText && i === message.parts.length - 1;
           return (
             <Box key={`text-${i}`} flexDirection='column' width={termWidth - 6}>
+              {/* Close tool group divider if previous part was a tool */}
+              {prevPart?.type === 'tool' && (
+                <Divider char='┄' width={termWidth - 8} color={theme.border} />
+              )}
               <Box flexWrap='wrap'>
                 <MarkdownText>{part.text}</MarkdownText>
                 {message.isStreaming && isLastTextPart && (
@@ -67,8 +76,13 @@ export function AssistantBubble({
         }
 
         if (part.type === 'tool') {
+          const isFirstInGroup = prevPart?.type !== 'tool';
+          const isLastInGroup = nextPart?.type !== 'tool';
           return (
             <Box key={part.id} flexDirection='column'>
+              {isFirstInGroup && (
+                <Divider char='┄' width={termWidth - 8} color={theme.border} />
+              )}
               <ToolCallStatus
                 call={{ name: part.name, input: part.input }}
                 status={part.status}
@@ -82,6 +96,9 @@ export function AssistantBubble({
                   onApproveSession={() => {}}
                 />
               )}
+              {isLastInGroup && !nextPart && (
+                <Divider char='┄' width={termWidth - 8} color={theme.border} />
+              )}
             </Box>
           );
         }
@@ -93,7 +110,7 @@ export function AssistantBubble({
           the gap after tool completions before the next text/tool arrives */}
       {isWaitingForResponse && (
         <Box marginTop={message.parts.length > 0 ? 0 : 1}>
-          <Spinner label='Thinking...' />
+          <Spinner label='Thinking...' variant='braille' />
         </Box>
       )}
     </Box>

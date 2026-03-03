@@ -575,7 +575,9 @@ export function App(): ReactNode {
     <ThemeProvider>
       <Box flexDirection='column'>
         {/* Compact status bar header */}
-        <StatusBar />
+        <StatusBar
+          tokenCount={chatStore.cumulativeUsage.totalInputTokens + chatStore.cumulativeUsage.totalOutputTokens}
+        />
 
         {/* Chat messages */}
         <ChatView
@@ -621,6 +623,7 @@ export function App(): ReactNode {
           placeholder='Type a message... (/ for commands)'
           disabled={chatStore.isAgentRunning || chatStore.isCompacting}
           visible={chatStore.overlay.type === 'none'}
+          isAgentRunning={chatStore.isAgentRunning}
         />
 
         {/* Inline Command Palette - shows below input when typing "/" */}

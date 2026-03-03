@@ -18,7 +18,10 @@ export function UserBubble({ message }: UserBubbleProps): ReactNode {
   return (
     <Box marginBottom={1}>
       <Panel borderColor={theme.primary} paddingLeft={1}>
-        <Text color={theme.text}>{message.text}</Text>
+        <Box flexDirection='column'>
+          <Text bold color={theme.primary}>You</Text>
+          <Text color={theme.text}>{message.text}</Text>
+        </Box>
       </Panel>
     </Box>
   );

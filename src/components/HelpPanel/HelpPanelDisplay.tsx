@@ -6,6 +6,8 @@ import { useTheme } from '../../theme/index.js';
 import { Box, Text } from 'ink';
 import type { ReactNode } from 'react';
 
+import { Divider } from '../ui/Divider.js';
+
 import { APP_NAME, VERSION } from '../../constants.js';
 
 export interface HelpPanelDisplayProps {
@@ -53,7 +55,7 @@ function ShortcutSection({ title, shortcuts }: { title: string; shortcuts: Short
   const theme = useTheme();
 
   return (
-    <Box flexDirection="column" marginBottom={1}>
+    <Box flexDirection="column">
       <Text color={theme.warning} bold>{title}</Text>
       {shortcuts.map((shortcut) => (
         <Box key={shortcut.key}>
@@ -63,6 +65,7 @@ function ShortcutSection({ title, shortcuts }: { title: string; shortcuts: Short
           <Text color={theme.textMuted}>{shortcut.description}</Text>
         </Box>
       ))}
+      <Box marginTop={1}><Divider /></Box>
     </Box>
   );
 }
@@ -109,7 +112,7 @@ export function HelpPanelDisplay({ visible }: HelpPanelDisplayProps): ReactNode 
           <ShortcutSection title="Command Palette" shortcuts={PALETTE_SHORTCUTS} />
         </Box>
         <Box flexDirection="column">
-          <ShortcutSection title="Proposal Mode" shortcuts={PROPOSAL_SHORTCUTS} />
+          <ShortcutSection title="Response Mode" shortcuts={PROPOSAL_SHORTCUTS} />
           <ShortcutSection title="Config Panel" shortcuts={CONFIG_SHORTCUTS} />
         </Box>
       </Box>

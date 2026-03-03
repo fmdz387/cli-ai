@@ -7,6 +7,8 @@ import type { AgentToolCallInfo } from '../../types/index.js';
 import { Box, Text } from 'ink';
 import type { ReactNode } from 'react';
 
+import { Divider } from '../ui/Divider.js';
+
 interface PermissionPromptProps {
   toolCall: AgentToolCallInfo;
   onApprove: () => void;
@@ -25,6 +27,7 @@ export function PermissionPrompt({
 }: PermissionPromptProps): ReactNode {
   const theme = useTheme();
   const params = Object.entries(toolCall.input);
+  const maxKeyLen = Math.max(...params.map(([k]) => k.length), 0);
 
   return (
     <Box
@@ -36,19 +39,17 @@ export function PermissionPrompt({
     >
       <Box>
         <Text color={theme.warning} bold>
-          Permission Required
+          {'⚠'} Permission Required
         </Text>
       </Box>
       <Box marginTop={1}>
-        <Text color={theme.text}>
-          Tool: <Text bold color={theme.secondary}>{toolCall.name}</Text>
-        </Text>
+        <Text bold color={theme.secondary}>{toolCall.name}</Text>
       </Box>
       {params.length > 0 && (
         <Box flexDirection='column' marginTop={1}>
           {params.slice(0, 5).map(([key, value]) => (
             <Box key={key}>
-              <Text color={theme.textMuted}>  {key}: </Text>
+              <Text color={theme.textMuted}>  {key.padEnd(maxKeyLen + 2)}</Text>
               <Text color={theme.text}>{truncateValue(value, 80)}</Text>
             </Box>
           ))}
@@ -57,10 +58,11 @@ export function PermissionPrompt({
           )}
         </Box>
       )}
+      <Box marginTop={1}><Divider /></Box>
       <Box marginTop={1}>
         <Text color={theme.text}>
-          [<Text color={theme.success}>y</Text>] Allow once{' '}
-          [<Text color={theme.error}>n</Text>] Deny{' '}
+          [<Text color={theme.success}>y</Text>] Allow{'  '}
+          [<Text color={theme.error}>n</Text>] Deny{'  '}
           [<Text color={theme.primary}>A</Text>] Allow for session
         </Text>
       </Box>

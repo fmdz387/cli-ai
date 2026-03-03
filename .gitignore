@@ -6,3 +6,4 @@ CLAUDE.md
 debug.log
 *-cwd
 plans/
+.agents/

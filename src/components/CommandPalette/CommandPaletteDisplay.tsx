@@ -7,6 +7,7 @@ import { Box, Text } from 'ink';
 import type { ReactNode } from 'react';
 
 import type { SlashCommand } from '../../commands/types.js';
+import { Divider } from '../ui/Divider.js';
 import { CommandPaletteItem } from './CommandPaletteItem.js';
 
 export interface CommandPaletteDisplayProps {
@@ -36,6 +37,14 @@ export function CommandPaletteDisplay({
       paddingX={1}
       marginTop={1}
     >
+      {/* Title bar */}
+      <Box justifyContent="space-between">
+        <Text color={theme.text} bold>Commands</Text>
+        <Text color={theme.textMuted}>Esc close</Text>
+      </Box>
+
+      <Divider />
+
       {/* Query input display */}
       <Box>
         <Text color={theme.secondary} bold>
@@ -45,10 +54,7 @@ export function CommandPaletteDisplay({
         <Text color={theme.primary}>_</Text>
       </Box>
 
-      {/* Separator */}
-      <Box marginY={0}>
-        <Text color={theme.border}>{'─'.repeat(50)}</Text>
-      </Box>
+      <Divider />
 
       {/* Command list */}
       {filteredCommands.length > 0 ? (
@@ -68,10 +74,12 @@ export function CommandPaletteDisplay({
         </Box>
       )}
 
+      <Divider />
+
       {/* Help hint */}
-      <Box marginTop={1}>
+      <Box marginTop={0}>
         <Text color={theme.textMuted}>
-          [Enter] Select  [1-9] Quick select  [Esc] Close
+          Up/Down navigate  Enter select  1-9 quick  Esc close
         </Text>
       </Box>
     </Box>

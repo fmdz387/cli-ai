@@ -8,6 +8,7 @@ import { hasApiKey as checkHasApiKey } from '../../lib/secure-storage.js';
 import { useTheme } from '../../theme/index.js';
 import type { AppConfig } from '../../types/index.js';
 import { ControlledTextInput, type TextInputState } from '../ControlledTextInput.js';
+import { Divider } from '../ui/Divider.js';
 
 import { Box, Text } from 'ink';
 import type { ReactNode } from 'react';
@@ -64,15 +65,6 @@ const TOGGLE_DEFS: readonly ToggleDef[] = [
 ] as const;
 
 // --- Shared layout helpers ---
-
-function Divider(): ReactNode {
-  const theme = useTheme();
-  return (
-    <Box>
-      <Text color={theme.border}>{'\u2500'.repeat(58)}</Text>
-    </Box>
-  );
-}
 
 function SectionDescription({ text }: { text: string }): ReactNode {
   const theme = useTheme();
@@ -367,18 +359,20 @@ export function ConfigPanelDisplay({
 
       {/* Tab bar */}
       <Box>
-        {TABS.map((tab) => {
+        {TABS.map((tab, index) => {
           const isActive = activeSection === tab.id;
           return (
-            <Box key={tab.id} marginRight={1}>
+            <Box key={tab.id}>
               <Text
                 color={isActive ? theme.primary : theme.textMuted}
                 bold={isActive}
                 dimColor={!isActive}
               >
-                {tab.key}{'\u00B7'}
-                {tab.label}
+                {tab.key} {tab.label}
               </Text>
+              {index < TABS.length - 1 && (
+                <Text color={theme.border}> | </Text>
+              )}
             </Box>
           );
         })}
@@ -387,7 +381,7 @@ export function ConfigPanelDisplay({
       <Divider />
 
       {/* Active tab content */}
-      <Box flexDirection='column' marginY={1} minHeight={5}>
+      <Box flexDirection='column' marginY={1}>
         {activeSection === 'provider' && (
           <ProviderContent config={config} focusIndex={sectionItemIndex} />
         )}

@@ -12,16 +12,16 @@ interface InputPromptDisplayProps {
   textState: TextInputState;
   placeholder?: string;
   disabled?: boolean;
-  hasHistory?: boolean;
   visible?: boolean;
+  isAgentRunning?: boolean;
 }
 
 export function InputPromptDisplay({
   textState,
   placeholder = 'Describe what you want to do...',
   disabled = false,
-  hasHistory = false,
   visible = true,
+  isAgentRunning = false,
 }: InputPromptDisplayProps): ReactNode {
   const theme = useTheme();
 
@@ -29,10 +29,12 @@ export function InputPromptDisplay({
     return null;
   }
 
+  const borderColor = isAgentRunning ? theme.warning : disabled ? theme.border : theme.primary;
+
   if (disabled) {
     return (
       <Box flexDirection="column">
-        <Panel borderColor={theme.border}>
+        <Panel borderColor={borderColor}>
           <Text color={theme.textMuted}>{textState.value || '...'}</Text>
         </Panel>
       </Box>
@@ -41,13 +43,16 @@ export function InputPromptDisplay({
 
   return (
     <Box flexDirection="column">
-      <Panel borderColor={theme.primary} paddingLeft={1}>
+      <Panel borderColor={borderColor} paddingLeft={1}>
         <ControlledTextInput
           value={textState.value}
           cursorOffset={textState.cursorOffset}
           placeholder={placeholder}
           isDisabled={disabled}
         />
+        <Box justifyContent="flex-end" width={(process.stdout.columns || 80) - 6}>
+          <Text color={theme.textMuted}>ctrl+p commands {'\u00B7'} ? help</Text>
+        </Box>
       </Panel>
       <ShadowLine color={theme.border} />
     </Box>
