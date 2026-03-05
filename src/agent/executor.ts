@@ -11,7 +11,7 @@ import type { ToolContext, ToolResult } from '../tools/types.js';
 import type { Provider } from '../lib/providers/types.js';
 import type { ToolCallAdapter } from './adapters/types.js';
 import { ContextManager } from './context-manager.js';
-import { buildInitialMessages } from './message-builder.js';
+import { buildAgentSystemPrompt, buildInitialMessages } from './message-builder.js';
 import type {
   AgentConfig,
   AgentMessage,
@@ -41,16 +41,24 @@ export class AgentExecutor {
     const { query, config, signal, onEvent, requestPermission } = options;
     const { provider, adapter, registry, permissions, contextManager } = this.deps;
 
+    const promptOpts = {
+      shell: config.context.shell,
+      cwd: config.context.cwd,
+      platform: config.context.platform,
+      model: config.model,
+      provider: config.provider,
+      isGitRepo: detectGitRepo(config.context.cwd),
+    };
+
     const messages: AgentMessage[] = options.history
       ? [...options.history, { role: 'user' as const, content: query }]
-      : await buildInitialMessages(query, {
-          shell: config.context.shell,
-          cwd: config.context.cwd,
-          platform: config.context.platform,
-          model: config.model,
-          provider: config.provider,
-          isGitRepo: detectGitRepo(config.context.cwd),
-        });
+      : await buildInitialMessages(query, promptOpts);
+
+    // Ensure system prompt is always present (history from chat reducer may omit it)
+    if (messages[0]?.role !== 'system') {
+      const systemPrompt = await buildAgentSystemPrompt(promptOpts);
+      messages.unshift({ role: 'system', content: systemPrompt });
+    }
 
     const providerTools = registry.toProviderFormat();
     const adapterInput = providerTools.map((t) => ({

@@ -2,13 +2,13 @@
  * Main application component - Chat-first conversational UX
  * Uses single useInput controller pattern - DO NOT add useInput to child components
  */
-import { commandRegistry } from './commands/index.js';
-import { PROVIDER_MODELS, type ConfigSection } from './commands/types.js';
-import type { SlashCommand } from './commands/types.js';
 import { buildCompactedMessages, compactConversation } from './agent/compact.js';
 import { createExecutorDeps } from './agent/create-executor.js';
 import { AgentExecutor, type ExecutorDependencies } from './agent/executor.js';
 import type { AgentConfig, ExecutorResult, ExecutorRunOptions } from './agent/types.js';
+import { commandRegistry } from './commands/index.js';
+import { PROVIDER_MODELS, type ConfigSection } from './commands/types.js';
+import type { SlashCommand } from './commands/types.js';
 import { ApiKeySetup } from './components/ApiKeySetup.js';
 import { ChatView } from './components/Chat/index.js';
 import { CommandPaletteDisplay } from './components/CommandPalette/index.js';
@@ -28,6 +28,7 @@ import {
   getApiKey,
   getConfig,
   getStorageInfo,
+  hasAuth,
   saveApiKey,
   setConfig,
 } from './lib/secure-storage.js';
@@ -38,7 +39,13 @@ import { Box, Text, useApp } from 'ink';
 import { createHash } from 'node:crypto';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
-const CONFIG_SECTIONS: readonly ConfigSection[] = ['provider', 'model', 'api-keys', 'options', 'about'];
+const CONFIG_SECTIONS: readonly ConfigSection[] = [
+  'provider',
+  'model',
+  'api-keys',
+  'options',
+  'about',
+];
 
 export function App(): ReactNode {
   const { exit } = useApp();
@@ -57,7 +64,7 @@ export function App(): ReactNode {
     clearConversation,
     startCompact,
     completeSetup,
-    openPalette,
+    openPalette: _openPalette,
     updatePalette,
     closePalette,
     openConfig,
@@ -86,6 +93,7 @@ export function App(): ReactNode {
 
   const storageInfo: StorageInfo = useMemo(
     () => getStorageInfo(currentProvider),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- hasKey triggers recompute when key status changes
     [hasKey, currentProvider],
   );
 
@@ -94,6 +102,7 @@ export function App(): ReactNode {
     if (!key) return null;
     if (key.length <= 12) return '***';
     return `${key.slice(0, 7)}...${key.slice(-4)}`;
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- hasKey triggers recompute when key status changes
   }, [hasKey, currentProvider]);
 
   const appConfig: AppConfig = useMemo(
@@ -110,26 +119,26 @@ export function App(): ReactNode {
 
   const cachedDepsRef = useRef<{ key: string; deps: ExecutorDependencies } | null>(null);
 
-  const runExecutor = useCallback(
-    async (options: ExecutorRunOptions): Promise<ExecutorResult> => {
-      const apiKey = getApiKey(options.config.provider);
-      if (!apiKey) {
-        throw new Error(`No API key configured for ${options.config.provider}`);
-      }
-      const keyHash = createHash('sha256').update(apiKey).digest('hex').slice(0, 8);
-      const cacheKey = `${options.config.provider}:${options.config.model}:${keyHash}`;
-      let deps: ExecutorDependencies;
-      if (cachedDepsRef.current?.key === cacheKey) {
-        deps = cachedDepsRef.current.deps;
-      } else {
-        deps = createExecutorDeps(options.config.provider, options.config.model, apiKey);
-        cachedDepsRef.current = { key: cacheKey, deps };
-      }
-      const executor = new AgentExecutor(deps);
-      return executor.execute(options);
-    },
-    [],
-  );
+  const runExecutor = useCallback(async (options: ExecutorRunOptions): Promise<ExecutorResult> => {
+    const apiKey = getApiKey(options.config.provider) ?? '';
+    // For codex-oauth, API key is empty — auth is handled via OAuth credentials
+    if (!apiKey && !hasAuth(options.config.provider)) {
+      throw new Error(`No API key configured for ${options.config.provider}`);
+    }
+    const keyHash = apiKey
+      ? createHash('sha256').update(apiKey).digest('hex').slice(0, 8)
+      : 'oauth';
+    const cacheKey = `${options.config.provider}:${options.config.model}:${keyHash}`;
+    let deps: ExecutorDependencies;
+    if (cachedDepsRef.current?.key === cacheKey) {
+      deps = cachedDepsRef.current.deps;
+    } else {
+      deps = createExecutorDeps(options.config.provider, options.config.model, apiKey);
+      cachedDepsRef.current = { key: cacheKey, deps };
+    }
+    const executor = new AgentExecutor(deps);
+    return executor.execute(options);
+  }, []);
 
   const buildAgentConfig = useCallback(
     (): AgentConfig => ({
@@ -155,8 +164,8 @@ export function App(): ReactNode {
 
     startCompact();
 
-    const apiKey = getApiKey(currentProvider);
-    if (!apiKey) {
+    const apiKey = getApiKey(currentProvider) ?? '';
+    if (!apiKey && !hasAuth(currentProvider)) {
       chatDispatch({ type: 'COMPACT_ERROR', error: `No API key for ${currentProvider}` });
       return;
     }
@@ -176,7 +185,15 @@ export function App(): ReactNode {
         const message = err instanceof Error ? err.message : String(err);
         chatDispatch({ type: 'COMPACT_ERROR', error: message });
       });
-  }, [chatStore.apiMessages, chatStore.isCompacting, chatStore.isAgentRunning, currentProvider, selectedModel, startCompact, chatDispatch]);
+  }, [
+    chatStore.apiMessages,
+    chatStore.isCompacting,
+    chatStore.isAgentRunning,
+    currentProvider,
+    selectedModel,
+    startCompact,
+    chatDispatch,
+  ]);
 
   const chatAgent = useChatAgent({
     runExecutor,
@@ -198,17 +215,33 @@ export function App(): ReactNode {
   });
 
   // Determine input mode
+  // Overlays (config/palette/help) take priority — user must be able to navigate
+  // even when hasKey is false (e.g. after switching to a provider with no key)
   const inputMode: InputMode = useMemo(() => {
-    if (configLoading || !hasKey) return 'disabled';
-    if (!chatStore.isSetup) return 'disabled';
     if (chatStore.overlay.type === 'palette') return 'palette';
     if (chatStore.overlay.type === 'config') return 'config';
     if (chatStore.overlay.type === 'help') return 'help';
+    if (configLoading || !hasKey) return 'disabled';
+    if (!chatStore.isSetup) return 'disabled';
     return 'text';
   }, [configLoading, hasKey, chatStore.isSetup, chatStore.overlay.type]);
 
   const handleApiKeyComplete = useCallback(
     (apiKey: string, provider: AIProvider) => {
+      // OAuth flow passes empty apiKey — credentials already saved by ApiKeySetup
+      if (apiKey === '') {
+        if (!hasKey && !chatStore.isSetup) {
+          setConfig({ provider, model: PROVIDER_CONFIG[provider].defaultModel });
+          setCurrentProvider(provider);
+          setSelectedModel(PROVIDER_CONFIG[provider].defaultModel);
+        }
+        refreshKeyStatus();
+        setIsEditingApiKey(false);
+        setEditingApiKeyProvider(null);
+        completeSetup();
+        return;
+      }
+
       const result = saveApiKey(provider, apiKey);
       if (result.success) {
         if (!hasKey && !chatStore.isSetup) {
@@ -288,13 +321,7 @@ export function App(): ReactNode {
       sendMessage(input);
       chatAgent.run(input);
     },
-    [
-      sendMessage,
-      chatAgent,
-      palette,
-      inlinePaletteCommands,
-      inlinePaletteIndex,
-    ],
+    [sendMessage, chatAgent, palette, inlinePaletteCommands, inlinePaletteIndex],
   );
 
   // Palette callbacks
@@ -367,11 +394,11 @@ export function App(): ReactNode {
   const getItemCount = useCallback(
     (section: ConfigSection): number => {
       const counts: Record<ConfigSection, number> = {
-        'provider': AI_PROVIDERS.length,
-        'model': PROVIDER_MODELS[currentProvider].length + 1,
+        provider: AI_PROVIDERS.length,
+        model: PROVIDER_MODELS[currentProvider].length + 1,
         'api-keys': AI_PROVIDERS.length,
-        'options': 4,
-        'about': 0,
+        options: 4,
+        about: 0,
       };
       return counts[section];
     },
@@ -457,7 +484,14 @@ export function App(): ReactNode {
       }
       return;
     }
-  }, [chatStore.overlay, configItemIndex, closeConfig, currentProvider, refreshKeyStatus, selectedModel]);
+  }, [
+    chatStore.overlay,
+    configItemIndex,
+    closeConfig,
+    currentProvider,
+    refreshKeyStatus,
+    selectedModel,
+  ]);
 
   const handleConfigClose = useCallback(() => {
     closeConfig();
@@ -475,8 +509,8 @@ export function App(): ReactNode {
 
   const {
     textState,
-    clearText,
-    setText,
+    clearText: _clearText,
+    setText: _setText,
     paletteFocusIndex,
     customModelState,
     dispatchCustomModel,
@@ -516,7 +550,8 @@ export function App(): ReactNode {
       onSelect: handlePaletteSelect,
       onNavigate: handlePaletteNavigate,
       onClose: handlePaletteClose,
-      filteredCount: chatStore.overlay.type === 'palette' ? chatStore.overlay.filteredCommands.length : 0,
+      filteredCount:
+        chatStore.overlay.type === 'palette' ? chatStore.overlay.filteredCommands.length : 0,
     },
     configCallbacks: {
       onNavigateSection: handleConfigNavigateSection,
@@ -576,19 +611,20 @@ export function App(): ReactNode {
       <Box flexDirection='column'>
         {/* Compact status bar header */}
         <StatusBar
-          tokenCount={chatStore.cumulativeUsage.totalInputTokens + chatStore.cumulativeUsage.totalOutputTokens}
+          tokenCount={
+            chatStore.cumulativeUsage.totalInputTokens + chatStore.cumulativeUsage.totalOutputTokens
+          }
         />
 
         {/* Chat messages */}
-        <ChatView
-          messages={chatStore.messages}
-          pendingPermission={chatStore.pendingPermission}
-        />
+        <ChatView messages={chatStore.messages} pendingPermission={chatStore.pendingPermission} />
 
         {/* Command Palette */}
         <CommandPaletteDisplay
           query={chatStore.overlay.type === 'palette' ? chatStore.overlay.query : ''}
-          filteredCommands={chatStore.overlay.type === 'palette' ? chatStore.overlay.filteredCommands : []}
+          filteredCommands={
+            chatStore.overlay.type === 'palette' ? chatStore.overlay.filteredCommands : []
+          }
           selectedIndex={paletteFocusIndex}
           visible={chatStore.overlay.type === 'palette'}
         />
@@ -596,7 +632,9 @@ export function App(): ReactNode {
         {/* Config Panel */}
         <ConfigPanelDisplay
           visible={chatStore.overlay.type === 'config'}
-          activeSection={chatStore.overlay.type === 'config' ? chatStore.overlay.section : 'provider'}
+          activeSection={
+            chatStore.overlay.type === 'config' ? chatStore.overlay.section : 'provider'
+          }
           sectionItemIndex={configItemIndex}
           config={appConfig}
           hasApiKey={hasKey}
@@ -627,41 +665,41 @@ export function App(): ReactNode {
         />
 
         {/* Inline Command Palette - shows below input when typing "/" */}
-        {chatStore.overlay.type === 'none' && !chatStore.isAgentRunning && inlinePaletteCommands.length > 0 && (
-          <Box flexDirection='column' marginLeft={2} marginTop={0}>
-            <Box marginBottom={0}>
-              <Text dimColor>{'─'.repeat(50)}</Text>
-            </Box>
-            {inlinePaletteCommands.slice(0, 5).map((cmd, index) => (
-              <Box key={cmd.name}>
-                <Text
-                  color={index === inlinePaletteIndex ? '#cba6f7' : '#6c7086'}
-                  bold={index === inlinePaletteIndex}
-                >
-                  {index === inlinePaletteIndex ? '> ' : '  '}
-                </Text>
-                <Text
-                  color={index === inlinePaletteIndex ? '#cba6f7' : '#89b4fa'}
-                  bold={index === inlinePaletteIndex}
-                >
-                  /{cmd.name}
-                </Text>
-                <Text> </Text>
-                <Text color={index !== inlinePaletteIndex ? '#6c7086' : '#cdd6f4'}>{cmd.description}</Text>
+        {chatStore.overlay.type === 'none' &&
+          !chatStore.isAgentRunning &&
+          inlinePaletteCommands.length > 0 && (
+            <Box flexDirection='column' marginLeft={2} marginTop={0}>
+              <Box marginBottom={0}>
+                <Text dimColor>{'─'.repeat(50)}</Text>
               </Box>
-            ))}
-            <Box marginTop={0}>
-              <Text color='#6c7086'>[Enter] Select [Up/Down] Navigate [Esc] Cancel</Text>
+              {inlinePaletteCommands.slice(0, 5).map((cmd, index) => (
+                <Box key={cmd.name}>
+                  <Text
+                    color={index === inlinePaletteIndex ? '#cba6f7' : '#6c7086'}
+                    bold={index === inlinePaletteIndex}
+                  >
+                    {index === inlinePaletteIndex ? '> ' : '  '}
+                  </Text>
+                  <Text
+                    color={index === inlinePaletteIndex ? '#cba6f7' : '#89b4fa'}
+                    bold={index === inlinePaletteIndex}
+                  >
+                    /{cmd.name}
+                  </Text>
+                  <Text> </Text>
+                  <Text color={index !== inlinePaletteIndex ? '#6c7086' : '#cdd6f4'}>
+                    {cmd.description}
+                  </Text>
+                </Box>
+              ))}
+              <Box marginTop={0}>
+                <Text color='#6c7086'>[Enter] Select [Up/Down] Navigate [Esc] Cancel</Text>
+              </Box>
             </Box>
-          </Box>
-        )}
+          )}
 
         {/* Footer bar */}
-        <FooterBar
-          cwd={process.cwd()}
-          provider={currentProvider}
-          model={selectedModel}
-        />
+        <FooterBar cwd={process.cwd()} provider={currentProvider} model={selectedModel} />
       </Box>
     </ThemeProvider>
   );
