@@ -1,5 +1,5 @@
 import { CONFIG_DIR_NAME, DEFAULT_CONFIG, KEYRING_SERVICE, PROVIDER_CONFIG } from '../constants.js';
-import type { AIProvider, AppConfig, Result } from '../types/index.js';
+import type { AIProvider, AppConfig, OpenAIAuthMode, Result } from '../types/index.js';
 
 import Conf from 'conf';
 import { createHash, randomBytes } from 'node:crypto';
@@ -38,6 +38,12 @@ const configPath = join(configDir, 'config.json');
 type StoreSchema = {
   apiKey?: string;
   apiKeys?: Partial<Record<AIProvider, string>>;
+  oauthCredentials?: Partial<Record<AIProvider, {
+    accessToken: string;
+    refreshToken: string;
+    expiresAt: number;
+    accountId?: string;
+  }>>;
   config?: Partial<AppConfig>;
 };
 
@@ -289,6 +295,75 @@ export function deleteApiKey(provider: AIProvider): Result<void> {
 export function hasApiKey(provider: AIProvider): boolean {
   const key = getApiKey(provider);
   return key !== null && key.length > 0;
+}
+
+export function getOAuthCredentials(provider: AIProvider): {
+  accessToken: string;
+  refreshToken: string;
+  expiresAt: number;
+  accountId?: string;
+} | null {
+  const creds = getStore().get('oauthCredentials');
+  return creds?.[provider] ?? null;
+}
+
+export function saveOAuthCredentials(
+  provider: AIProvider,
+  credentials: {
+    accessToken: string;
+    refreshToken: string;
+    expiresAt: number;
+    accountId?: string;
+  },
+): Result<void> {
+  try {
+    const existing = getStore().get('oauthCredentials') ?? {};
+    existing[provider] = credentials;
+    getStore().set('oauthCredentials', existing);
+    return { success: true, data: undefined };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error : new Error(String(error)),
+    };
+  }
+}
+
+export function deleteOAuthCredentials(provider: AIProvider): Result<void> {
+  try {
+    const existing = getStore().get('oauthCredentials');
+    if (existing?.[provider]) {
+      delete existing[provider];
+      if (Object.keys(existing).length > 0) {
+        getStore().set('oauthCredentials', existing);
+      } else {
+        getStore().delete('oauthCredentials');
+      }
+    }
+    return { success: true, data: undefined };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error : new Error(String(error)),
+    };
+  }
+}
+
+export function hasOAuthCredentials(provider: AIProvider): boolean {
+  const creds = getOAuthCredentials(provider);
+  return creds !== null && creds.refreshToken.length > 0;
+}
+
+export function getOpenAIAuthMode(): OpenAIAuthMode {
+  const config = getConfig();
+  return config.openaiAuthMode ?? 'api-key';
+}
+
+export function hasAuth(provider: AIProvider): boolean {
+  if (provider === 'openai' && getOpenAIAuthMode() === 'codex-oauth') {
+    return hasOAuthCredentials(provider);
+  }
+  return hasApiKey(provider);
 }
 
 export function getConfig(): AppConfig {

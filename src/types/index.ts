@@ -142,6 +142,11 @@ export type SessionAction =
   | { type: 'AGENT_ABORT' };
 
 /**
+ * OpenAI authentication mode
+ */
+export type OpenAIAuthMode = 'api-key' | 'codex-oauth';
+
+/**
  * Application configuration
  */
 export interface AppConfig {
@@ -154,6 +159,8 @@ export interface AppConfig {
   maxAlternatives: number;
   /** Whether to pass conversation history as context to AI */
   contextEnabled: boolean;
+  /** OpenAI auth mode - undefined defaults to 'api-key' */
+  openaiAuthMode?: OpenAIAuthMode;
 }
 
 /**
