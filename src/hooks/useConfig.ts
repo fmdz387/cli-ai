@@ -1,7 +1,7 @@
 import {
   getApiKey,
   getConfig,
-  hasApiKey,
+  hasAuth,
   saveApiKey,
   setConfig,
   validateApiKeyFormat,
@@ -36,7 +36,7 @@ export function useConfig(): UseConfigReturn {
   useEffect(() => {
     try {
       const config = getConfig();
-      const keyExists = hasApiKey(config.provider);
+      const keyExists = hasAuth(config.provider);
       setState((prev) => ({
         ...prev,
         isLoading: false,
@@ -98,7 +98,7 @@ export function useConfig(): UseConfigReturn {
   const refreshKeyStatus = useCallback((): void => {
     try {
       const config = getConfig();
-      const keyExists = hasApiKey(config.provider);
+      const keyExists = hasAuth(config.provider);
       setState((prev) => ({
         ...prev,
         hasKey: keyExists,

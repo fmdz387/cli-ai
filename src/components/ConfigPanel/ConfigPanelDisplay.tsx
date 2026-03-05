@@ -1,10 +1,12 @@
 import {
+  CODEX_ALLOWED_MODELS,
+  CODEX_ONLY_MODELS,
   CUSTOM_MODEL_OPTION,
   PROVIDER_MODELS,
   type ConfigSection as ConfigSectionType,
 } from '../../commands/types.js';
 import { AI_PROVIDERS, PROVIDER_CONFIG, VERSION } from '../../constants.js';
-import { hasApiKey as checkHasApiKey } from '../../lib/secure-storage.js';
+import { getOpenAIAuthMode, hasAuth as checkHasAuth } from '../../lib/secure-storage.js';
 import { useTheme } from '../../theme/index.js';
 import type { AppConfig } from '../../types/index.js';
 import { ControlledTextInput, type TextInputState } from '../ControlledTextInput.js';
@@ -112,7 +114,7 @@ function ProviderContent({
       {AI_PROVIDERS.map((provider, index) => {
         const providerCfg = PROVIDER_CONFIG[provider];
         const isSelected = config.provider === provider;
-        const providerHasKey = checkHasApiKey(provider);
+        const providerHasKey = checkHasAuth(provider);
         const isFocused = focusIndex === index;
 
         return (
@@ -148,7 +150,16 @@ function ModelContent({
   isCustomModel: boolean;
 }): ReactNode {
   const theme = useTheme();
-  const currentModels = PROVIDER_MODELS[config.provider];
+  const allModels = PROVIDER_MODELS[config.provider];
+  const currentModels = config.provider === 'openai'
+    ? allModels.filter((m) => {
+        const authMode = getOpenAIAuthMode();
+        if (authMode === 'codex-oauth') {
+          return CODEX_ALLOWED_MODELS.has(m.id);
+        }
+        return !CODEX_ONLY_MODELS.has(m.id);
+      })
+    : allModels;
   const customIndex = currentModels.length;
 
   return (
@@ -228,15 +239,20 @@ function ApiKeysContent({
       <SectionDescription text='Manage API keys for each provider' />
       {AI_PROVIDERS.map((provider, index) => {
         const providerCfg = PROVIDER_CONFIG[provider];
-        const providerHasKey = checkHasApiKey(provider);
+        const providerHasKey = checkHasAuth(provider);
         const isFocused = focusIndex === index;
+        const authMethod = provider === 'openai'
+          ? getOpenAIAuthMode() === 'codex-oauth' ? 'OAuth' : 'API Key'
+          : null;
 
         return (
           <ItemRow key={provider} isFocused={isFocused}>
             <Text color={isFocused ? theme.text : theme.textMuted}>{providerCfg.name}</Text>
             <Text> </Text>
             <Text color={providerHasKey ? theme.success : theme.error}>
-              {providerHasKey ? '\u2713 Configured' : '\u2717 Not set'}
+              {providerHasKey
+                ? `\u2713 ${authMethod ? authMethod : 'Configured'}`
+                : '\u2717 Not set'}
             </Text>
             <Text color={theme.textMuted} dimColor>
               {' '}
@@ -325,9 +341,9 @@ export function ConfigPanelDisplay({
   activeSection,
   sectionItemIndex,
   config,
-  hasApiKey,
+  hasApiKey: _hasApiKey,
   storageInfo,
-  maskedKey,
+  maskedKey: _maskedKey,
   toggles,
   isEditingCustomModel = false,
   customModelState,

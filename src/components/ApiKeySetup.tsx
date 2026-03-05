@@ -2,18 +2,28 @@
  * First-run API key setup component with provider selection
  */
 import { AI_PROVIDERS, APP_NAME, PROVIDER_CONFIG, VERSION } from '../constants.js';
-import { validateApiKeyFormat } from '../lib/secure-storage.js';
+import {
+  startBrowserOAuthFlow,
+  startDeviceCodeFlow,
+  type CodexOAuthCredentials,
+  type DeviceCodeInfo,
+} from '../lib/codex-auth.js';
+import {
+  deleteOAuthCredentials,
+  saveOAuthCredentials,
+  setConfig,
+  validateApiKeyFormat,
+} from '../lib/secure-storage.js';
 import { useTheme } from '../theme/index.js';
 import type { AIProvider } from '../types/index.js';
-
-import { Box, Text, useInput } from 'ink';
-import { useCallback, useReducer, useState, type ReactNode } from 'react';
-
 import {
   ControlledTextInput,
   textInputReducer,
   createTextInputState,
 } from './ControlledTextInput.js';
+
+import { Box, Text, useInput } from 'ink';
+import { useCallback, useReducer, useState, type ReactNode } from 'react';
 
 interface ApiKeySetupProps {
   /** Called when API key is successfully entered */
@@ -24,7 +34,14 @@ interface ApiKeySetupProps {
   provider?: AIProvider;
 }
 
-type SetupStep = 'welcome' | 'provider' | 'input' | 'saving' | 'complete';
+type SetupStep =
+  | 'welcome'
+  | 'provider'
+  | 'auth-method'
+  | 'input'
+  | 'oauth-progress'
+  | 'saving'
+  | 'complete';
 
 const PROVIDER_URLS: Record<AIProvider, string> = {
   anthropic: 'https://console.anthropic.com/settings/keys',
@@ -32,19 +49,28 @@ const PROVIDER_URLS: Record<AIProvider, string> = {
   openrouter: 'https://openrouter.ai/keys',
 };
 
+const PROVIDER_HINTS: Partial<Record<AIProvider, string>> = {
+  openai: '(ChatGPT Plus/Pro or API key)',
+};
+
 export function ApiKeySetup({
   onComplete,
-  onError,
+  onError: _onError,
   error,
   provider: initialProvider,
 }: ApiKeySetupProps): ReactNode {
   const theme = useTheme();
-  const [step, setStep] = useState<SetupStep>(initialProvider ? 'input' : 'welcome');
+  const [step, setStep] = useState<SetupStep>(
+    initialProvider ? (initialProvider === 'openai' ? 'auth-method' : 'input') : 'welcome',
+  );
   const [selectedProvider, setSelectedProvider] = useState<AIProvider>(
     initialProvider ?? 'anthropic',
   );
   const [providerIndex, setProviderIndex] = useState(0);
   const [localError, setLocalError] = useState<string | null>(null);
+  const [authMethodIndex, setAuthMethodIndex] = useState(0);
+  const [oauthStatus, setOauthStatus] = useState<string>('');
+  const [deviceCode, setDeviceCode] = useState<DeviceCodeInfo | null>(null);
 
   // Text input state for API key entry
   const [textState, dispatchText] = useReducer(textInputReducer, createTextInputState());
@@ -65,8 +91,24 @@ export function ApiKeySetup({
 
     setLocalError(null);
     setStep('saving');
+    // When user enters API key for OpenAI, reset auth mode and clear OAuth creds
+    if (selectedProvider === 'openai') {
+      setConfig({ openaiAuthMode: 'api-key' });
+      deleteOAuthCredentials('openai');
+    }
     onComplete(trimmedKey, selectedProvider);
   }, [textState.value, selectedProvider, onComplete]);
+
+  const handleOAuthComplete = useCallback(
+    (credentials: CodexOAuthCredentials) => {
+      saveOAuthCredentials('openai', credentials);
+      setConfig({ openaiAuthMode: 'codex-oauth' });
+      setStep('complete');
+      // Call onComplete with empty string since we're using OAuth, not API key
+      onComplete('', selectedProvider);
+    },
+    [selectedProvider, onComplete],
+  );
 
   // NOTE: This component uses local useInput hooks. This is SAFE because:
   // - ApiKeySetup is only mounted when store.state.status === 'setup'
@@ -95,7 +137,7 @@ export function ApiKeySetup({
           const provider = AI_PROVIDERS[providerIndex];
           if (provider) {
             setSelectedProvider(provider);
-            setStep('input');
+            setStep(provider === 'openai' ? 'auth-method' : 'input');
           }
           return;
         }
@@ -104,8 +146,55 @@ export function ApiKeySetup({
           const provider = AI_PROVIDERS[num - 1];
           if (provider) {
             setSelectedProvider(provider);
-            setStep('input');
+            setStep(provider === 'openai' ? 'auth-method' : 'input');
           }
+        }
+        return;
+      }
+
+      // Auth method selection step (OpenAI only)
+      if (step === 'auth-method') {
+        if (key.upArrow) {
+          setAuthMethodIndex((prev) => (prev - 1 + 3) % 3);
+          return;
+        }
+        if (key.downArrow) {
+          setAuthMethodIndex((prev) => (prev + 1) % 3);
+          return;
+        }
+        if (key.return) {
+          if (authMethodIndex === 0) {
+            // API Key
+            setStep('input');
+          } else if (authMethodIndex === 1) {
+            // Browser OAuth
+            setStep('oauth-progress');
+            setOauthStatus('Opening browser for authentication...');
+            startBrowserOAuthFlow()
+              .then((credentials) => handleOAuthComplete(credentials))
+              .catch((err) => {
+                setLocalError(err instanceof Error ? err.message : String(err));
+                setStep('auth-method');
+              });
+          } else {
+            // Device code
+            setStep('oauth-progress');
+            setOauthStatus('Requesting device code...');
+            startDeviceCodeFlow((info) => {
+              setDeviceCode(info);
+              setOauthStatus(`Go to ${info.verificationUrl} and enter code: ${info.userCode}`);
+            })
+              .then((credentials) => handleOAuthComplete(credentials))
+              .catch((err) => {
+                setLocalError(err instanceof Error ? err.message : String(err));
+                setStep('auth-method');
+              });
+          }
+          return;
+        }
+        if (key.escape) {
+          setStep('provider');
+          return;
         }
         return;
       }
@@ -134,7 +223,10 @@ export function ApiKeySetup({
         }
       }
     },
-    { isActive: step === 'welcome' || step === 'provider' || step === 'input' },
+    {
+      isActive:
+        step === 'welcome' || step === 'provider' || step === 'input' || step === 'auth-method',
+    },
   );
 
   if (step === 'welcome') {
@@ -147,12 +239,14 @@ export function ApiKeySetup({
         </Box>
 
         <Box marginBottom={1}>
-          <Text color={theme.text}>Welcome! This tool translates natural language into shell commands.</Text>
+          <Text color={theme.text}>
+            Welcome! This tool translates natural language into shell commands.
+          </Text>
         </Box>
 
         <Box marginBottom={1}>
           <Text color={theme.textMuted}>
-            To get started, you'll need an API key from one of the supported providers.
+            {"To get started, you'll need an API key from one of the supported providers."}
           </Text>
         </Box>
 
@@ -167,7 +261,9 @@ export function ApiKeySetup({
     return (
       <Box flexDirection='column' paddingY={1}>
         <Box marginBottom={1}>
-          <Text bold color={theme.text}>Select your AI provider:</Text>
+          <Text bold color={theme.text}>
+            Select your AI provider:
+          </Text>
         </Box>
 
         {AI_PROVIDERS.map((provider, index) => {
@@ -181,6 +277,12 @@ export function ApiKeySetup({
               <Text color={isFocused ? theme.primary : theme.text}>
                 {index + 1}. {config.name}
               </Text>
+              {PROVIDER_HINTS[provider] && (
+                <Text color={theme.textMuted} dimColor>
+                  {' '}
+                  {PROVIDER_HINTS[provider]}
+                </Text>
+              )}
             </Box>
           );
         })}
@@ -192,6 +294,75 @@ export function ApiKeySetup({
     );
   }
 
+  if (step === 'auth-method') {
+    const authMethods = [
+      { label: 'API Key (direct)', description: 'Enter your OpenAI API key' },
+      { label: 'ChatGPT Plus/Pro (browser login)', description: 'Authenticate via browser' },
+      { label: 'ChatGPT Plus/Pro (device code)', description: 'For headless/SSH environments' },
+    ];
+
+    return (
+      <Box flexDirection='column' paddingY={1}>
+        <Box marginBottom={1}>
+          <Text bold color={theme.text}>
+            Choose authentication method for OpenAI:
+          </Text>
+        </Box>
+
+        {authMethods.map((method, index) => {
+          const isFocused = index === authMethodIndex;
+          return (
+            <Box key={method.label}>
+              <Text color={isFocused ? theme.primary : theme.textMuted} bold={isFocused}>
+                {isFocused ? '> ' : '  '}
+              </Text>
+              <Text color={isFocused ? theme.primary : theme.text}>
+                {index + 1}. {method.label}
+              </Text>
+              <Text color={theme.textMuted} dimColor>
+                {' '}
+                {method.description}
+              </Text>
+            </Box>
+          );
+        })}
+
+        {localError && (
+          <Box marginTop={1}>
+            <Text color={theme.error}>{localError}</Text>
+          </Box>
+        )}
+
+        <Box marginTop={1}>
+          <Text color={theme.textMuted}>[Up/Down] Navigate [Enter] Select [Esc] Back</Text>
+        </Box>
+      </Box>
+    );
+  }
+
+  if (step === 'oauth-progress') {
+    return (
+      <Box flexDirection='column' paddingY={1}>
+        <Box marginBottom={1}>
+          <Text bold color={theme.text}>
+            OpenAI Authentication
+          </Text>
+        </Box>
+        <Box>
+          <Text color={theme.warning}>{oauthStatus}</Text>
+        </Box>
+        {deviceCode && (
+          <Box marginTop={1} flexDirection='column'>
+            <Text color={theme.primary} bold>
+              Code: {deviceCode.userCode}
+            </Text>
+            <Text color={theme.textMuted}>Visit: {deviceCode.verificationUrl}</Text>
+          </Box>
+        )}
+      </Box>
+    );
+  }
+
   const displayError = error ?? localError;
   const providerConfig = PROVIDER_CONFIG[selectedProvider];
 
@@ -199,7 +370,9 @@ export function ApiKeySetup({
     return (
       <Box flexDirection='column' paddingY={1}>
         <Box marginBottom={1}>
-          <Text bold color={theme.text}>Enter your {providerConfig.name} API key:</Text>
+          <Text bold color={theme.text}>
+            Enter your {providerConfig.name} API key:
+          </Text>
         </Box>
 
         <Box marginBottom={1}>
@@ -225,7 +398,7 @@ export function ApiKeySetup({
 
         <Box marginTop={1}>
           <Text color={theme.warning}>
-            Your key is stored securely on this machine using your system's credential manager.
+            {"Your key is stored securely on this machine using your system's credential manager."}
           </Text>
         </Box>
       </Box>
