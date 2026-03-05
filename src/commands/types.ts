@@ -99,11 +99,38 @@ export const PROVIDER_MODELS: Record<AIProvider, readonly ModelOption[]> = {
     { id: 'google/gemini-3-flash-preview', name: 'Gemini 3 Flash Preview', description: 'Google' },
   ],
   openai: [
-    { id: 'gpt-5.2', name: 'GPT-5.2', description: 'Most capable' },
-    { id: 'gpt-5-mini', name: 'GPT-5 Mini', description: 'Fast and efficient' },
-    { id: 'gpt-5-nano', name: 'GPT-5 Nano', description: 'Fastest' },
+    // Direct API models
+    { id: 'gpt-5.2', name: 'GPT-5.2', description: 'Most capable thinking model' },
+    { id: 'gpt-5.2-mini', name: 'GPT-5.2 Mini', description: 'Fast and efficient' },
+    { id: 'gpt-5.2-nano', name: 'GPT-5.2 Nano', description: 'Fastest' },
+    { id: 'gpt-5-mini', name: 'GPT-5 Mini', description: 'Previous gen mini' },
+    // Codex models (available with OAuth only)
+    { id: 'gpt-5.2-codex', name: 'GPT-5.2 Codex', description: 'Codex - optimized for coding' },
+    { id: 'gpt-5.3-codex', name: 'GPT-5.3 Codex', description: 'Codex - latest coding model' },
+    { id: 'gpt-5.1-codex', name: 'GPT-5.1 Codex', description: 'Codex - previous gen' },
+    { id: 'gpt-5.1-codex-max', name: 'GPT-5.1 Codex Max', description: 'Codex - extended context' },
+    { id: 'gpt-5.1-codex-mini', name: 'GPT-5.1 Codex Mini', description: 'Codex - fast' },
   ],
 };
+
+/** Models only available via Codex OAuth */
+export const CODEX_ONLY_MODELS = new Set([
+  'gpt-5.2-codex',
+  'gpt-5.3-codex',
+  'gpt-5.1-codex',
+  'gpt-5.1-codex-max',
+  'gpt-5.1-codex-mini',
+]);
+
+/** Models allowed when using Codex OAuth (all Codex + compatible direct models) */
+export const CODEX_ALLOWED_MODELS = new Set([
+  'gpt-5.2',
+  'gpt-5.2-codex',
+  'gpt-5.3-codex',
+  'gpt-5.1-codex',
+  'gpt-5.1-codex-max',
+  'gpt-5.1-codex-mini',
+]);
 
 /** @deprecated Use PROVIDER_MODELS instead */
 export const AVAILABLE_MODELS = PROVIDER_MODELS.anthropic;
