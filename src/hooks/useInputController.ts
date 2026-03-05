@@ -48,11 +48,12 @@ export interface PaletteCallbacks {
 export interface ConfigCallbacks {
   onNavigateSection: (direction: 'next' | 'prev') => void;
   onJumpToSection?: (index: number) => void;
-  onNavigateItem: (direction: 'up' | 'down') => void;
-  onToggle: () => void;
+  onNavigateItem: (index: number) => void;
+  onToggle: (index: number) => void;
   onClose: () => void;
   sectionCount: number;
   itemCount: number;
+  currentItemIndex: number;
   isEditingCustomModel?: boolean;
   onCustomModelSubmit?: (value: string) => void;
   onCustomModelCancel?: () => void;
@@ -110,6 +111,7 @@ export function useInputController({
   const [paletteFocusIndex, setPaletteFocusIndex] = useState(0);
   const [configSectionIndex, setConfigSectionIndex] = useState(0);
   const [configItemIndex, setConfigItemIndex] = useState(0);
+  const configItemIndexRef = useRef(0);
 
   const prevInitialValueRef = useRef(initialTextValue);
   if (prevInitialValueRef.current !== initialTextValue) {
@@ -124,8 +126,19 @@ export function useInputController({
     } else if (mode === 'config') {
       setConfigSectionIndex(0);
       setConfigItemIndex(0);
+      configItemIndexRef.current = 0;
     }
     prevModeRef.current = mode;
+  }
+
+  const prevConfigItemIndexRef = useRef(configCallbacks?.currentItemIndex ?? 0);
+  if (mode === 'config' && configCallbacks) {
+    const externalIndex = configCallbacks.currentItemIndex;
+    if (prevConfigItemIndexRef.current !== externalIndex) {
+      prevConfigItemIndexRef.current = externalIndex;
+      configItemIndexRef.current = externalIndex;
+      setConfigItemIndex(externalIndex);
+    }
   }
 
   const clearText = useCallback(() => {
@@ -361,6 +374,7 @@ export function useInputController({
         if (key.tab && !key.shift) {
           setConfigSectionIndex((prev) => (prev + 1) % sectionCount);
           setConfigItemIndex(0);
+          configItemIndexRef.current = 0;
           configCallbacks.onNavigateSection('next');
           return;
         }
@@ -368,6 +382,7 @@ export function useInputController({
         if (key.tab && key.shift) {
           setConfigSectionIndex((prev) => (prev - 1 + sectionCount) % sectionCount);
           setConfigItemIndex(0);
+          configItemIndexRef.current = 0;
           configCallbacks.onNavigateSection('prev');
           return;
         }
@@ -375,6 +390,7 @@ export function useInputController({
         if (key.leftArrow) {
           setConfigSectionIndex((prev) => (prev - 1 + sectionCount) % sectionCount);
           setConfigItemIndex(0);
+          configItemIndexRef.current = 0;
           configCallbacks.onNavigateSection('prev');
           return;
         }
@@ -382,6 +398,7 @@ export function useInputController({
         if (key.rightArrow) {
           setConfigSectionIndex((prev) => (prev + 1) % sectionCount);
           setConfigItemIndex(0);
+          configItemIndexRef.current = 0;
           configCallbacks.onNavigateSection('next');
           return;
         }
@@ -391,32 +408,32 @@ export function useInputController({
         if (numKey >= 1 && numKey <= sectionCount && configCallbacks.onJumpToSection) {
           setConfigSectionIndex(numKey - 1);
           setConfigItemIndex(0);
+          configItemIndexRef.current = 0;
           configCallbacks.onJumpToSection(numKey - 1);
           return;
         }
 
         // Arrow keys navigate items within section
         if (key.upArrow) {
-          setConfigItemIndex((prev) => {
-            if (itemCount === 0) return 0;
-            return (prev - 1 + itemCount) % itemCount;
-          });
-          configCallbacks.onNavigateItem('up');
+          const nextIndex =
+            itemCount === 0 ? 0 : (configItemIndexRef.current - 1 + itemCount) % itemCount;
+          configItemIndexRef.current = nextIndex;
+          setConfigItemIndex(nextIndex);
+          configCallbacks.onNavigateItem(nextIndex);
           return;
         }
 
         if (key.downArrow) {
-          setConfigItemIndex((prev) => {
-            if (itemCount === 0) return 0;
-            return (prev + 1) % itemCount;
-          });
-          configCallbacks.onNavigateItem('down');
+          const nextIndex = itemCount === 0 ? 0 : (configItemIndexRef.current + 1) % itemCount;
+          configItemIndexRef.current = nextIndex;
+          setConfigItemIndex(nextIndex);
+          configCallbacks.onNavigateItem(nextIndex);
           return;
         }
 
         // Enter or Space toggles/activates item
         if (key.return || input === ' ') {
-          configCallbacks.onToggle();
+          configCallbacks.onToggle(configItemIndexRef.current);
           return;
         }
 

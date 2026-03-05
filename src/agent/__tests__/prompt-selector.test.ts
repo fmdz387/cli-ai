@@ -17,7 +17,7 @@ describe('selectPromptOverlay', () => {
   });
 
   it('returns OpenAI overlay for gpt model with openai provider', () => {
-    const overlay = selectPromptOverlay('gpt-5.2', 'openai');
+    const overlay = selectPromptOverlay('gpt-5.4', 'openai');
     expect(overlay).toContain('Finish the entire task');
   });
 

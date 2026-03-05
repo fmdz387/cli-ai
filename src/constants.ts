@@ -62,7 +62,7 @@ export const PROVIDER_CONFIG = {
     envVar: 'OPENAI_API_KEY',
     keyringAccount: 'openai',
     keyPrefix: 'sk-',
-    defaultModel: 'gpt-5.2',
+    defaultModel: 'gpt-5.4',
   },
 } as const satisfies Record<
   AIProvider,

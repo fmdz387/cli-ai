@@ -405,93 +405,78 @@ export function App(): ReactNode {
     [currentProvider],
   );
 
-  const handleConfigNavigateItem = useCallback(
-    (direction: 'up' | 'down') => {
+  const handleConfigNavigateItem = useCallback((index: number) => {
+    setConfigItemIndex(index);
+  }, []);
+
+  const handleConfigToggle = useCallback(
+    (focusedIndex: number) => {
       if (chatStore.overlay.type !== 'config') return;
-      const count = getItemCount(chatStore.overlay.section);
-      if (count === 0) return;
-      setConfigItemIndex((prev) => {
-        if (direction === 'up') {
-          return (prev - 1 + count) % count;
-        }
-        return (prev + 1) % count;
-      });
-    },
-    [chatStore.overlay, getItemCount],
-  );
+      const section = chatStore.overlay.section;
 
-  const handleConfigToggle = useCallback(() => {
-    if (chatStore.overlay.type !== 'config') return;
-    const section = chatStore.overlay.section;
-
-    if (section === 'options') {
-      setDisplayToggles((prev) => {
-        const toggleKeys = [
-          'contextEnabled',
-          'showExplanations',
-          'syntaxHighlighting',
-          'simpleMode',
-        ] as const;
-        const key = toggleKeys[configItemIndex];
-        if (key) {
-          const newValue = !prev[key];
-          if (key === 'contextEnabled') {
-            setConfig({ contextEnabled: newValue });
+      if (section === 'options') {
+        setDisplayToggles((prev) => {
+          const toggleKeys = [
+            'contextEnabled',
+            'showExplanations',
+            'syntaxHighlighting',
+            'simpleMode',
+          ] as const;
+          const key = toggleKeys[focusedIndex];
+          if (key) {
+            const newValue = !prev[key];
+            if (key === 'contextEnabled') {
+              setConfig({ contextEnabled: newValue });
+            }
+            return { ...prev, [key]: newValue };
           }
-          return { ...prev, [key]: newValue };
-        }
-        return prev;
-      });
-      return;
-    }
-
-    if (section === 'provider') {
-      const newProvider = AI_PROVIDERS[configItemIndex];
-      if (newProvider && newProvider !== currentProvider) {
-        const newModel = PROVIDER_CONFIG[newProvider].defaultModel;
-        setConfig({ provider: newProvider, model: newModel });
-        setCurrentProvider(newProvider);
-        setSelectedModel(newModel);
-        setIsEditingCustomModel(false);
-        refreshKeyStatus();
+          return prev;
+        });
+        return;
       }
-      return;
-    }
 
-    if (section === 'model') {
-      const models = PROVIDER_MODELS[currentProvider];
-      const customModelIndex = models.length;
-
-      if (configItemIndex === customModelIndex) {
-        setIsEditingCustomModel(true);
-      } else {
-        const newModel = models[configItemIndex];
-        if (newModel && newModel.id !== selectedModel) {
-          setConfig({ model: newModel.id });
-          setSelectedModel(newModel.id);
+      if (section === 'provider') {
+        const newProvider = AI_PROVIDERS[focusedIndex];
+        if (newProvider && newProvider !== currentProvider) {
+          const newModel = PROVIDER_CONFIG[newProvider].defaultModel;
+          setConfig({ provider: newProvider, model: newModel });
+          setCurrentProvider(newProvider);
+          setSelectedModel(newModel);
           setIsEditingCustomModel(false);
+          refreshKeyStatus();
         }
+        return;
       }
-      return;
-    }
 
-    if (section === 'api-keys') {
-      const provider = AI_PROVIDERS[configItemIndex];
-      if (provider) {
-        closeConfig();
-        setEditingApiKeyProvider(provider);
-        setIsEditingApiKey(true);
+      if (section === 'model') {
+        const models = PROVIDER_MODELS[currentProvider];
+        const customModelIndex = models.length;
+
+        if (focusedIndex === customModelIndex) {
+          setIsEditingCustomModel(true);
+        } else {
+          const newModel = models[focusedIndex];
+          if (newModel && newModel.id !== selectedModel) {
+            setConfig({ model: newModel.id });
+            setSelectedModel(newModel.id);
+            setIsEditingCustomModel(false);
+          }
+        }
+        return;
       }
-      return;
-    }
-  }, [
-    chatStore.overlay,
-    configItemIndex,
-    closeConfig,
-    currentProvider,
-    refreshKeyStatus,
-    selectedModel,
-  ]);
+
+      if (section === 'api-keys') {
+        const provider = AI_PROVIDERS[focusedIndex];
+        if (provider) {
+          closeConfig();
+          setEditingApiKeyProvider(provider);
+          setIsEditingApiKey(true);
+        }
+        return;
+      }
+    },
+    [chatStore.overlay, closeConfig, currentProvider, refreshKeyStatus, selectedModel],
+  );
 
   const handleConfigClose = useCallback(() => {
     closeConfig();
@@ -561,6 +546,7 @@ export function App(): ReactNode {
       onClose: handleConfigClose,
       sectionCount: CONFIG_SECTIONS.length,
       itemCount: configItemCount,
+      currentItemIndex: configItemIndex,
       isEditingCustomModel,
       onCustomModelSubmit: (value: string) => {
         setConfig({ model: value });

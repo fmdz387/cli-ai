@@ -65,7 +65,7 @@ describe('buildAgentSystemPrompt', () => {
   it('contains OpenAI overlay for openai provider', async () => {
     const prompt = await buildAgentSystemPrompt({
       ...defaultOptions,
-      model: 'gpt-5.2',
+      model: 'gpt-5.4',
       provider: 'openai',
     });
     expect(prompt).toContain('Finish the entire task');

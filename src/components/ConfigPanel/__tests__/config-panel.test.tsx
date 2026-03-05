@@ -283,10 +283,10 @@ describe('model tab', () => {
     const out = output(
       renderPanel({
         section: 'model',
-        config: { provider: 'openai', model: 'gpt-5.2' },
+        config: { provider: 'openai', model: 'gpt-5.4' },
       }),
     );
-    // In api-key mode (default), codex-only models are filtered out
+    expect(out).toContain('GPT-5.4');
     expect(out).toContain('GPT-5.2');
     expect(out).toContain('GPT-5.2 Mini');
     expect(out).toContain('GPT-5.2 Nano');

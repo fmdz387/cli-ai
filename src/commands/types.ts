@@ -100,6 +100,7 @@ export const PROVIDER_MODELS: Record<AIProvider, readonly ModelOption[]> = {
   ],
   openai: [
     // Direct API models
+    { id: 'gpt-5.4', name: 'GPT-5.4', description: 'Most capable latest model' },
     { id: 'gpt-5.2', name: 'GPT-5.2', description: 'Most capable thinking model' },
     { id: 'gpt-5.2-mini', name: 'GPT-5.2 Mini', description: 'Fast and efficient' },
     { id: 'gpt-5.2-nano', name: 'GPT-5.2 Nano', description: 'Fastest' },
