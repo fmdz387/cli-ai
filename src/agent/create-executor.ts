@@ -7,7 +7,9 @@ import type { AIProvider } from '../types/index.js';
 import type { Provider } from '../lib/providers/types.js';
 import type { ToolCallAdapter } from './adapters/types.js';
 import { AnthropicProvider } from '../lib/providers/anthropic.js';
+import { OpenAIProvider } from '../lib/providers/openai.js';
 import { OpenRouterProvider } from '../lib/providers/openrouter.js';
+import { getOAuthCredentials, getOpenAIAuthMode, saveOAuthCredentials } from '../lib/secure-storage.js';
 import { AnthropicToolAdapter } from './adapters/anthropic-adapter.js';
 import { OpenAIToolAdapter } from './adapters/openai-adapter.js';
 import { OpenRouterToolAdapter } from './adapters/openrouter-adapter.js';
@@ -23,8 +25,22 @@ function createProvider(type: AIProvider, apiKey: string, model: string): Provid
       return new AnthropicProvider(apiKey, model);
     case 'openrouter':
       return new OpenRouterProvider(apiKey, model);
-    case 'openai':
-      throw new Error('OpenAI agentic provider is not yet implemented');
+    case 'openai': {
+      const authMode = getOpenAIAuthMode();
+      if (authMode === 'codex-oauth') {
+        const credentials = getOAuthCredentials('openai');
+        if (!credentials) {
+          throw new Error('Codex OAuth credentials not found. Please re-authenticate.');
+        }
+        return new OpenAIProvider({
+          mode: 'codex-oauth',
+          credentials,
+          model,
+          onTokenRefresh: (creds) => saveOAuthCredentials('openai', creds),
+        });
+      }
+      return new OpenAIProvider({ mode: 'api-key', apiKey, model });
+    }
   }
 }
 

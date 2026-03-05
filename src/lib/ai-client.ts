@@ -8,12 +8,26 @@ import type {
 import { createHash } from 'node:crypto';
 import { generateDirectoryTree } from './directory-tree.js';
 import { createProvider, type Provider } from './providers/index.js';
-import { getApiKey, getConfig } from './secure-storage.js';
+import { getApiKey, getConfig, getOpenAIAuthMode, hasOAuthCredentials } from './secure-storage.js';
 
 let cachedProvider: { key: string; instance: Provider } | null = null;
 
 async function getProvider(): Promise<Provider | null> {
   const config = getConfig();
+
+  // Handle OpenAI Codex OAuth mode
+  if (config.provider === 'openai' && getOpenAIAuthMode() === 'codex-oauth') {
+    if (!hasOAuthCredentials('openai')) return null;
+    const cacheKey = `openai:codex-oauth:${config.model}`;
+    if (cachedProvider?.key === cacheKey) {
+      return cachedProvider.instance;
+    }
+    const instance = await createProvider('openai', '', config.model);
+    cachedProvider = { key: cacheKey, instance };
+    return instance;
+  }
+
+  // Standard API key flow (all providers including OpenAI api-key mode)
   const apiKey = getApiKey(config.provider);
   if (!apiKey) return null;
 
