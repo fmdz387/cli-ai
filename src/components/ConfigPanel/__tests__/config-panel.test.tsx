@@ -7,6 +7,7 @@
  * Ink's test renderer so we exercise the actual React tree.
  */
 import {
+  CODEX_ONLY_MODELS,
   CUSTOM_MODEL_OPTION,
   PROVIDER_MODELS,
   type ConfigSection,
@@ -28,9 +29,11 @@ const hasApiKeyMock = vi.fn<(provider: string) => boolean>().mockReturnValue(fal
 
 vi.mock('../../../lib/secure-storage.js', () => ({
   hasApiKey: (p: string) => hasApiKeyMock(p),
+  hasAuth: (p: string) => hasApiKeyMock(p),
   getApiKey: () => null,
   getConfig: () => ({}),
   setConfig: () => {},
+  getOpenAIAuthMode: () => 'api-key',
   getStorageInfo: () => ({
     method: 'none' as const,
     secure: false,
@@ -283,9 +286,12 @@ describe('model tab', () => {
         config: { provider: 'openai', model: 'gpt-5.2' },
       }),
     );
+    // In api-key mode (default), codex-only models are filtered out
     expect(out).toContain('GPT-5.2');
+    expect(out).toContain('GPT-5.2 Mini');
+    expect(out).toContain('GPT-5.2 Nano');
     expect(out).toContain('GPT-5 Mini');
-    expect(out).toContain('GPT-5 Nano');
+    expect(out).not.toContain('GPT-5.2 Codex');
   });
 
   it('shows description text with provider name', () => {
@@ -655,6 +661,10 @@ describe('ConfigSection type coverage', () => {
 describe('provider-model correspondence', () => {
   it.each(AI_PROVIDERS)('model tab shows correct models for provider=%s', (provider) => {
     const models = PROVIDER_MODELS[provider];
+    // In api-key mode (default mock), codex-only models are filtered for openai
+    const visibleModels = provider === 'openai'
+      ? models.filter((m) => !CODEX_ONLY_MODELS.has(m.id))
+      : models;
     const cfg = defaultConfig({ provider, model: models[0]?.id ?? '' });
     const out = output(
       renderPanel({
@@ -662,7 +672,7 @@ describe('provider-model correspondence', () => {
         config: { provider: cfg.provider, model: cfg.model },
       }),
     );
-    for (const model of models) {
+    for (const model of visibleModels) {
       expect(out).toContain(model.name);
     }
   });

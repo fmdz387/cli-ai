@@ -16,7 +16,7 @@ import {
   DEFAULT_CONFIG,
   PROVIDER_CONFIG,
 } from '../../../constants.js';
-import type { AIProvider, AppConfig } from '../../../types/index.js';
+import type { AIProvider } from '../../../types/index.js';
 
 import { describe, expect, it } from 'vitest';
 
