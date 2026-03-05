@@ -27,7 +27,7 @@ export function createMarkdownRenderer(theme: Theme): (text: string) => string {
 
   marked.use({
     renderer: {
-      heading({ tokens, depth }) {
+      heading({ tokens, depth: _depth }) {
         const text = this.parser.parseInline(tokens);
         return '\n' + chalk.hex(theme.markdownHeading).bold(decodeEntities(text)) + '\n';
       },
@@ -91,7 +91,7 @@ export function createMarkdownRenderer(theme: Theme): (text: string) => string {
         return decodeEntities(this.parser.parse(tokens)).trim();
       },
 
-      link({ tokens, href }) {
+      link({ tokens, href: _href }) {
         const text = this.parser.parseInline(tokens);
         return chalk.hex(theme.markdownLink).underline(decodeEntities(text));
       },

@@ -2,7 +2,7 @@
  * Tool registry for managing agent tool definitions
  */
 
-import type { ZodObject, ZodOptional, ZodRawShape, ZodType } from 'zod';
+import type { ZodRawShape, ZodType } from 'zod';
 
 import type { ToolDefinition } from './types.js';
 

@@ -51,18 +51,18 @@ export default [
       "unused-imports/no-unused-vars": "off",
       "no-unused-vars": "off",
 
-      // Security
-      "security/detect-object-injection": "warn",
-      "security/detect-non-literal-regexp": "warn",
+      // Security — keep rules that catch real issues, disable noisy false positives
+      "security/detect-object-injection": "off", // false positive on all obj[var] access
+      "security/detect-non-literal-regexp": "off", // grep/glob tools need dynamic patterns
       "security/detect-unsafe-regex": "error",
       "security/detect-buffer-noassert": "error",
-      "security/detect-child-process": "warn",
+      "security/detect-child-process": "off", // CLI app legitimately spawns processes
       "security/detect-disable-mustache-escape": "error",
       "security/detect-eval-with-expression": "error",
       "security/detect-no-csrf-before-method-override": "error",
       "security/detect-non-literal-fs-filename": "off",
       "security/detect-non-literal-require": "warn",
-      "security/detect-possible-timing-attacks": "warn",
+      "security/detect-possible-timing-attacks": "off", // false positive on boolean comparisons
       "security/detect-pseudoRandomBytes": "error",
       "security/detect-bidi-characters": "error",
     },
@@ -87,6 +87,13 @@ export default [
       "react/no-children-prop": "warn",
       "react-hooks/rules-of-hooks": "error",
       "react-hooks/exhaustive-deps": "warn",
+    },
+  },
+  // Relax rules in test files
+  {
+    files: ["**/__tests__/**", "**/*.test.*", "**/*.spec.*"],
+    rules: {
+      "@typescript-eslint/no-non-null-assertion": "off",
     },
   },
   {
