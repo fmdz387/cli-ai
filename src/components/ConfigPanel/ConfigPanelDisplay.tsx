@@ -1,8 +1,7 @@
 import {
-  CODEX_ALLOWED_MODELS,
-  CODEX_ONLY_MODELS,
   CUSTOM_MODEL_OPTION,
   PROVIDER_MODELS,
+  getProviderModels,
   type ConfigSection as ConfigSectionType,
 } from '../../commands/types.js';
 import { AI_PROVIDERS, PROVIDER_CONFIG, VERSION } from '../../constants.js';
@@ -150,16 +149,9 @@ function ModelContent({
   isCustomModel: boolean;
 }): ReactNode {
   const theme = useTheme();
-  const allModels = PROVIDER_MODELS[config.provider];
-  const currentModels = config.provider === 'openai'
-    ? allModels.filter((m) => {
-        const authMode = getOpenAIAuthMode();
-        if (authMode === 'codex-oauth') {
-          return CODEX_ALLOWED_MODELS.has(m.id);
-        }
-        return !CODEX_ONLY_MODELS.has(m.id);
-      })
-    : allModels;
+  const currentModels = getProviderModels(config.provider, {
+    openaiAuthMode: getOpenAIAuthMode(),
+  });
   const customIndex = currentModels.length;
 
   return (
@@ -352,7 +344,9 @@ export function ConfigPanelDisplay({
 
   if (!visible) return null;
 
-  const currentModels = PROVIDER_MODELS[config.provider];
+  const currentModels = getProviderModels(config.provider, {
+    openaiAuthMode: getOpenAIAuthMode(),
+  });
   const isCustomModel = !currentModels.some((m) => m.id === config.model);
 
   return (

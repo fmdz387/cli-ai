@@ -7,9 +7,9 @@
  * Ink's test renderer so we exercise the actual React tree.
  */
 import {
-  CODEX_ONLY_MODELS,
   CUSTOM_MODEL_OPTION,
   PROVIDER_MODELS,
+  getProviderModels,
   type ConfigSection,
 } from '../../../commands/types.js';
 import { AI_PROVIDERS, PROVIDER_CONFIG, VERSION } from '../../../constants.js';
@@ -26,6 +26,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 // Mock secure-storage so `hasApiKey` is controlled per test
 const hasApiKeyMock = vi.fn<(provider: string) => boolean>().mockReturnValue(false);
+const getOpenAIAuthModeMock = vi.fn<() => 'api-key' | 'codex-oauth'>(() => 'api-key');
 
 vi.mock('../../../lib/secure-storage.js', () => ({
   hasApiKey: (p: string) => hasApiKeyMock(p),
@@ -33,7 +34,7 @@ vi.mock('../../../lib/secure-storage.js', () => ({
   getApiKey: () => null,
   getConfig: () => ({}),
   setConfig: () => {},
-  getOpenAIAuthMode: () => 'api-key',
+  getOpenAIAuthMode: () => getOpenAIAuthModeMock(),
   getStorageInfo: () => ({
     method: 'none' as const,
     secure: false,
@@ -141,6 +142,7 @@ function output(instance: ReturnType<typeof render>): string {
 
 afterEach(() => {
   hasApiKeyMock.mockReset().mockReturnValue(false);
+  getOpenAIAuthModeMock.mockReset().mockReturnValue('api-key');
 });
 
 // ===== Visibility =====
@@ -294,15 +296,26 @@ describe('model tab', () => {
     expect(out).not.toContain('GPT-5.2 Codex');
   });
 
+  it('shows GPT-5.4 in openai codex oauth mode', () => {
+    getOpenAIAuthModeMock.mockReturnValue('codex-oauth');
+    const out = output(
+      renderPanel({
+        section: 'model',
+        config: { provider: 'openai', model: 'gpt-5.4' },
+      }),
+    );
+
+    expect(out).toContain('GPT-5.4');
+    expect(out).toContain('GPT-5.2 Codex');
+  });
+
   it('shows description text with provider name', () => {
     const out = output(renderPanel({ section: 'model', config: { provider: 'anthropic' } }));
     expect(out).toContain('Choose a model for Anthropic');
   });
 
   it('marks the selected model', () => {
-    const out = output(
-      renderPanel({ section: 'model', config: { model: 'claude-sonnet-4-5' } }),
-    );
+    const out = output(renderPanel({ section: 'model', config: { model: 'claude-sonnet-4-5' } }));
     // The selected model line should have ●
     const lines = out.split('\n');
     const sonnetLine = lines.find((l) => l.includes('Claude Sonnet 4.5'));
@@ -552,9 +565,7 @@ describe('about tab', () => {
   });
 
   it('shows current model id', () => {
-    const out = output(
-      renderPanel({ section: 'about', config: { model: 'claude-opus-4-5' } }),
-    );
+    const out = output(renderPanel({ section: 'about', config: { model: 'claude-opus-4-5' } }));
     expect(out).toContain('claude-opus-4-5');
   });
 
@@ -661,9 +672,8 @@ describe('ConfigSection type coverage', () => {
 describe('provider-model correspondence', () => {
   it.each(AI_PROVIDERS)('model tab shows correct models for provider=%s', (provider) => {
     const models = PROVIDER_MODELS[provider];
-    // In api-key mode (default mock), codex-only models are filtered for openai
     const visibleModels = provider === 'openai'
-      ? models.filter((m) => !CODEX_ONLY_MODELS.has(m.id))
+      ? getProviderModels(provider, { openaiAuthMode: 'api-key' })
       : models;
     const cfg = defaultConfig({ provider, model: models[0]?.id ?? '' });
     const out = output(

@@ -7,7 +7,7 @@ import { createExecutorDeps } from './agent/create-executor.js';
 import { AgentExecutor, type ExecutorDependencies } from './agent/executor.js';
 import type { AgentConfig, ExecutorResult, ExecutorRunOptions } from './agent/types.js';
 import { commandRegistry } from './commands/index.js';
-import { PROVIDER_MODELS, type ConfigSection } from './commands/types.js';
+import { PROVIDER_MODELS, getProviderModels, type ConfigSection } from './commands/types.js';
 import type { SlashCommand } from './commands/types.js';
 import { ApiKeySetup } from './components/ApiKeySetup.js';
 import { ChatView } from './components/Chat/index.js';
@@ -27,6 +27,7 @@ import { detectShell } from './lib/platform.js';
 import {
   getApiKey,
   getConfig,
+  getOpenAIAuthMode,
   getStorageInfo,
   hasAuth,
   saveApiKey,
@@ -395,7 +396,9 @@ export function App(): ReactNode {
     (section: ConfigSection): number => {
       const counts: Record<ConfigSection, number> = {
         provider: AI_PROVIDERS.length,
-        model: PROVIDER_MODELS[currentProvider].length + 1,
+        model: getProviderModels(currentProvider, {
+          openaiAuthMode: getOpenAIAuthMode(),
+        }).length + 1,
         'api-keys': AI_PROVIDERS.length,
         options: 4,
         about: 0,
@@ -449,7 +452,9 @@ export function App(): ReactNode {
       }
 
       if (section === 'model') {
-        const models = PROVIDER_MODELS[currentProvider];
+        const models = getProviderModels(currentProvider, {
+          openaiAuthMode: getOpenAIAuthMode(),
+        });
         const customModelIndex = models.length;
 
         if (focusedIndex === customModelIndex) {
@@ -565,7 +570,9 @@ export function App(): ReactNode {
   // Initialize custom model state when entering edit mode
   useEffect(() => {
     if (isEditingCustomModel) {
-      const isCurrentCustom = !PROVIDER_MODELS[currentProvider].some((m) => m.id === selectedModel);
+      const isCurrentCustom = !getProviderModels(currentProvider, {
+        openaiAuthMode: getOpenAIAuthMode(),
+      }).some((m) => m.id === selectedModel);
       dispatchCustomModel({ type: 'set', value: isCurrentCustom ? selectedModel : '' });
     }
   }, [isEditingCustomModel, currentProvider, selectedModel, dispatchCustomModel]);

@@ -1,7 +1,7 @@
 /**
  * Slash command type definitions for CLI AI v3
  */
-import type { AIProvider, AppConfig } from '../types/index.js';
+import type { AIProvider, AppConfig, OpenAIAuthMode } from '../types/index.js';
 
 /**
  * Command categories for organization and filtering
@@ -125,6 +125,7 @@ export const CODEX_ONLY_MODELS = new Set([
 
 /** Models allowed when using Codex OAuth (all Codex + compatible direct models) */
 export const CODEX_ALLOWED_MODELS = new Set([
+  'gpt-5.4',
   'gpt-5.2',
   'gpt-5.2-codex',
   'gpt-5.3-codex',
@@ -132,6 +133,22 @@ export const CODEX_ALLOWED_MODELS = new Set([
   'gpt-5.1-codex-max',
   'gpt-5.1-codex-mini',
 ]);
+
+export function getProviderModels(
+  provider: AIProvider,
+  options?: { openaiAuthMode?: OpenAIAuthMode },
+): readonly ModelOption[] {
+  const models = PROVIDER_MODELS[provider];
+  if (provider !== 'openai') {
+    return models;
+  }
+
+  if ((options?.openaiAuthMode ?? 'api-key') === 'codex-oauth') {
+    return models.filter((model) => CODEX_ALLOWED_MODELS.has(model.id));
+  }
+
+  return models.filter((model) => !CODEX_ONLY_MODELS.has(model.id));
+}
 
 /** @deprecated Use PROVIDER_MODELS instead */
 export const AVAILABLE_MODELS = PROVIDER_MODELS.anthropic;
