@@ -6,14 +6,14 @@ import { useTheme } from '../theme/index.js';
 import { Panel } from './ui/Panel.js';
 
 import { Box, Text } from 'ink';
-import type { ReactNode } from 'react';
+import { memo, type ReactNode } from 'react';
 
 interface StatusBarProps {
   tokenCount?: number;
   cost?: number;
 }
 
-export function StatusBar({ tokenCount, cost }: StatusBarProps): ReactNode {
+function StatusBarComponent({ tokenCount, cost }: StatusBarProps): ReactNode {
   const theme = useTheme();
 
   const rightItems: ReactNode[] = [];
@@ -51,3 +51,5 @@ export function StatusBar({ tokenCount, cost }: StatusBarProps): ReactNode {
     </Box>
   );
 }
+
+export const StatusBar = memo(StatusBarComponent);

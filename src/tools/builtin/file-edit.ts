@@ -33,12 +33,17 @@ When to use:
 
 When NOT to use:
 - Creating new files -- use file_write instead.
-- Replacing the majority of a file's content -- use file_write instead.`,
+- Replacing the majority of a file's content -- use file_write instead.
+
+Security:
+- Paths outside the project root are rejected unless dangerous Allow All Permissions is enabled.`,
   inputSchema,
   defaultPermission: 'ask',
   async execute(input, context) {
     const resolved = path.resolve(input.filePath);
-    if (!isWithinProjectRoot(resolved, context.projectRoot)) {
+    if (!isWithinProjectRoot(resolved, context.projectRoot, {
+      bypass: context.allowAllPermissions,
+    })) {
       return { kind: 'error', error: 'Path is outside project root' };
     }
 

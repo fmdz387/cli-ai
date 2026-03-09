@@ -8,6 +8,7 @@ import { tmpdir } from 'node:os';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
+import { detectShell } from '../../lib/platform.js';
 import type { ToolContext } from '../types.js';
 import { bashExecuteTool } from '../builtin/bash-execute.js';
 import { directoryListTool } from '../builtin/directory-list.js';
@@ -26,8 +27,9 @@ beforeEach(async () => {
   ctx = {
     projectRoot: testDir,
     cwd: testDir,
-    shell: 'bash',
+    shell: detectShell(),
     signal: new AbortController().signal,
+    allowAllPermissions: false,
   };
 });
 
@@ -50,6 +52,20 @@ describe('file_read', () => {
   it('should reject paths outside project root', async () => {
     const result = await fileReadTool.execute({ filePath: '/etc/passwd' }, ctx);
     expect(result.kind).toBe('error');
+  });
+
+  it('should allow paths outside project root when allowAllPermissions is enabled', async () => {
+    const outsideFile = path.join(tmpdir(), `cli-ai-outside-read-${Date.now()}.txt`);
+    try {
+      await writeFile(outsideFile, 'outside');
+      const result = await fileReadTool.execute(
+        { filePath: outsideFile },
+        { ...ctx, allowAllPermissions: true },
+      );
+      expect(result.kind).toBe('success');
+    } finally {
+      await rm(outsideFile, { force: true });
+    }
   });
 
   it('should handle missing files', async () => {
@@ -104,6 +120,20 @@ describe('file_write', () => {
       ctx,
     );
     expect(result.kind).toBe('error');
+  });
+
+  it('should allow writing outside project root when allowAllPermissions is enabled', async () => {
+    const outsideFile = path.join(tmpdir(), `cli-ai-outside-write-${Date.now()}.txt`);
+    try {
+      const result = await fileWriteTool.execute(
+        { filePath: outsideFile, content: 'test' },
+        { ...ctx, allowAllPermissions: true },
+      );
+      expect(result.kind).toBe('success');
+      expect(await readFile(outsideFile, 'utf-8')).toBe('test');
+    } finally {
+      await rm(outsideFile, { force: true });
+    }
   });
 
   it('should reject .env files', async () => {
@@ -227,5 +257,13 @@ describe('directory_list', () => {
   it('should reject paths outside project root', async () => {
     const result = await directoryListTool.execute({ dirPath: '/etc' }, ctx);
     expect(result.kind).toBe('error');
+  });
+
+  it('should allow listing outside project root when allowAllPermissions is enabled', async () => {
+    const result = await directoryListTool.execute(
+      { dirPath: tmpdir() },
+      { ...ctx, allowAllPermissions: true },
+    );
+    expect(result.kind).toBe('success');
   });
 });

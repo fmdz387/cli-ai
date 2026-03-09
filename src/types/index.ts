@@ -159,6 +159,8 @@ export interface AppConfig {
   maxAlternatives: number;
   /** Whether to pass conversation history as context to AI */
   contextEnabled: boolean;
+  /** Dangerous: skips approval prompts and project-root path restrictions */
+  allowAllPermissions: boolean;
   /** OpenAI auth mode - undefined defaults to 'api-key' */
   openaiAuthMode?: OpenAIAuthMode;
 }

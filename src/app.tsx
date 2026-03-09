@@ -82,6 +82,7 @@ export function App(): ReactNode {
     const savedConfig = getConfig();
     return {
       contextEnabled: savedConfig.contextEnabled,
+      allowAllPermissions: savedConfig.allowAllPermissions,
       showExplanations: true,
       syntaxHighlighting: true,
       simpleMode: false,
@@ -111,11 +112,12 @@ export function App(): ReactNode {
       provider: currentProvider,
       model: selectedModel,
       contextEnabled: displayToggles.contextEnabled,
+      allowAllPermissions: displayToggles.allowAllPermissions,
       maxHistoryEntries: 5,
       maxOutputLines: 10,
       maxAlternatives: 3,
     }),
-    [currentProvider, selectedModel, displayToggles.contextEnabled],
+    [currentProvider, selectedModel, displayToggles.allowAllPermissions, displayToggles.contextEnabled],
   );
 
   const cachedDepsRef = useRef<{ key: string; deps: ExecutorDependencies } | null>(null);
@@ -130,12 +132,15 @@ export function App(): ReactNode {
       ? createHash('sha256').update(apiKey).digest('hex').slice(0, 8)
       : 'oauth';
     const cacheKey = `${options.config.provider}:${options.config.model}:${keyHash}`;
+    const cacheKeyWithPermissions = `${cacheKey}:${options.config.allowAllPermissions ? 'allow-all' : 'standard'}`;
     let deps: ExecutorDependencies;
-    if (cachedDepsRef.current?.key === cacheKey) {
+    if (cachedDepsRef.current?.key === cacheKeyWithPermissions) {
       deps = cachedDepsRef.current.deps;
     } else {
-      deps = createExecutorDeps(options.config.provider, options.config.model, apiKey);
-      cachedDepsRef.current = { key: cacheKey, deps };
+      deps = createExecutorDeps(options.config.provider, options.config.model, apiKey, {
+        allowAllPermissions: options.config.allowAllPermissions,
+      });
+      cachedDepsRef.current = { key: cacheKeyWithPermissions, deps };
     }
     const executor = new AgentExecutor(deps);
     return executor.execute(options);
@@ -146,6 +151,7 @@ export function App(): ReactNode {
       provider: currentProvider,
       model: selectedModel,
       apiKey: getApiKey(currentProvider) ?? '',
+      allowAllPermissions: displayToggles.allowAllPermissions,
       maxTurns: MAX_AGENT_STEPS,
       maxTokensPerTurn: 4096,
       context: {
@@ -156,7 +162,7 @@ export function App(): ReactNode {
         history: [],
       },
     }),
-    [currentProvider, selectedModel, shell],
+    [currentProvider, selectedModel, shell, displayToggles.allowAllPermissions],
   );
 
   const handleCompact = useCallback(() => {
@@ -171,7 +177,9 @@ export function App(): ReactNode {
       return;
     }
 
-    const deps = createExecutorDeps(currentProvider, selectedModel, apiKey);
+    const deps = createExecutorDeps(currentProvider, selectedModel, apiKey, {
+      allowAllPermissions: displayToggles.allowAllPermissions,
+    });
 
     compactConversation(chatStore.apiMessages, deps.provider)
       .then((result) => {
@@ -192,6 +200,7 @@ export function App(): ReactNode {
     chatStore.isAgentRunning,
     currentProvider,
     selectedModel,
+    displayToggles.allowAllPermissions,
     startCompact,
     chatDispatch,
   ]);
@@ -394,15 +403,15 @@ export function App(): ReactNode {
 
   const getItemCount = useCallback(
     (section: ConfigSection): number => {
-      const counts: Record<ConfigSection, number> = {
-        provider: AI_PROVIDERS.length,
-        model: getProviderModels(currentProvider, {
-          openaiAuthMode: getOpenAIAuthMode(),
-        }).length + 1,
-        'api-keys': AI_PROVIDERS.length,
-        options: 4,
-        about: 0,
-      };
+        const counts: Record<ConfigSection, number> = {
+          provider: AI_PROVIDERS.length,
+          model: getProviderModels(currentProvider, {
+            openaiAuthMode: getOpenAIAuthMode(),
+          }).length + 1,
+          'api-keys': AI_PROVIDERS.length,
+          options: 5,
+          about: 0,
+        };
       return counts[section];
     },
     [currentProvider],
@@ -421,6 +430,7 @@ export function App(): ReactNode {
         setDisplayToggles((prev) => {
           const toggleKeys = [
             'contextEnabled',
+            'allowAllPermissions',
             'showExplanations',
             'syntaxHighlighting',
             'simpleMode',
@@ -428,8 +438,8 @@ export function App(): ReactNode {
           const key = toggleKeys[focusedIndex];
           if (key) {
             const newValue = !prev[key];
-            if (key === 'contextEnabled') {
-              setConfig({ contextEnabled: newValue });
+            if (key === 'contextEnabled' || key === 'allowAllPermissions') {
+              setConfig({ [key]: newValue });
             }
             return { ...prev, [key]: newValue };
           }

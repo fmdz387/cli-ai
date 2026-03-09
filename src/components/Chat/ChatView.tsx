@@ -1,70 +1,107 @@
-/**
- * Main chat view container - renders the message list
- */
-import { MAX_VISIBLE_MESSAGES } from '../../constants.js';
 import { useTheme } from '../../theme/index.js';
-import type { ChatMessage, PendingPermission } from '../../types/chat.js';
+import type { AssistantMessage, ChatMessage, PendingPermission } from '../../types/chat.js';
 import { Divider } from '../ui/Divider.js';
 import { AssistantBubble } from './AssistantBubble.js';
 import { UserBubble } from './UserBubble.js';
 
-import { Box, Text } from 'ink';
-import type { ReactNode } from 'react';
+import { Box, Static, Text } from 'ink';
+import { memo, useMemo, type ReactNode } from 'react';
 
 interface ChatViewProps {
   messages: ChatMessage[];
   pendingPermission: PendingPermission | null;
 }
 
-export function ChatView({ messages, pendingPermission }: ChatViewProps): ReactNode {
+function renderMessage(
+  msg: ChatMessage,
+  pendingPermission: PendingPermission | null,
+  key: string,
+  systemColor: string,
+): ReactNode {
+  switch (msg.role) {
+    case 'user':
+      return <UserBubble key={key} message={msg} />;
+    case 'assistant':
+      return (
+        <Box key={key} flexDirection='column'>
+          <AssistantBubble
+            message={msg}
+            pendingPermission={pendingPermission}
+          />
+        </Box>
+      );
+    case 'system':
+      return (
+        <Box key={key} marginBottom={1}>
+          <Text color={systemColor}>{msg.text}</Text>
+        </Box>
+      );
+    default:
+      return null;
+  }
+}
+
+function ChatViewComponent({ messages, pendingPermission }: ChatViewProps): ReactNode {
   const theme = useTheme();
-  const visibleMessages = messages.length > MAX_VISIBLE_MESSAGES
-    ? messages.slice(-MAX_VISIBLE_MESSAGES)
-    : messages;
 
-  const hiddenCount = messages.length - visibleMessages.length;
+  const liveAssistantIndex = useMemo(() => {
+    for (let index = messages.length - 1; index >= 0; index--) {
+      const message = messages[index];
+      if (message?.role === 'assistant' && message.isStreaming) {
+        return index;
+      }
+    }
+    return -1;
+  }, [messages]);
 
-  if (visibleMessages.length === 0) return null;
+  const staticMessages = liveAssistantIndex === -1 ? messages : messages.slice(0, liveAssistantIndex);
+  const liveMessages = liveAssistantIndex === -1 ? [] : messages.slice(liveAssistantIndex);
+
+  if (messages.length === 0) return null;
 
   return (
     <Box flexDirection='column'>
-      {hiddenCount > 0 && (
-        <Box marginBottom={1}>
-          <Text color={theme.textMuted}>{'── '}{hiddenCount} earlier messages hidden{' ──'}</Text>
-        </Box>
-      )}
-      {visibleMessages.map((msg, i) => {
-        const key = `${msg.role}-${msg.timestamp}-${i}`;
-        const nextMsg = visibleMessages[i + 1];
-        const showDivider = msg.role === 'assistant' && nextMsg?.role === 'user';
+      <Static items={staticMessages}>
+        {(message, index) => {
+          const key = `${message.role}-${message.timestamp}-${index}`;
+          const nextMessage = staticMessages[index + 1];
+          const content = renderMessage(message, null, key, theme.textMuted);
 
-        switch (msg.role) {
-          case 'user':
-            return <UserBubble key={key} message={msg} />;
-          case 'assistant':
+          if (message.role === 'assistant' && nextMessage?.role === 'user') {
             return (
               <Box key={key} flexDirection='column'>
-                <AssistantBubble
-                  message={msg}
-                  pendingPermission={pendingPermission}
-                />
-                {showDivider && (
-                  <Box marginY={1}>
-                    <Divider char='┄' />
-                  </Box>
-                )}
+                {content}
+                <Box marginY={1}>
+                  <Divider char='┄' />
+                </Box>
               </Box>
             );
-          case 'system':
-            return (
-              <Box key={key} marginBottom={1}>
-                <Text color={theme.textMuted}>{msg.text}</Text>
+          }
+
+          return content;
+        }}
+      </Static>
+
+      {liveMessages.map((message, index) => {
+        const key = `live-${message.role}-${message.timestamp}-${index}`;
+        const nextMessage = liveMessages[index + 1];
+        const content = renderMessage(message, pendingPermission, key, theme.textMuted);
+
+        if (message.role === 'assistant' && nextMessage?.role === 'user') {
+          return (
+            <Box key={key} flexDirection='column'>
+              {content}
+              <Box marginY={1}>
+                <Divider char='┄' />
               </Box>
-            );
-          default:
-            return null;
+            </Box>
+          );
         }
+
+        return content;
       })}
     </Box>
   );
 }
+
+export const ChatView = memo(ChatViewComponent);

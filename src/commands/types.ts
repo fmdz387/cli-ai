@@ -161,4 +161,5 @@ export interface DisplayToggles {
   syntaxHighlighting: boolean;
   simpleMode: boolean;
   contextEnabled: boolean;
+  allowAllPermissions: boolean;
 }

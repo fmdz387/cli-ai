@@ -31,7 +31,7 @@ Usage notes:
 
 Safety:
 - Writing to .env files is blocked to prevent accidental secret exposure.
-- Paths outside the project root are rejected.
+- Paths outside the project root are rejected unless dangerous Allow All Permissions is enabled.
 - ALWAYS use file_read first to understand existing file content before overwriting. Do not blindly overwrite files.
 
 When to use:
@@ -44,7 +44,9 @@ When NOT to use:
   defaultPermission: 'ask',
   async execute(input, context) {
     const resolved = path.resolve(input.filePath);
-    if (!isWithinProjectRoot(resolved, context.projectRoot)) {
+    if (!isWithinProjectRoot(resolved, context.projectRoot, {
+      bypass: context.allowAllPermissions,
+    })) {
       return { kind: 'error', error: 'Path is outside project root' };
     }
 

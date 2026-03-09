@@ -19,6 +19,7 @@ export interface ToolContext {
   cwd: string;
   shell: ShellType;
   signal: AbortSignal;
+  allowAllPermissions: boolean;
 }
 
 /**

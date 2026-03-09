@@ -55,6 +55,7 @@ const baseConfig: AgentConfig = {
   provider: 'anthropic',
   model: 'claude-sonnet-4-5',
   apiKey: 'test-key',
+  allowAllPermissions: false,
   maxTurns: 10,
   maxTokensPerTurn: 4096,
   context: {

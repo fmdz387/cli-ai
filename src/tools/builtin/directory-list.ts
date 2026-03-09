@@ -34,7 +34,7 @@ Usage notes:
 - Shows file size (formatted: B, KB, MB) and last modified timestamp.
 - Directories are marked as "dir", files as "file".
 - Hidden files (starting with .) are excluded by default. Set showHidden to true to include them.
-- Paths outside the project root are rejected.
+- Paths outside the project root are rejected unless dangerous Allow All Permissions is enabled.
 
 When to use:
 - Getting a quick overview of a directory's contents
@@ -44,7 +44,9 @@ When to use:
   defaultPermission: 'allow',
   async execute(input, context) {
     const resolved = path.resolve(input.dirPath);
-    if (!isWithinProjectRoot(resolved, context.projectRoot)) {
+    if (!isWithinProjectRoot(resolved, context.projectRoot, {
+      bypass: context.allowAllPermissions,
+    })) {
       return { kind: 'error', error: 'Path is outside project root' };
     }
 

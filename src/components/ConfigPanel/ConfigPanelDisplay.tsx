@@ -33,6 +33,7 @@ export interface ConfigPanelDisplayProps {
     syntaxHighlighting: boolean;
     simpleMode: boolean;
     contextEnabled: boolean;
+    allowAllPermissions: boolean;
   };
   isEditingCustomModel?: boolean;
   customModelState?: TextInputState;
@@ -56,10 +57,17 @@ interface ToggleDef {
   readonly key: string;
   readonly label: string;
   readonly description: string;
+  readonly note?: string;
 }
 
 const TOGGLE_DEFS: readonly ToggleDef[] = [
   { key: 'contextEnabled', label: 'Context', description: 'Pass conversation history to AI' },
+  {
+    key: 'allowAllPermissions',
+    label: 'Allow all permissions',
+    description: 'Skip all approval prompts',
+    note: 'Dangerous: also allows paths outside project root',
+  },
   { key: 'showExplanations', label: 'Explanations', description: 'Show command explanations' },
   { key: 'syntaxHighlighting', label: 'Syntax highlighting', description: 'Highlight command syntax' },
   { key: 'simpleMode', label: 'Simple mode', description: 'Minimal interface' },
@@ -283,6 +291,12 @@ function OptionsContent({
               {'  '}
               {opt.description}
             </Text>
+            {opt.note && (
+              <Text color={theme.warning}>
+                {'  '}
+                {opt.note}
+              </Text>
+            )}
           </ItemRow>
         );
       })}

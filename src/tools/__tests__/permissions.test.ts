@@ -75,4 +75,17 @@ describe('PermissionGate', () => {
     expect(gate.check({ toolName: 'bash_execute', input: {} })).toBe('ask');
     expect(gate.isSessionApproved('bash_execute')).toBe(false);
   });
+
+  it('should allow everything when allowAll is enabled', () => {
+    const gate = new PermissionGate({ allowAll: true });
+    gate.registerDefaults([
+      makeTool('bash_execute', 'ask'),
+      makeTool('file_write', 'deny'),
+    ]);
+    gate.setRule('bash_execute', 'deny');
+
+    expect(gate.check({ toolName: 'bash_execute', input: { command: 'rm -rf /tmp/test' } })).toBe('allow');
+    expect(gate.check({ toolName: 'file_write', input: {} })).toBe('allow');
+    expect(gate.check({ toolName: 'unknown', input: {} })).toBe('allow');
+  });
 });

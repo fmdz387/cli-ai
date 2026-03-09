@@ -6,7 +6,7 @@ import { useTheme } from '../theme/index.js';
 import type { AIProvider } from '../types/index.js';
 import { Box, Text } from 'ink';
 import { homedir } from 'node:os';
-import type { ReactNode } from 'react';
+import { memo, type ReactNode } from 'react';
 
 interface FooterBarProps {
   cwd: string;
@@ -14,7 +14,7 @@ interface FooterBarProps {
   model: string;
 }
 
-export function FooterBar({ cwd, provider, model }: FooterBarProps): ReactNode {
+function FooterBarComponent({ cwd, provider, model }: FooterBarProps): ReactNode {
   const theme = useTheme();
   const shortCwd = cwd.replace(homedir(), '~');
   const providerName = PROVIDER_CONFIG[provider].name;
@@ -32,3 +32,5 @@ export function FooterBar({ cwd, provider, model }: FooterBarProps): ReactNode {
     </Box>
   );
 }
+
+export const FooterBar = memo(FooterBarComponent);

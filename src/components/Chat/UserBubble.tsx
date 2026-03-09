@@ -6,13 +6,13 @@ import { useTheme } from '../../theme/index.js';
 import { Panel } from '../ui/Panel.js';
 
 import { Box, Text } from 'ink';
-import type { ReactNode } from 'react';
+import { memo, type ReactNode } from 'react';
 
 interface UserBubbleProps {
   message: UserMessage;
 }
 
-export function UserBubble({ message }: UserBubbleProps): ReactNode {
+function UserBubbleComponent({ message }: UserBubbleProps): ReactNode {
   const theme = useTheme();
 
   return (
@@ -26,3 +26,5 @@ export function UserBubble({ message }: UserBubbleProps): ReactNode {
     </Box>
   );
 }
+
+export const UserBubble = memo(UserBubbleComponent);

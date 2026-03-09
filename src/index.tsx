@@ -14,12 +14,12 @@ const SET_TITLE = '\x1b]0;CLI AI\x07';
  * Main entry point
  */
 async function main(): Promise<void> {
-  // Start interactive session
   process.stdout.write(CLEAR_SCREEN + SET_TITLE);
 
   const { waitUntilExit } = render(<ErrorBoundary><App /></ErrorBoundary>, {
     // Enable incremental rendering to reduce flickering - only updates changed lines
     incrementalRendering: true,
+    maxFps: 30,
   });
 
   // Handle process signals: double-SIGINT within 2s forces exit

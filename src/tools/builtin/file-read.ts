@@ -20,9 +20,13 @@ const inputSchema = z.object({
   endLine: z.number().optional().describe('1-based end line'),
 });
 
-function validatePath(filePath: string, projectRoot: string): string | null {
+function validatePath(
+  filePath: string,
+  projectRoot: string,
+  allowAllPermissions: boolean,
+): string | null {
   const resolved = path.resolve(filePath);
-  if (!isWithinProjectRoot(resolved, projectRoot)) {
+  if (!isWithinProjectRoot(resolved, projectRoot, { bypass: allowAllPermissions })) {
     return `Path "${filePath}" is outside project root`;
   }
   return null;
@@ -65,11 +69,15 @@ When to use:
 
 Important:
 - Binary files are detected and rejected.
-- Paths outside the project root are rejected for security.`,
+- Paths outside the project root are rejected unless dangerous Allow All Permissions is enabled.`,
   inputSchema,
   defaultPermission: 'allow',
   async execute(input, context) {
-    const pathError = validatePath(input.filePath, context.projectRoot);
+    const pathError = validatePath(
+      input.filePath,
+      context.projectRoot,
+      context.allowAllPermissions,
+    );
     if (pathError) {
       return { kind: 'error', error: pathError };
     }

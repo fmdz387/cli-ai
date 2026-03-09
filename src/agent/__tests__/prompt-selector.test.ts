@@ -41,6 +41,7 @@ describe('assembleSystemPrompt', () => {
       cwd: '/tmp',
       platform: 'linux',
       isGitRepo: false,
+      allowAllPermissions: false,
       instructions: [],
     });
     expect(prompt).toContain('CLI AI');
@@ -54,6 +55,7 @@ describe('assembleSystemPrompt', () => {
       cwd: '/tmp',
       platform: 'linux',
       isGitRepo: true,
+      allowAllPermissions: false,
       instructions: [],
     });
     expect(prompt).toContain('<env>');
@@ -68,6 +70,7 @@ describe('assembleSystemPrompt', () => {
       cwd: '/tmp',
       platform: 'linux',
       isGitRepo: false,
+      allowAllPermissions: false,
       instructions: [],
     });
     expect(prompt).toContain('Planning multi-step work');
@@ -81,6 +84,7 @@ describe('assembleSystemPrompt', () => {
       cwd: '/tmp',
       platform: 'linux',
       isGitRepo: false,
+      allowAllPermissions: false,
       instructions: ['Instructions from /project/CLAUDE.md:\nAlways use tabs.'],
     });
     expect(prompt).toContain('Always use tabs');

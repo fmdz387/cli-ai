@@ -13,6 +13,7 @@ const defaultOptions: SystemPromptOptions = {
   model: 'claude-sonnet-4-5',
   provider: 'anthropic',
   isGitRepo: true,
+  allowAllPermissions: false,
 };
 
 describe('buildAgentSystemPrompt', () => {
@@ -75,6 +76,15 @@ describe('buildAgentSystemPrompt', () => {
     const prompt = await buildAgentSystemPrompt(defaultOptions);
     expect(prompt).toContain('<env>');
     expect(prompt).toContain('</env>');
+  });
+
+  it('includes dangerous permission override when enabled', async () => {
+    const prompt = await buildAgentSystemPrompt({
+      ...defaultOptions,
+      allowAllPermissions: true,
+    });
+    expect(prompt).toContain('Allow all permissions enabled');
+    expect(prompt).toContain('project-root path restrictions are disabled');
   });
 
   it('works with unknown model on openrouter without errors', async () => {

@@ -48,6 +48,7 @@ export class AgentExecutor {
       model: config.model,
       provider: config.provider,
       isGitRepo: detectGitRepo(config.context.cwd),
+      allowAllPermissions: config.allowAllPermissions,
     };
 
     const messages: AgentMessage[] = options.history
@@ -208,6 +209,7 @@ Reply with a brief text summary covering:
       cwd: config.context.cwd,
       shell: config.context.shell,
       signal,
+      allowAllPermissions: config.allowAllPermissions,
     };
 
     try {

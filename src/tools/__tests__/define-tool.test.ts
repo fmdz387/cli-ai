@@ -12,6 +12,7 @@ const stubContext: ToolContext = {
   cwd: '/tmp',
   shell: 'bash',
   signal: new AbortController().signal,
+  allowAllPermissions: false,
 };
 
 describe('defineTool', () => {

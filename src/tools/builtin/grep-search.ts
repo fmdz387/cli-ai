@@ -144,6 +144,7 @@ Usage notes:
 - Automatically excludes: node_modules, .git, dist, build, __pycache__, .venv, coverage, .cache, .next
 - Results include file path, line number, and matching line content.
 - Binary files are automatically skipped.
+- Paths outside the project root are rejected unless dangerous Allow All Permissions is enabled.
 
 When to use:
 - Finding where a function, variable, or pattern is used
@@ -159,7 +160,9 @@ When NOT to use:
       ? path.resolve(input.path)
       : context.projectRoot;
 
-    if (!isWithinProjectRoot(searchDir, context.projectRoot)) {
+    if (!isWithinProjectRoot(searchDir, context.projectRoot, {
+      bypass: context.allowAllPermissions,
+    })) {
       return { kind: 'error', error: 'Path is outside project root' };
     }
 

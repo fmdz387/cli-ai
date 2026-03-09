@@ -4,11 +4,23 @@
 
 import path from 'node:path';
 
+interface ProjectRootOptions {
+  bypass?: boolean;
+}
+
 /**
  * Check if a resolved path is within the project root.
  * Uses case-insensitive comparison on Windows and macOS.
  */
-export function isWithinProjectRoot(resolvedPath: string, projectRoot: string): boolean {
+export function isWithinProjectRoot(
+  resolvedPath: string,
+  projectRoot: string,
+  options?: ProjectRootOptions,
+): boolean {
+  if (options?.bypass) {
+    return true;
+  }
+
   const relative = path.relative(projectRoot, resolvedPath);
 
   if (relative.startsWith('..') || path.isAbsolute(relative)) {

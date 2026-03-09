@@ -16,6 +16,7 @@ export interface AssemblePromptOptions {
   cwd: string;
   platform: NodeJS.Platform;
   isGitRepo: boolean;
+  allowAllPermissions: boolean;
   instructions: string[];
 }
 
@@ -59,6 +60,7 @@ export function assembleSystemPrompt(options: AssemblePromptOptions): string {
       isGitRepo: options.isGitRepo,
       platform: options.platform,
       shell: options.shell,
+      allowAllPermissions: options.allowAllPermissions,
     }),
   );
 

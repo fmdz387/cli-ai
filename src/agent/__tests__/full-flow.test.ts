@@ -61,6 +61,7 @@ const baseConfig: AgentConfig = {
   provider: 'anthropic',
   model: 'claude-sonnet-4-5',
   apiKey: 'test-key',
+  allowAllPermissions: false,
   maxTurns: 20,
   maxTokensPerTurn: 4096,
   context: {
@@ -373,6 +374,7 @@ describe('Full Agentic Flow', () => {
       cwd: '/project',
       shell: 'bash' as const,
       signal: new AbortController().signal,
+      allowAllPermissions: false,
     };
 
     const readResult = await readTool.execute({ filePath: '/src/index.ts' }, stubContext);

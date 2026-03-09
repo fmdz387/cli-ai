@@ -79,6 +79,7 @@ vi.mock('../../../theme/index.js', () => ({
 
 const DEFAULT_TOGGLES = {
   contextEnabled: true,
+  allowAllPermissions: false,
   showExplanations: true,
   syntaxHighlighting: true,
   simpleMode: false,
@@ -98,6 +99,7 @@ function defaultConfig(overrides?: Partial<AppConfig>): AppConfig {
     maxOutputLines: 10,
     maxAlternatives: 3,
     contextEnabled: true,
+    allowAllPermissions: false,
     ...overrides,
   };
 }
@@ -471,9 +473,11 @@ describe('options tab', () => {
     expect(out).toContain('Customize your experience');
   });
 
-  it('shows all four toggle labels', () => {
+  it('shows all five toggle labels', () => {
     const out = output(renderPanel({ section: 'options' }));
     expect(out).toContain('Context');
+    expect(out).toContain('Allow all');
+    expect(out).toContain('permissions');
     expect(out).toContain('Explanations');
     expect(out).toContain('Syntax highlighting');
     expect(out).toContain('Simple mode');
@@ -482,6 +486,10 @@ describe('options tab', () => {
   it('shows toggle descriptions', () => {
     const out = output(renderPanel({ section: 'options' }));
     expect(out).toContain('Pass conversation history to AI');
+    expect(out).toContain('Skip all approval');
+    expect(out).toContain('prompts');
+    expect(out).toContain('Dangerous: also allows paths outside project');
+    expect(out).toContain('root');
     expect(out).toContain('Show command explanations');
     expect(out).toContain('Highlight command syntax');
     expect(out).toContain('Minimal interface');
@@ -493,6 +501,7 @@ describe('options tab', () => {
         section: 'options',
         toggles: {
           contextEnabled: true,
+          allowAllPermissions: false,
           showExplanations: true,
           syntaxHighlighting: false,
           simpleMode: false,
@@ -503,7 +512,7 @@ describe('options tab', () => {
     const checkCount = (out.match(/\[\u2713\]/g) ?? []).length;
     const uncheckCount = (out.match(/\[ \]/g) ?? []).length;
     expect(checkCount).toBe(2);
-    expect(uncheckCount).toBe(2);
+    expect(uncheckCount).toBe(3);
   });
 
   it('shows all checked when all enabled', () => {
@@ -512,6 +521,7 @@ describe('options tab', () => {
         section: 'options',
         toggles: {
           contextEnabled: true,
+          allowAllPermissions: true,
           showExplanations: true,
           syntaxHighlighting: true,
           simpleMode: true,
@@ -519,7 +529,7 @@ describe('options tab', () => {
       }),
     );
     const checkCount = (out.match(/\[\u2713\]/g) ?? []).length;
-    expect(checkCount).toBe(4);
+    expect(checkCount).toBe(5);
   });
 
   it('shows all unchecked when all disabled', () => {
@@ -528,6 +538,7 @@ describe('options tab', () => {
         section: 'options',
         toggles: {
           contextEnabled: false,
+          allowAllPermissions: false,
           showExplanations: false,
           syntaxHighlighting: false,
           simpleMode: false,
@@ -535,11 +546,11 @@ describe('options tab', () => {
       }),
     );
     const uncheckCount = (out.match(/\[ \]/g) ?? []).length;
-    expect(uncheckCount).toBe(4);
+    expect(uncheckCount).toBe(5);
   });
 
   it('focuses correct toggle by index', () => {
-    const out = output(renderPanel({ section: 'options', itemIndex: 2 }));
+    const out = output(renderPanel({ section: 'options', itemIndex: 3 }));
     const lines = out.split('\n');
     const syntaxLine = lines.find((l) => l.includes('Syntax highlighting'));
     expect(syntaxLine).toContain('>');
@@ -721,7 +732,7 @@ describe('item count boundaries', () => {
   });
 
   it('options tab: focuses last toggle', () => {
-    const out = output(renderPanel({ section: 'options', itemIndex: 3 }));
+    const out = output(renderPanel({ section: 'options', itemIndex: 4 }));
     const lines = out.split('\n');
     const simpleLine = lines.find((l) => l.includes('Simple mode'));
     expect(simpleLine).toContain('>');

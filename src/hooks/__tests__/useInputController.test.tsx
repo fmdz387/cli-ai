@@ -20,13 +20,20 @@ vi.mock('ink', async () => {
 
 function Harness({
   onToggle,
+  mode = 'config',
 }: {
   onToggle: (index: number) => void;
+  mode?: 'config' | 'text';
 }) {
   const [itemIndex, setItemIndex] = useState(0);
 
   useInputController({
-    mode: 'config',
+    mode,
+    textCallbacks: mode === 'text'
+      ? {
+          onSubmit: () => {},
+        }
+      : undefined,
     configCallbacks: {
       onNavigateSection: () => {},
       onJumpToSection: () => {},

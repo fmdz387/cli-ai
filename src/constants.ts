@@ -90,6 +90,7 @@ export const DEFAULT_CONFIG: AppConfig = {
   maxOutputLines: 10,
   maxAlternatives: 3,
   contextEnabled: true,
+  allowAllPermissions: false,
 };
 
 /**

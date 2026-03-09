@@ -14,6 +14,10 @@ interface CheckOptions {
   input: Record<string, unknown>;
 }
 
+interface PermissionGateOptions {
+  allowAll?: boolean;
+}
+
 function globToRegex(pattern: string): RegExp {
   const escaped = pattern
     .replace(/[.+^${}()|[\]\\]/g, '\\$&')
@@ -33,6 +37,11 @@ export class PermissionGate {
   private rules: PermissionRule[] = [];
   private toolDefaults = new Map<string, PermissionLevel>();
   private globalDefault: PermissionLevel = 'ask';
+  private allowAll: boolean;
+
+  constructor(options?: PermissionGateOptions) {
+    this.allowAll = options?.allowAll ?? false;
+  }
 
   registerDefaults(tools: ToolDefinition[]): void {
     for (const tool of tools) {
@@ -53,6 +62,10 @@ export class PermissionGate {
   }
 
   check(options: CheckOptions): PermissionLevel {
+    if (this.allowAll) {
+      return 'allow';
+    }
+
     if (this.sessionApprovals.get(options.toolName)) {
       return 'allow';
     }

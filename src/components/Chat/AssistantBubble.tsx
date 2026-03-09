@@ -13,7 +13,7 @@ import { ToolCallStatus } from '../Agent/ToolCallStatus.js';
 import { Spinner } from '../Spinner.js';
 
 import { Box, Text } from 'ink';
-import { useEffect, useState, type ReactNode } from 'react';
+import { memo, useEffect, useState, type ReactNode } from 'react';
 
 const CURSOR_FRAMES = ['\u2588', ' '];
 
@@ -22,7 +22,7 @@ interface AssistantBubbleProps {
   pendingPermission: PendingPermission | null;
 }
 
-export function AssistantBubble({
+function AssistantBubbleComponent({
   message,
   pendingPermission,
 }: AssistantBubbleProps): ReactNode {
@@ -116,3 +116,5 @@ export function AssistantBubble({
     </Box>
   );
 }
+
+export const AssistantBubble = memo(AssistantBubbleComponent);

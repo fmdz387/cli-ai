@@ -14,6 +14,7 @@ export interface SystemPromptOptions {
   model: string;
   provider: AIProvider;
   isGitRepo: boolean;
+  allowAllPermissions: boolean;
 }
 
 export async function buildAgentSystemPrompt(options: SystemPromptOptions): Promise<string> {
@@ -25,6 +26,7 @@ export async function buildAgentSystemPrompt(options: SystemPromptOptions): Prom
     cwd: options.cwd,
     platform: options.platform,
     isGitRepo: options.isGitRepo,
+    allowAllPermissions: options.allowAllPermissions,
     instructions,
   });
 }

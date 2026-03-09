@@ -37,7 +37,7 @@ function getItemCount(section: ConfigSection, provider: AIProvider): number {
     'provider': AI_PROVIDERS.length,
     'model': PROVIDER_MODELS[provider].length + 1, // +1 for custom model
     'api-keys': AI_PROVIDERS.length,
-    'options': 4,
+    'options': 5,
     'about': 0,
   };
   return counts[section];
@@ -106,8 +106,8 @@ describe('item counts', () => {
     expect(getItemCount('api-keys', 'anthropic')).toBe(AI_PROVIDERS.length);
   });
 
-  it('options section has exactly 4 toggles', () => {
-    expect(getItemCount('options', 'anthropic')).toBe(4);
+  it('options section has exactly 5 toggles', () => {
+    expect(getItemCount('options', 'anthropic')).toBe(5);
   });
 
   it('about section has 0 selectable items', () => {
@@ -234,18 +234,20 @@ describe('number key jump', () => {
 describe('toggle keys', () => {
   const TOGGLE_KEYS: readonly (keyof DisplayToggles)[] = [
     'contextEnabled',
+    'allowAllPermissions',
     'showExplanations',
     'syntaxHighlighting',
     'simpleMode',
   ] as const;
 
-  it('has exactly 4 toggle keys', () => {
-    expect(TOGGLE_KEYS).toHaveLength(4);
+  it('has exactly 5 toggle keys', () => {
+    expect(TOGGLE_KEYS).toHaveLength(5);
   });
 
   it('all toggle keys are valid DisplayToggles properties', () => {
     const sample: DisplayToggles = {
       contextEnabled: true,
+      allowAllPermissions: false,
       showExplanations: true,
       syntaxHighlighting: true,
       simpleMode: false,
@@ -257,9 +259,10 @@ describe('toggle keys', () => {
 
   it('toggle at index maps to correct key', () => {
     expect(TOGGLE_KEYS[0]).toBe('contextEnabled');
-    expect(TOGGLE_KEYS[1]).toBe('showExplanations');
-    expect(TOGGLE_KEYS[2]).toBe('syntaxHighlighting');
-    expect(TOGGLE_KEYS[3]).toBe('simpleMode');
+    expect(TOGGLE_KEYS[1]).toBe('allowAllPermissions');
+    expect(TOGGLE_KEYS[2]).toBe('showExplanations');
+    expect(TOGGLE_KEYS[3]).toBe('syntaxHighlighting');
+    expect(TOGGLE_KEYS[4]).toBe('simpleMode');
   });
 });
 
@@ -326,6 +329,10 @@ describe('DEFAULT_CONFIG', () => {
 
   it('has contextEnabled true by default', () => {
     expect(DEFAULT_CONFIG.contextEnabled).toBe(true);
+  });
+
+  it('has allowAllPermissions false by default', () => {
+    expect(DEFAULT_CONFIG.allowAllPermissions).toBe(false);
   });
 });
 

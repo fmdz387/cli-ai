@@ -61,6 +61,7 @@ const baseConfig: AgentConfig = {
   provider: 'anthropic',
   model: 'claude-sonnet-4-5',
   apiKey: 'test-key',
+  allowAllPermissions: false,
   maxTurns: 10,
   maxTokensPerTurn: 4096,
   context: {
@@ -291,5 +292,46 @@ describe('AgentExecutor', () => {
 
     // Provider should have been called twice: once for the tool loop, once for the summary
     expect(provider.sendWithTools).toHaveBeenCalledTimes(2);
+  });
+
+  it('skips permission prompts when allowAllPermissions is enabled', async () => {
+    const adapter = createMockAdapter([
+      {
+        text: '',
+        toolCalls: [{ id: 'tc1', name: 'bash_execute', input: { command: 'rm -rf /tmp/test' } }],
+        isToolCall: true,
+        usage: { inputTokens: 10, outputTokens: 5 },
+      },
+      {
+        text: 'Executed without asking.',
+        toolCalls: [],
+        isToolCall: false,
+        usage: { inputTokens: 10, outputTokens: 5 },
+      },
+    ]);
+    const provider = createMockProvider(2);
+    const registry = new ToolRegistry();
+    registry.register({
+      ...mockTool('bash_execute', { kind: 'success', output: 'ok' }),
+      defaultPermission: 'ask',
+    });
+    const permissions = new PermissionGate({ allowAll: true });
+    permissions.registerDefaults(registry.list());
+    const contextManager = new ContextManager();
+    const requestPermission = vi.fn(async () => 'deny' as const);
+
+    const executor = new AgentExecutor({ provider, adapter, registry, permissions, contextManager });
+    const controller = new AbortController();
+
+    const result = await executor.execute({
+      query: 'run dangerous command',
+      config: { ...baseConfig, allowAllPermissions: true },
+      signal: controller.signal,
+      onEvent: () => {},
+      requestPermission,
+    });
+
+    expect(result.finalResponse).toBe('Executed without asking.');
+    expect(requestPermission).not.toHaveBeenCalled();
   });
 });

@@ -62,12 +62,15 @@ export function createExecutorDeps(
   provider: AIProvider,
   model: string,
   apiKey: string,
+  options?: { allowAllPermissions?: boolean },
 ): ExecutorDependencies {
   const providerInstance = createProvider(provider, apiKey, model);
   const adapter = createAdapter(provider);
   const registry = new ToolRegistry();
   registerBuiltinTools(registry);
-  const permissions = new PermissionGate();
+  const permissions = new PermissionGate({
+    allowAll: options?.allowAllPermissions ?? false,
+  });
   permissions.registerDefaults(registry.list());
   const contextManager = new ContextManager();
 

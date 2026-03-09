@@ -92,6 +92,7 @@ Usage notes:
 - Searches from the project root by default, or from the specified path.
 - Automatically excludes: node_modules, .git, dist, build, __pycache__, .venv, coverage, .cache, .next
 - Results are limited to 200 matches.
+- Paths outside the project root are rejected unless dangerous Allow All Permissions is enabled.
 
 When to use:
 - Finding files by name or extension
@@ -107,7 +108,9 @@ When NOT to use:
       ? path.resolve(input.path)
       : context.projectRoot;
 
-    if (!isWithinProjectRoot(searchDir, context.projectRoot)) {
+    if (!isWithinProjectRoot(searchDir, context.projectRoot, {
+      bypass: context.allowAllPermissions,
+    })) {
       return { kind: 'error', error: 'Path is outside project root' };
     }
 

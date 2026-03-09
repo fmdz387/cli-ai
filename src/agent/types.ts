@@ -64,6 +64,7 @@ export interface AgentConfig {
   provider: AIProvider;
   model: string;
   apiKey: string;
+  allowAllPermissions: boolean;
   maxTurns: number;
   maxTokensPerTurn: number;
   context: SessionContext;
