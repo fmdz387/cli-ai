@@ -106,6 +106,12 @@ Guidance:
 - For entrypoint, packaging, or emitted-output changes, run `pnpm build`.
 - Avoid running `pnpm format` across the repo unless the task is explicitly formatting-focused.
 
+## Scripts
+
+- Use `node scripts/version.js <version>` to update both `package.json` and `src/constants.ts`.
+- Use `node scripts/tag.js` after the release commit to create the matching git tag.
+- Prefer repo scripts over manual edits for release/version workflows.
+
 ## Testing Expectations
 
 - Add or update tests near the changed code when practical.
