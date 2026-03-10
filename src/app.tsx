@@ -7,7 +7,7 @@ import { createExecutorDeps } from './agent/create-executor.js';
 import { AgentExecutor, type ExecutorDependencies } from './agent/executor.js';
 import type { AgentConfig, ExecutorResult, ExecutorRunOptions } from './agent/types.js';
 import { commandRegistry } from './commands/index.js';
-import { PROVIDER_MODELS, getProviderModels, type ConfigSection } from './commands/types.js';
+import { getProviderModels, type ConfigSection } from './commands/types.js';
 import type { SlashCommand } from './commands/types.js';
 import { ApiKeySetup } from './components/ApiKeySetup.js';
 import { ChatView } from './components/Chat/index.js';
@@ -23,6 +23,7 @@ import { useChatSession } from './hooks/useChatSession.js';
 import { useCommandPalette } from './hooks/useCommandPalette.js';
 import { useConfig } from './hooks/useConfig.js';
 import { useInputController, type InputMode } from './hooks/useInputController.js';
+import { useModelCatalogVersion } from './hooks/useModelCatalog.js';
 import { detectShell } from './lib/platform.js';
 import {
   getApiKey,
@@ -33,6 +34,7 @@ import {
   saveApiKey,
   setConfig,
 } from './lib/secure-storage.js';
+import { getSessionContextMetrics } from './lib/session-context-metrics.js';
 import { ThemeProvider } from './theme/index.js';
 import type { AIProvider, AppConfig } from './types/index.js';
 
@@ -74,6 +76,7 @@ export function App(): ReactNode {
     openHelp,
     closeHelp,
   } = useChatSession();
+  const modelCatalogVersion = useModelCatalogVersion();
 
   // Config panel state
   const [configItemIndex, setConfigItemIndex] = useState(0);
@@ -92,6 +95,10 @@ export function App(): ReactNode {
   const [editingApiKeyProvider, setEditingApiKeyProvider] = useState<AIProvider | null>(null);
   const [isEditingCustomModel, setIsEditingCustomModel] = useState(false);
   const [currentProvider, setCurrentProvider] = useState<AIProvider>(() => getConfig().provider);
+  const sessionContextMetrics = useMemo(
+    () => getSessionContextMetrics(chatStore.messages, currentProvider, selectedModel),
+    [chatStore.messages, currentProvider, selectedModel, modelCatalogVersion],
+  );
 
   const storageInfo: StorageInfo = useMemo(
     () => getStorageInfo(currentProvider),
@@ -117,7 +124,12 @@ export function App(): ReactNode {
       maxOutputLines: 10,
       maxAlternatives: 3,
     }),
-    [currentProvider, selectedModel, displayToggles.allowAllPermissions, displayToggles.contextEnabled],
+    [
+      currentProvider,
+      selectedModel,
+      displayToggles.allowAllPermissions,
+      displayToggles.contextEnabled,
+    ],
   );
 
   const cachedDepsRef = useRef<{ key: string; deps: ExecutorDependencies } | null>(null);
@@ -403,15 +415,16 @@ export function App(): ReactNode {
 
   const getItemCount = useCallback(
     (section: ConfigSection): number => {
-        const counts: Record<ConfigSection, number> = {
-          provider: AI_PROVIDERS.length,
-          model: getProviderModels(currentProvider, {
+      const counts: Record<ConfigSection, number> = {
+        provider: AI_PROVIDERS.length,
+        model:
+          getProviderModels(currentProvider, {
             openaiAuthMode: getOpenAIAuthMode(),
           }).length + 1,
-          'api-keys': AI_PROVIDERS.length,
-          options: 5,
-          about: 0,
-        };
+        'api-keys': AI_PROVIDERS.length,
+        options: 5,
+        about: 0,
+      };
       return counts[section];
     },
     [currentProvider],
@@ -613,11 +626,7 @@ export function App(): ReactNode {
     <ThemeProvider>
       <Box flexDirection='column'>
         {/* Compact status bar header */}
-        <StatusBar
-          tokenCount={
-            chatStore.cumulativeUsage.totalInputTokens + chatStore.cumulativeUsage.totalOutputTokens
-          }
-        />
+        <StatusBar sessionContext={sessionContextMetrics} />
 
         {/* Chat messages */}
         <ChatView messages={chatStore.messages} pendingPermission={chatStore.pendingPermission} />

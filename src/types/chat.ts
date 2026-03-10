@@ -1,11 +1,11 @@
 /**
  * Chat message types for the conversational UI
  */
-import type { AgentMessage, AgentToolCall, CumulativeUsage } from '../agent/types.js';
+import type { AgentMessage, AgentToolCall, CumulativeUsage, TokenUsage } from '../agent/types.js';
+import type { ConfigSection, SlashCommand } from '../commands/types.js';
 import type { ToolCallStatusType } from '../components/Agent/ToolCallStatus.js';
 import type { ToolResult } from '../tools/types.js';
 import type { AgentToolCallInfo } from './index.js';
-import type { ConfigSection, SlashCommand } from '../commands/types.js';
 
 /**
  * A tool call entry displayed inline in an assistant message
@@ -52,6 +52,7 @@ export interface AssistantMessage {
   parts: ContentPart[];
   isStreaming: boolean;
   timestamp: number;
+  usage?: TokenUsage;
 }
 
 /**
@@ -107,6 +108,7 @@ export type ChatAction =
   | { type: 'AGENT_TEXT_DELTA'; text: string }
   | { type: 'AGENT_TOOL_START'; toolCall: AgentToolCall }
   | { type: 'AGENT_TOOL_RESULT'; toolCallId: string; result: ToolResult }
+  | { type: 'AGENT_TURN_COMPLETE'; usage: TokenUsage }
   | { type: 'AGENT_DONE'; text: string }
   | { type: 'AGENT_ERROR'; error: string }
   | { type: 'AGENT_ABORT' }

@@ -57,7 +57,7 @@ export function useChatAgent({
           dispatch({ type: 'AGENT_TOOL_RESULT', toolCallId: event.toolCallId, result: event.result });
           break;
         case 'turn_complete':
-          // Token usage tracked at AGENT_DONE
+          dispatch({ type: 'AGENT_TURN_COMPLETE', usage: event.usage });
           break;
         case 'error':
           dispatch({ type: 'AGENT_ERROR', error: event.error.message });

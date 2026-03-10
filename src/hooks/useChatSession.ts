@@ -196,6 +196,21 @@ function chatReducer(state: ChatStore, action: ChatAction): ChatStore {
       };
     }
 
+    case 'AGENT_TURN_COMPLETE': {
+      return {
+        ...state,
+        messages: updateLastAssistant(state.messages, (msg) => ({
+          ...msg,
+          usage: action.usage,
+        })),
+        cumulativeUsage: {
+          totalInputTokens: state.cumulativeUsage.totalInputTokens + action.usage.inputTokens,
+          totalOutputTokens: state.cumulativeUsage.totalOutputTokens + action.usage.outputTokens,
+          turns: state.cumulativeUsage.turns + 1,
+        },
+      };
+    }
+
     case 'AGENT_DONE': {
       const lastAssistant = getLastAssistant(state.messages);
       const partsText = lastAssistant ? getTextFromParts(lastAssistant.parts) : '';
